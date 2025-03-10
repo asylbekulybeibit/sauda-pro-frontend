@@ -10,15 +10,10 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
   const acceptMutation = useMutation({
     mutationFn: () => acceptInvite(invite.id),
     onSuccess: async () => {
-      // Сначала инвалидируем все запросы
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['pendingInvites'] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] }),
-        queryClient.invalidateQueries({ queryKey: ['userRoles'] }),
-      ]);
-
-      // Затем ждем завершения рефетча профиля
-      await queryClient.refetchQueries({ queryKey: ['profile'] });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      queryClient.invalidateQueries({ queryKey: ['pendingInvites'] });
+      queryClient.invalidateQueries({ queryKey: ['userRoles'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
   });
 

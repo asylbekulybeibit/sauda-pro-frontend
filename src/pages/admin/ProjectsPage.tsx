@@ -15,9 +15,16 @@ const UserRoleCard = ({ role, user }: Shop['userRoles'][0]) => {
     cashier: '💰',
   }[role];
 
+  const roleName = {
+    owner: 'Владелец',
+    manager: 'Менеджер',
+    cashier: 'Кассир',
+  }[role];
+
   return (
     <div className="flex items-center space-x-2 text-sm">
       <span>{roleEmoji}</span>
+      <span className="text-gray-500">{roleName}</span>
       <span className="font-medium">
         {user.firstName} {user.lastName}
       </span>

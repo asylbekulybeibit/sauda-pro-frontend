@@ -216,7 +216,7 @@ export const acceptInvite = async (id: string): Promise<Invite> => {
 };
 
 export const cancelInvite = async (id: string): Promise<void> => {
-  await api.delete(`/invites/${id}`);
+  await api.post(`/invites/${id}/reject`);
 };
 
 // Получение списка ожидающих инвайтов для текущего пользователя

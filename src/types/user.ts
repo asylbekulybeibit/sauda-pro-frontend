@@ -15,6 +15,7 @@ export interface User {
       id: string;
       name: string;
       type: 'shop' | 'warehouse' | 'point_of_sale';
+      address?: string;
     };
   }[];
 }

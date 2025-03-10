@@ -113,7 +113,7 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
           <option value="">Выберите проект</option>
           {shops?.map((shop) => (
             <option key={shop.id} value={shop.id}>
-              {shop.name}
+              {shop.name} {shop.address && `(${shop.address})`}
             </option>
           ))}
         </select>

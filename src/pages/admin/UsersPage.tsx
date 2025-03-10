@@ -59,50 +59,62 @@ const ContactInfo = ({
 
 // Компонент для отображения ролей пользователя
 const UserRoles = ({ user }: { user: User }) => {
-  if (user.isSuperAdmin) {
-    return <span className="text-violet-600 font-medium">👑 Суперадмин</span>;
-  }
-
-  if (user.roles.length === 0) {
-    return <span className="text-gray-400">Нет ролей</span>;
+  if (!user.isSuperAdmin && user.roles.length === 0) {
+    return <span className="text-gray-400">—</span>;
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
+      {user.isSuperAdmin && (
+        <div className="flex items-center space-x-2 border-b pb-2 mb-2">
+          <span>👑</span>
+          <span className="font-medium">Суперадмин</span>
+        </div>
+      )}
       {user.roles.map((role) => (
-        <div key={role.id} className="flex items-center text-sm">
-          <span className="mr-1">
+        <div key={role.id} className="flex items-center space-x-2">
+          <span>
             {role.role === 'owner'
               ? '👔'
               : role.role === 'manager'
               ? '👨‍💼'
               : '💰'}
           </span>
-          <span className="font-medium capitalize">{role.role}</span>
+          <span>
+            {role.role === 'owner'
+              ? 'Владелец'
+              : role.role === 'manager'
+              ? 'Менеджер'
+              : 'Кассир'}
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-// Компонент для отображения проектов пользователя
+// Убираем отдельный компонент UserProjects, так как теперь проекты отображаются вместе с ролями
 const UserProjects = ({ user }: { user: User }) => {
-  if (user.isSuperAdmin || user.roles.length === 0) {
+  if (!user.roles.length) {
     return <span className="text-gray-400">—</span>;
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
+      {user.isSuperAdmin && <div className="h-[38px]" />}
       {user.roles.map((role) => (
-        <div key={role.id} className="flex items-center text-sm">
+        <div key={role.id} className="flex items-center space-x-2">
           <span className="text-gray-600">{role.shop.name}</span>
-          <span className="ml-1 text-gray-400">
+          <span className="text-gray-400">
             {role.shop.type === 'shop'
               ? '🏪'
               : role.shop.type === 'warehouse'
               ? '🏭'
               : '💳'}
           </span>
+          {role.shop.address && (
+            <span className="text-gray-500">({role.shop.address})</span>
+          )}
         </div>
       ))}
     </div>
