@@ -12,6 +12,8 @@ import ProfilePage from './pages/profile/ProfilePage';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import ProjectsPage from './pages/admin/ProjectsPage';
+import UsersPage from './pages/admin/UsersPage';
+import InvitesPage from './pages/admin/InvitesPage';
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -38,8 +40,6 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
 }
 
 // Заглушки для страниц админки (позже заменим на реальные компоненты)
-const UsersPage = () => <div>Страница пользователей</div>;
-const InvitesPage = () => <div>Страница инвайтов</div>;
 const ReportsPage = () => <div>Страница отчетов</div>;
 
 // Заглушки для дашбордов

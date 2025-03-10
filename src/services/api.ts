@@ -219,14 +219,25 @@ export const cancelInvite = async (id: string): Promise<void> => {
   await api.delete(`/invites/${id}`);
 };
 
+// Получение списка ожидающих инвайтов для текущего пользователя
+export const getPendingInvites = async (): Promise<Invite[]> => {
+  const response = await api.get('/invites/pending');
+  return response.data;
+};
+
+// Отклонение инвайта
+export const rejectInvite = async (inviteId: string): Promise<void> => {
+  await api.post(`/invites/${inviteId}/reject`);
+};
+
 // Методы для работы с пользователями
 export const getUsers = async (): Promise<User[]> => {
-  const response = await api.get('/users');
+  const response = await api.get('/admin/users');
   return response.data;
 };
 
 export const getUser = async (id: string): Promise<User> => {
-  const response = await api.get(`/users/${id}`);
+  const response = await api.get(`/admin/users/${id}`);
   return response.data;
 };
 
@@ -234,8 +245,12 @@ export const updateUser = async (
   id: string,
   data: UpdateUserDto
 ): Promise<User> => {
-  const response = await api.patch(`/users/${id}`, data);
+  const response = await api.patch(`/admin/users/${id}`, data);
   return response.data;
+};
+
+export const deleteUser = async (id: string): Promise<void> => {
+  await api.delete(`/admin/users/${id}`);
 };
 
 // Методы для работы со статистикой

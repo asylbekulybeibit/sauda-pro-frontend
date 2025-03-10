@@ -1,127 +1,115 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getUsers, updateUser } from '@/services/api';
+import { getUsers, updateUser, deleteUser } from '@/services/api';
 import { User } from '@/types/user';
 import { formatPhoneNumber } from '@/utils/phone';
 import { Modal } from '@/components/ui/modal';
 
-// Компонент карточки пользователя
-const UserCard = ({ user }: { user: User }) => {
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const queryClient = useQueryClient();
-
-  const updateStatusMutation = useMutation({
-    mutationFn: (isActive: boolean) => updateUser(user.id, { isActive }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    },
-  });
-
-  const handleToggleStatus = () => {
-    if (
-      window.confirm(
-        `Вы уверены, что хотите ${
-          user.isActive ? 'деактивировать' : 'активировать'
-        } этого пользователя?`
-      )
-    ) {
-      updateStatusMutation.mutate(!user.isActive);
-    }
+// Компонент для отображения контактной информации
+const ContactInfo = ({
+  phone,
+  firstName,
+  lastName,
+  email,
+}: {
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}) => {
+  const openWhatsApp = () => {
+    // Убираем все нецифровые символы из номера
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}`, '_blank');
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg shadow-sm p-6"
-    >
-      {/* Заголовок и действия */}
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">
-            {user.firstName} {user.lastName}
-            {user.isSuperAdmin && (
-              <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
-                Суперадмин
-              </span>
-            )}
-          </h3>
-          <div className="text-sm text-gray-500">
-            {formatPhoneNumber(user.phone)}
-          </div>
-          {user.email && (
-            <div className="text-sm text-gray-500">{user.email}</div>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="p-2 text-gray-600 hover:text-indigo-600 transition-colors"
-            title="Редактировать"
+    <div className="space-y-2">
+      <div className="flex items-center space-x-2">
+        <span className="text-gray-900">{phone}</span>
+        <button
+          onClick={openWhatsApp}
+          className="text-green-600 hover:text-green-700 p-1.5 rounded-full hover:bg-green-50 transition-colors"
+          title="Открыть WhatsApp"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            ✏️
-          </button>
-          <button
-            onClick={handleToggleStatus}
-            className={`p-2 ${
-              user.isActive
-                ? 'text-green-600 hover:text-green-700'
-                : 'text-gray-400 hover:text-gray-500'
-            } transition-colors`}
-            title={user.isActive ? 'Деактивировать' : 'Активировать'}
-          >
-            {user.isActive ? '✅' : '❌'}
-          </button>
-        </div>
+            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824z" />
+          </svg>
+        </button>
       </div>
-
-      {/* Роли в проектах */}
-      {user.roles.length > 0 && (
-        <div>
-          <div className="text-sm font-medium text-gray-500 mb-2">
-            Роли в проектах
-          </div>
-          <div className="space-y-2">
-            {user.roles.map((role) => (
-              <div
-                key={role.id}
-                className="flex items-center space-x-2 text-sm"
-              >
-                <span>
-                  {role.role === 'owner' && '👔'}
-                  {role.role === 'manager' && '👨‍💼'}
-                  {role.role === 'cashier' && '💰'}
-                </span>
-                <span className="font-medium">{role.shop.name}</span>
-                <span className="text-gray-500">
-                  (
-                  {role.role === 'owner'
-                    ? 'Владелец'
-                    : role.role === 'manager'
-                    ? 'Менеджер'
-                    : 'Кассир'}
-                  )
-                </span>
-              </div>
-            ))}
-          </div>
+      {(firstName || lastName) && (
+        <div className="font-medium text-gray-900">
+          {firstName} {lastName}
         </div>
       )}
-
-      {/* Модальное окно редактирования */}
-      <Modal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        title="Редактирование пользователя"
-      >
-        <EditUserForm user={user} onClose={() => setIsEditModalOpen(false)} />
-      </Modal>
-    </motion.div>
+      {email && (
+        <div className="text-sm text-gray-500 hover:text-gray-700">
+          <a href={`mailto:${email}`}>{email}</a>
+        </div>
+      )}
+    </div>
   );
 };
 
-// Компонент формы редактирования пользователя
+// Компонент для отображения ролей пользователя
+const UserRoles = ({ user }: { user: User }) => {
+  if (user.isSuperAdmin) {
+    return <span className="text-violet-600 font-medium">👑 Суперадмин</span>;
+  }
+
+  if (user.roles.length === 0) {
+    return <span className="text-gray-400">Нет ролей</span>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {user.roles.map((role) => (
+        <div key={role.id} className="flex items-center text-sm">
+          <span className="mr-1">
+            {role.role === 'owner'
+              ? '👔'
+              : role.role === 'manager'
+              ? '👨‍💼'
+              : '💰'}
+          </span>
+          <span className="font-medium capitalize">{role.role}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Компонент для отображения проектов пользователя
+const UserProjects = ({ user }: { user: User }) => {
+  if (user.isSuperAdmin || user.roles.length === 0) {
+    return <span className="text-gray-400">—</span>;
+  }
+
+  return (
+    <div className="space-y-1">
+      {user.roles.map((role) => (
+        <div key={role.id} className="flex items-center text-sm">
+          <span className="text-gray-600">{role.shop.name}</span>
+          <span className="ml-1 text-gray-400">
+            {role.shop.type === 'shop'
+              ? '🏪'
+              : role.shop.type === 'warehouse'
+              ? '🏭'
+              : '💳'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Форма редактирования пользователя
 const EditUserForm = ({
   user,
   onClose,
@@ -135,106 +123,64 @@ const EditUserForm = ({
     lastName: user.lastName || '',
     email: user.email || '',
     isActive: user.isActive,
-    isSuperAdmin: user.isSuperAdmin,
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const updateMutation = useMutation({
-    mutationFn: () => updateUser(user.id, formData),
+    mutationFn: (data: Parameters<typeof updateUser>[1]) =>
+      updateUser(user.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       onClose();
     },
-    onError: (error: any) => {
-      if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
-      } else {
-        setErrors({ general: 'Произошла ошибка при обновлении пользователя' });
-      }
-    },
   });
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Неверный формат email';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      updateMutation.mutate();
-    }
+    updateMutation.mutate(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {errors.general && (
-        <div className="p-3 bg-red-100 text-red-700 rounded-lg">
-          {errors.general}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Имя</label>
+          <input
+            type="text"
+            value={formData.firstName}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, firstName: e.target.value }))
+            }
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          />
         </div>
-      )}
-
-      {/* Имя */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Имя
-        </label>
-        <input
-          type="text"
-          value={formData.firstName}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, firstName: e.target.value }))
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="Введите имя"
-        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Фамилия
+          </label>
+          <input
+            type="text"
+            value={formData.lastName}
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, lastName: e.target.value }))
+            }
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          />
+        </div>
       </div>
 
-      {/* Фамилия */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Фамилия
-        </label>
-        <input
-          type="text"
-          value={formData.lastName}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, lastName: e.target.value }))
-          }
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="Введите фамилию"
-        />
-      </div>
-
-      {/* Email */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email
-        </label>
+        <label className="block text-sm font-medium text-gray-700">Email</label>
         <input
           type="email"
           value={formData.email}
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, email: e.target.value }))
           }
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-            errors.email ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="Введите email"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
         />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-        )}
       </div>
 
-      {/* Статус */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center">
         <input
           type="checkbox"
           id="isActive"
@@ -242,45 +188,25 @@ const EditUserForm = ({
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
           }
-          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+          className="h-4 w-4 rounded border-gray-300 text-indigo-600"
         />
-        <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+        <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
           Активен
         </label>
       </div>
 
-      {/* Суперадмин */}
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="isSuperAdmin"
-          checked={formData.isSuperAdmin}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, isSuperAdmin: e.target.checked }))
-          }
-          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-        />
-        <label
-          htmlFor="isSuperAdmin"
-          className="text-sm font-medium text-gray-700"
-        >
-          Суперадмин
-        </label>
-      </div>
-
-      {/* Кнопки */}
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
         >
           Отмена
         </button>
         <button
           type="submit"
           disabled={updateMutation.isPending}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
         >
           {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
         </button>
@@ -289,117 +215,232 @@ const EditUserForm = ({
   );
 };
 
+// Компонент подтверждения удаления
+const DeleteConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isDeleting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+}) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Подтверждение удаления">
+      <div className="space-y-4">
+        <p className="text-gray-700">
+          Вы уверены, что хотите удалить этого пользователя? Он больше не сможет
+          войти в систему без нового приглашения.
+        </p>
+        <div className="flex justify-end space-x-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+            disabled={isDeleting}
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+          >
+            {isDeleting ? 'Удаление...' : 'Удалить'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 // Основной компонент страницы
 export default function UsersPage() {
-  const [filter, setFilter] = useState<{
-    status?: boolean;
-    search?: string;
-    role?: string;
-  }>({});
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const queryClient = useQueryClient();
 
-  // Запрос списка пользователей
-  const { data: users, isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+
+  const handleDeleteUser = async (userId: string) => {
+    setUserToDelete(userId);
+  };
+
+  const confirmDelete = async () => {
+    if (userToDelete) {
+      await deleteMutation.mutate(userToDelete);
+      setUserToDelete(null);
+    }
+  };
+
   // Фильтрация пользователей
-  const filteredUsers = users?.filter((user) => {
-    if (filter.status !== undefined && user.isActive !== filter.status)
-      return false;
-    if (
-      filter.search &&
-      !`${user.firstName} ${user.lastName} ${user.phone} ${user.email}`
-        .toLowerCase()
-        .includes(filter.search.toLowerCase())
-    )
-      return false;
-    if (filter.role && !user.roles.some((r) => r.role === filter.role))
-      return false;
-    return true;
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      searchQuery === '' ||
+      user.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole =
+      roleFilter === 'all' ||
+      (roleFilter === 'superadmin' && user.isSuperAdmin) ||
+      (roleFilter === 'owner' && user.roles.some((r) => r.role === 'owner')) ||
+      (roleFilter === 'manager' &&
+        user.roles.some((r) => r.role === 'manager')) ||
+      (roleFilter === 'cashier' &&
+        user.roles.some((r) => r.role === 'cashier')) ||
+      (roleFilter === 'no-role' && user.roles.length === 0);
+
+    return matchesSearch && matchesRole;
   });
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Заголовок */}
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Пользователи</h1>
       </div>
 
       {/* Фильтры */}
-      <div className="bg-white rounded-lg shadow-sm p-4 space-y-4">
-        <div className="flex items-center space-x-4">
-          {/* Поиск */}
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Поиск по имени, телефону или email..."
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              value={filter.search || ''}
-              onChange={(e) =>
-                setFilter((prev) => ({ ...prev, search: e.target.value }))
-              }
-            />
-          </div>
-
-          {/* Фильтр по роли */}
-          <select
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={filter.role || ''}
-            onChange={(e) =>
-              setFilter((prev) => ({
-                ...prev,
-                role: e.target.value || undefined,
-              }))
-            }
-          >
-            <option value="">Все роли</option>
-            <option value="owner">Владельцы</option>
-            <option value="manager">Менеджеры</option>
-            <option value="cashier">Кассиры</option>
-          </select>
-
-          {/* Фильтр по статусу */}
-          <select
-            className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            value={
-              filter.status === undefined
-                ? ''
-                : filter.status
-                ? 'active'
-                : 'inactive'
-            }
-            onChange={(e) =>
-              setFilter((prev) => ({
-                ...prev,
-                status:
-                  e.target.value === ''
-                    ? undefined
-                    : e.target.value === 'active',
-              }))
-            }
-          >
-            <option value="">Все статусы</option>
-            <option value="active">Активные</option>
-            <option value="inactive">Неактивные</option>
-          </select>
+      <div className="flex space-x-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Поиск по телефону, имени или email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-4 py-2"
+          />
         </div>
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          className="rounded-md border border-gray-300 px-4 py-2"
+        >
+          <option value="all">Все роли</option>
+          <option value="superadmin">Суперадмины</option>
+          <option value="owner">Владельцы</option>
+          <option value="manager">Менеджеры</option>
+          <option value="cashier">Кассиры</option>
+          <option value="no-role">Без роли</option>
+        </select>
       </div>
 
-      {/* Список пользователей */}
-      <div className="grid grid-cols-1 gap-6">
-        {filteredUsers?.map((user) => (
-          <UserCard key={user.id} user={user} />
-        ))}
+      {/* Таблица пользователей */}
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Контактная информация
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Роли
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Проекты
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Статус
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Действия
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredUsers.map((user) => (
+              <motion.tr
+                key={user.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="hover:bg-gray-50"
+              >
+                <td className="px-6 py-4">
+                  <ContactInfo
+                    phone={user.phone}
+                    firstName={user.firstName}
+                    lastName={user.lastName}
+                    email={user.email}
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <UserRoles user={user} />
+                </td>
+                <td className="px-6 py-4">
+                  <UserProjects user={user} />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {user.isActive ? 'Активен' : 'Неактивен'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <button
+                    onClick={() => handleDeleteUser(user.id)}
+                    className="text-red-600 hover:text-red-900 font-medium"
+                    disabled={deleteMutation.isPending}
+                  >
+                    Удалить
+                  </button>
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {/* Модальное окно редактирования */}
+      <Modal
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        title="Редактирование пользователя"
+      >
+        {selectedUser && (
+          <EditUserForm
+            user={selectedUser}
+            onClose={() => setSelectedUser(null)}
+          />
+        )}
+      </Modal>
+
+      {/* Модальное окно подтверждения удаления */}
+      <DeleteConfirmationModal
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={confirmDelete}
+        isDeleting={deleteMutation.isPending}
+      />
     </div>
   );
 }

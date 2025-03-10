@@ -12,7 +12,6 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     phone: '',
-    email: '',
     role: 'cashier' as RoleType,
     shopId: '',
   });
@@ -47,11 +46,6 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
       normalizePhoneNumber(formData.phone);
     } catch {
       newErrors.phone = 'Неверный формат телефона';
-    }
-
-    // Проверка email
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Неверный формат email';
     }
 
     // Проверка выбора магазина
@@ -99,27 +93,6 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
         />
         {errors.phone && (
           <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-        )}
-      </div>
-
-      {/* Email */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Email
-        </label>
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, email: e.target.value }))
-          }
-          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-            errors.email ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="example@email.com"
-        />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-600">{errors.email}</p>
         )}
       </div>
 
