@@ -3,7 +3,10 @@ import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { formatPhoneNumber } from '@/utils/phone';
+import { formatPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
+import { generateOTP, verifyOTP } from '@/services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '@/store/authStore';
 
 const loginSchema = z.object({
   phone: z.string().min(1, 'Введите номер телефона'),
@@ -13,6 +16,12 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [digits, setDigits] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { setIsAuthenticated } = useAuthStore();
 
   const {
     register,
@@ -66,8 +75,68 @@ export default function LoginPage() {
     }
   };
 
-  const onSubmit = (data: LoginForm) => {
-    console.log(data);
+  const onSubmit = async (data: LoginForm) => {
+    try {
+      // Проверяем, что номер телефона полный (10 цифр)
+      if (digits.length !== 10) {
+        setError('Введите полный номер телефона');
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      const phone = normalizePhoneNumber(digits);
+      console.log('Исходные цифры:', digits);
+      console.log('Нормализованный номер:', phone);
+      console.log(
+        'Отправляем запрос на:',
+        `${
+          import.meta.env.VITE_API_URL || 'http://localhost:3000'
+        }/auth/otp/generate`
+      );
+
+      await generateOTP(phone);
+      setShowOtpInput(true);
+    } catch (error: any) {
+      console.log('Полная ошибка:', error);
+      setError(
+        error.response?.data?.message ||
+          'Ошибка при отправке кода. Попробуйте позже.'
+      );
+      console.error('Error generating OTP:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (otpCode.length !== 4) {
+      setError('Код должен состоять из 4 цифр');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      const phone = normalizePhoneNumber(digits);
+      const response = await verifyOTP(phone, otpCode);
+
+      // Сохраняем токен
+      localStorage.setItem('accessToken', response.accessToken);
+
+      // Устанавливаем состояние аутентификации
+      setIsAuthenticated(true);
+
+      console.log('Аутентификация успешна, перенаправляем на /profile');
+
+      // Перенаправляем на страницу профиля
+      navigate('/profile', { replace: true });
+    } catch (error) {
+      setError('Неверный код. Попробуйте еще раз.');
+      console.error('Error verifying OTP:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -118,6 +187,7 @@ export default function LoginPage() {
                     onKeyDown={handleKeyDown}
                     className="w-full h-16 pl-14 text-xl bg-white/50 border-gray-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl transition-all duration-200"
                     placeholder="+7 (___) ___-__-__"
+                    disabled={showOtpInput}
                   />
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 text-2xl">
                     🇰🇿
@@ -134,13 +204,50 @@ export default function LoginPage() {
                 )}
               </div>
 
+              {showOtpInput ? (
+                <div className="space-y-3">
+                  <label className="text-lg font-medium text-gray-700">
+                    Код подтверждения
+                  </label>
+                  <input
+                    type="text"
+                    value={otpCode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      if (value.length <= 4) {
+                        setOtpCode(value);
+                      }
+                    }}
+                    className="w-full h-16 text-xl text-center tracking-[1em] bg-white/50 border-gray-200 focus:border-violet-500 focus:ring-violet-500 rounded-xl transition-all duration-200"
+                    placeholder="____"
+                    maxLength={4}
+                  />
+                </div>
+              ) : null}
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-red-500 text-center"
+                >
+                  {error}
+                </motion.div>
+              )}
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full h-16 text-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/40 transition-all duration-200"
-                type="submit"
+                className="w-full h-16 text-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-violet-500/25 hover:shadow-xl hover:shadow-violet-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                type={showOtpInput ? 'button' : 'submit'}
+                onClick={showOtpInput ? handleVerifyOTP : undefined}
+                disabled={isLoading}
               >
-                Получить код
+                {isLoading
+                  ? 'Загрузка...'
+                  : showOtpInput
+                  ? 'Подтвердить'
+                  : 'Получить код'}
               </motion.button>
             </motion.form>
           </div>

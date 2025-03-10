@@ -47,12 +47,17 @@ export const formatPhoneNumber = (value: string): string => {
 };
 
 export const normalizePhoneNumber = (phone: string): string => {
+  // Получаем только цифры
   const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('8')) {
-    return '+7' + digits.slice(1);
+
+  // Если длина меньше 10 цифр, возвращаем ошибку
+  if (digits.length < 10) {
+    throw new Error('Номер телефона должен содержать минимум 10 цифр');
   }
-  if (digits.startsWith('7')) {
-    return '+' + digits;
-  }
-  return '+7' + digits;
+
+  // Берем последние 10 цифр
+  const lastTenDigits = digits.slice(-10);
+
+  // Возвращаем номер в формате +7XXXXXXXXXX
+  return '+7' + lastTenDigits;
 };
