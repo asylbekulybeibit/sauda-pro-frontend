@@ -9,6 +9,9 @@ import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
 import LoginPage from './pages/auth/LoginPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import AdminLayout from './pages/admin/AdminLayout';
+import Dashboard from './pages/admin/Dashboard';
+import ProjectsPage from './pages/admin/ProjectsPage';
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -34,12 +37,17 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Заглушки для дашбордов (позже заменим на реальные компоненты)
-const AdminDashboard = () => <div>Панель управления суперадмина</div>;
+// Заглушки для страниц админки (позже заменим на реальные компоненты)
+const UsersPage = () => <div>Страница пользователей</div>;
+const InvitesPage = () => <div>Страница инвайтов</div>;
+const ReportsPage = () => <div>Страница отчетов</div>;
+
+// Заглушки для дашбордов
 const ShopDashboard = () => <div>Панель управления магазином</div>;
 
 function App() {
   const { isAuthenticated } = useAuthStore();
+  const { currentRole } = useRoleStore();
 
   return (
     <Router>
@@ -62,17 +70,23 @@ function App() {
           }
         />
 
+        {/* Маршруты админ-панели */}
         <Route
-          path="/admin/*"
+          path="/admin"
           element={
             <AuthGuard>
-              <RoleGuard>
-                <AdminDashboard />
-              </RoleGuard>
+              <AdminLayout />
             </AuthGuard>
           }
-        />
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="projects" element={<ProjectsPage />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="invites" element={<InvitesPage />} />
+          <Route path="reports" element={<ReportsPage />} />
+        </Route>
 
+        {/* Маршруты магазина */}
         <Route
           path="/shop/*"
           element={
@@ -89,14 +103,18 @@ function App() {
           path="/"
           element={
             isAuthenticated ? (
-              <Navigate to="/profile" replace />
+              currentRole?.type === 'superadmin' ? (
+                <Navigate to="/admin" replace />
+              ) : (
+                <Navigate to="/profile" replace />
+              )
             ) : (
               <Navigate to="/login" replace />
             )
           }
         />
 
-        {/* Редирект для всех остальных путей на /login или /profile */}
+        {/* Редирект для всех остальных путей */}
         <Route
           path="*"
           element={

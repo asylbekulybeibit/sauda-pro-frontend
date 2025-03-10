@@ -4,12 +4,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { formatPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
-import { generateOTP, verifyOTP } from '@/services/api';
+import { generateOTP, verifyOTP, getProfile } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { useRoleStore } from '@/store/roleStore';
 
 const loginSchema = z.object({
-  phone: z.string().min(1, 'Введите номер телефона'),
+  phone: z.string().min(10, 'Введите номер телефона'),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { setIsAuthenticated } = useAuthStore();
+  const { setCurrentRole } = useRoleStore();
 
   const {
     register,
@@ -119,17 +121,15 @@ export default function LoginPage() {
       setIsLoading(true);
       setError(null);
       const phone = normalizePhoneNumber(digits);
-      const response = await verifyOTP(phone, otpCode);
+      const { accessToken } = await verifyOTP(phone, otpCode);
 
       // Сохраняем токен
-      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('accessToken', accessToken);
 
       // Устанавливаем состояние аутентификации
       setIsAuthenticated(true);
 
-      console.log('Аутентификация успешна, перенаправляем на /profile');
-
-      // Перенаправляем на страницу профиля
+      // Всегда перенаправляем в профиль после успешной аутентификации
       navigate('/profile', { replace: true });
     } catch (error) {
       setError('Неверный код. Попробуйте еще раз.');

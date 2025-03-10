@@ -1,5 +1,14 @@
 import axios from 'axios';
 import { UserRole } from '@/store/roleStore';
+import { Shop, CreateShopDto, UpdateShopDto } from '@/types/shop';
+import { Invite, CreateInviteDto } from '@/types/invite';
+import { User, UpdateUserDto } from '@/types/user';
+import {
+  DashboardStats,
+  ProjectStats,
+  UserStats,
+  InviteStats,
+} from '@/types/report';
 
 const api = axios.create({
   baseURL: 'http://localhost:3000',
@@ -161,3 +170,93 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Методы для работы с проектами
+export const getShops = async (): Promise<Shop[]> => {
+  const response = await api.get('/shops');
+  return response.data;
+};
+
+export const getShop = async (id: string): Promise<Shop> => {
+  const response = await api.get(`/shops/${id}`);
+  return response.data;
+};
+
+export const createShop = async (data: CreateShopDto): Promise<Shop> => {
+  const response = await api.post('/shops', data);
+  return response.data;
+};
+
+export const updateShop = async (
+  id: string,
+  data: UpdateShopDto
+): Promise<Shop> => {
+  const response = await api.patch(`/shops/${id}`, data);
+  return response.data;
+};
+
+export const deleteShop = async (id: string): Promise<void> => {
+  await api.delete(`/shops/${id}`);
+};
+
+// Методы для работы с инвайтами
+export const getInvites = async (): Promise<Invite[]> => {
+  const response = await api.get('/invites');
+  return response.data;
+};
+
+export const createInvite = async (data: CreateInviteDto): Promise<Invite> => {
+  const response = await api.post('/invites', data);
+  return response.data;
+};
+
+export const acceptInvite = async (id: string): Promise<Invite> => {
+  const response = await api.post(`/invites/${id}/accept`);
+  return response.data;
+};
+
+export const cancelInvite = async (id: string): Promise<void> => {
+  await api.delete(`/invites/${id}`);
+};
+
+// Методы для работы с пользователями
+export const getUsers = async (): Promise<User[]> => {
+  const response = await api.get('/users');
+  return response.data;
+};
+
+export const getUser = async (id: string): Promise<User> => {
+  const response = await api.get(`/users/${id}`);
+  return response.data;
+};
+
+export const updateUser = async (
+  id: string,
+  data: UpdateUserDto
+): Promise<User> => {
+  const response = await api.patch(`/users/${id}`, data);
+  return response.data;
+};
+
+// Методы для работы со статистикой
+export const getDashboardStats = async (): Promise<DashboardStats> => {
+  const response = await api.get('/stats/dashboard');
+  return response.data;
+};
+
+export const getProjectStats = async (
+  period?: string
+): Promise<ProjectStats> => {
+  const response = await api.get('/stats/projects', { params: { period } });
+  return response.data;
+};
+
+export const getUserStats = async (period?: string): Promise<UserStats> => {
+  const response = await api.get('/stats/users', { params: { period } });
+  return response.data;
+};
+
+export const getInviteStats = async (period?: string): Promise<InviteStats> => {
+  const response = await api.get('/stats/invites', { params: { period } });
+  return response.data;
+};
