@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/components/ui/modal';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { EditProjectForm } from '@/components/projects/EditProjectForm';
+import { CreateInviteForm } from '@/components/invites/CreateInviteForm';
 
 // Компонент карточки пользователя проекта
 const UserRoleCard = ({ role, user }: Shop['userRoles'][0]) => {
@@ -36,6 +37,7 @@ const UserRoleCard = ({ role, user }: Shop['userRoles'][0]) => {
 // Компонент карточки проекта
 const ProjectCard = ({ project }: { project: Shop }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const updateStatusMutation = useMutation({
@@ -98,7 +100,7 @@ const ProjectCard = ({ project }: { project: Shop }) => {
             {project.isActive ? '✅' : '❌'}
           </button>
           <button
-            onClick={handleDelete}
+            onClick={() => setIsDeleteModalOpen(true)}
             className="p-2 text-gray-600 hover:text-red-600 transition-colors"
             title="Удалить"
           >
@@ -137,7 +139,7 @@ const ProjectCard = ({ project }: { project: Shop }) => {
         </div>
       )}
 
-      {/* Модальное окно редактирования */}
+      {/* Модальные окна */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -147,6 +149,31 @@ const ProjectCard = ({ project }: { project: Shop }) => {
           project={project}
           onClose={() => setIsEditModalOpen(false)}
         />
+      </Modal>
+
+      {/* Модальное окно удаления проекта */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Удаление проекта"
+      >
+        <div className="space-y-4">
+          <p>Вы уверены, что хотите удалить этот проект?</p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Удалить
+            </button>
+            <button
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="px-4 py-2 bg-gray-200 text-gray-500 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
       </Modal>
     </motion.div>
   );

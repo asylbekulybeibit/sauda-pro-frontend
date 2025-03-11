@@ -72,7 +72,7 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-lg shadow-sm p-6 space-y-4"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 space-y-4"
     >
       {/* Заголовок и роль */}
       <div className="flex justify-between items-start">
@@ -94,6 +94,11 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
       <div>
         <div className="text-sm text-gray-500">Проект</div>
         <div className="font-medium">{invite.shop.name}</div>
+        {invite.shop.address && (
+          <div className="text-sm text-gray-500 mt-1">
+            📍 {invite.shop.address}
+          </div>
+        )}
       </div>
 
       {/* Дата создания */}

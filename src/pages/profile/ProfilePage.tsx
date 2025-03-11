@@ -56,113 +56,103 @@ export default function ProfilePage() {
     navigate('/login');
   };
 
-  const renderRole = (role: UserRole) => {
-    if (!role || !role.shop) {
-      console.log('Некорректные данные роли:', role);
-      return null;
-    }
-
-    return (
-      <motion.button
-        key={role.id}
-        onClick={() => handleRoleSelect(role)}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full bg-white hover:bg-gray-50 rounded-xl p-6 shadow-sm cursor-pointer transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              {role.shop.name}
-            </h3>
-            {role.shop.address && (
-              <p className="text-sm text-gray-500 mt-1">{role.shop.address}</p>
-            )}
-            <p className="text-gray-500">
-              {role.role === 'owner'
-                ? '👔 Владелец'
-                : role.role === 'manager'
-                ? '👨‍💼 Менеджер'
-                : '💰 Кассир'}
-            </p>
-          </div>
-          <div className="text-sm text-gray-500">
-            {role.shop.type === 'shop'
-              ? '🏪 Магазин'
-              : role.shop.type === 'warehouse'
-              ? '🏭 Склад'
-              : '💳 Точка продаж'}
-          </div>
+  const renderRole = (role: UserRole) => (
+    <motion.div
+      key={role.id}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => handleRoleSelect(role)}
+      className="bg-white rounded-lg shadow-sm p-6 cursor-pointer border border-gray-200 hover:border-violet-300 hover:shadow-md transition-all"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">{role.shop.name}</h3>
+          {role.shop.address && (
+            <p className="text-gray-500">📍 {role.shop.address}</p>
+          )}
+          <p className="text-violet-600 mt-2">
+            {role.role === 'owner'
+              ? 'Владелец'
+              : role.role === 'manager'
+              ? 'Менеджер'
+              : 'Кассир'}
+          </p>
         </div>
-      </motion.button>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600" />
+        <span className="text-2xl">
+          {role.role === 'owner' ? '👔' : role.role === 'manager' ? '👨‍💼' : '💰'}
+        </span>
       </div>
-    );
-  }
+    </motion.div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-3xl mx-auto space-y-8 px-4">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Профиль</h1>
-          <button
-            onClick={handleLogout}
-            className="text-red-600 hover:text-red-700 transition-colors"
-          >
-            Выйти 🚪
-          </button>
-        </div>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Анимированный фон */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-0 -left-4 w-[1000px] h-[1000px] bg-violet-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30" />
+        <div className="absolute top-0 -right-4 w-[1000px] h-[1000px] bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30" />
+        <div className="absolute -bottom-8 left-20 w-[1000px] h-[1000px] bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30" />
+      </div>
 
-        {/* Личные данные */}
-        <PersonalInfoForm />
-
-        {/* Ожидающие инвайты */}
-        <PendingInvites />
-
-        {/* Администрирование системы */}
-        {isSuperAdmin && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Администрирование системы
-            </h2>
-            <motion.button
-              onClick={() => handleRoleSelect('superadmin')}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl p-6 shadow-sm cursor-pointer transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">Панель суперадмина</h3>
-                  <p className="text-violet-100">Управление всей системой</p>
-                </div>
-                <span className="text-2xl">👑</span>
-              </div>
-            </motion.button>
-          </div>
-        )}
-
-        {/* Проекты */}
-        {userRoles.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">Мои проекты</h2>
-            <div className="grid gap-4">
-              {userRoles.map((role) => renderRole(role))}
+      {/* Основной контент */}
+      <div className="max-w-[1600px] mx-auto p-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Левая колонка - Данные профиля */}
+          <div className="lg:w-1/4">
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+              <h1 className="text-2xl font-bold mb-6 flex justify-between items-center">
+                Профиль
+                <button onClick={handleLogout} className="text-red-600 text-sm">
+                  Выйти 🚪
+                </button>
+              </h1>
+              <PersonalInfoForm />
             </div>
           </div>
-        )}
 
-        {error && (
-          <div className="text-red-600 text-center p-4 bg-red-50 rounded-lg">
-            {error}
+          {/* Центральная колонка - Администрирование и проекты */}
+          <div className="lg:w-1/2 space-y-8">
+            {isSuperAdmin && (
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h2 className="text-xl font-semibold mb-4">
+                  Администрирование системы
+                </h2>
+                <motion.button
+                  onClick={() => handleRoleSelect('superadmin')}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl p-6 shadow-sm cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        Панель суперадмина
+                      </h3>
+                      <p className="text-violet-100">
+                        Управление всей системой
+                      </p>
+                    </div>
+                    <span className="text-2xl">👑</span>
+                  </div>
+                </motion.button>
+              </div>
+            )}
+
+            {userRoles.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <h2 className="text-xl font-semibold mb-4">Мои проекты</h2>
+                <div className="space-y-4">
+                  {userRoles.map((role) => renderRole(role))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Правая колонка - Приглашения */}
+          <div className="lg:w-1/4">
+            <PendingInvites />
+          </div>
+        </div>
       </div>
     </div>
   );

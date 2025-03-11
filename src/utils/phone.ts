@@ -55,8 +55,17 @@ export const normalizePhoneNumber = (phone: string): string => {
     throw new Error('Номер телефона должен содержать минимум 10 цифр');
   }
 
-  // Берем последние 10 цифр
-  const lastTenDigits = digits.slice(-10);
+  // Если номер начинается с 8 или 7, убираем эту цифру
+  let lastTenDigits = digits;
+  if (
+    digits.length === 11 &&
+    (digits.startsWith('8') || digits.startsWith('7'))
+  ) {
+    lastTenDigits = digits.slice(1);
+  } else {
+    // Берем последние 10 цифр
+    lastTenDigits = digits.slice(-10);
+  }
 
   // Возвращаем номер в формате +7XXXXXXXXXX
   return '+7' + lastTenDigits;
