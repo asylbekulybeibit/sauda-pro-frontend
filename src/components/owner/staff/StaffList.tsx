@@ -139,9 +139,19 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
                           с {formatDate(role.createdAt)}
                         </div>
                       </div>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Активен
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Активен
+                        </span>
+                        {role.role !== 'owner' && (
+                          <button
+                            onClick={() => handleRemove(role)}
+                            className="text-sm text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors duration-200"
+                          >
+                            Уволить
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -185,20 +195,6 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
                       </div>
                     ))}
                 </div>
-              </div>
-            )}
-
-            {/* Кнопка увольнения */}
-            {member.history.find((r) => r.isActive && r.role !== 'owner') && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <button
-                  onClick={() =>
-                    handleRemove(member.history.find((r) => r.isActive)!)
-                  }
-                  className="w-full px-4 py-2 text-sm text-red-600 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors duration-200"
-                >
-                  Уволить
-                </button>
               </div>
             )}
           </div>
