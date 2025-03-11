@@ -5,6 +5,7 @@ export enum InviteStatus {
   PENDING = 'pending',
   ACCEPTED = 'accepted',
   REJECTED = 'rejected',
+  CANCELLED = 'cancelled',
 }
 
 export interface Invite {
@@ -13,6 +14,7 @@ export interface Invite {
   email?: string;
   role: RoleType;
   status: InviteStatus;
+  statusChangedAt?: string;
   createdAt: string;
   updatedAt: string;
   shop: Shop;

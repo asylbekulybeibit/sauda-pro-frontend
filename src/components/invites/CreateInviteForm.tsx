@@ -7,29 +7,37 @@ import { normalizePhoneNumber } from '@/utils/phone';
 
 interface CreateInviteFormProps {
   onClose: () => void;
+  availableRoles?: RoleType[];
+  predefinedShopId?: string; // Если задан, селект проекта не показывается
 }
 
-export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
+export function CreateInviteForm({
+  onClose,
+  availableRoles,
+  predefinedShopId,
+}: CreateInviteFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     phone: '',
-    role: 'cashier' as RoleType,
-    shopId: '',
+    role: (availableRoles && availableRoles[0]) || ('cashier' as RoleType),
+    shopId: predefinedShopId || '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Получаем список проектов
+  // Получаем список проектов только если не задан predefinedShopId
   const { data: shops } = useQuery({
     queryKey: ['shops'],
     queryFn: getShops,
+    enabled: !predefinedShopId, // Не делаем запрос, если магазин предопределен
   });
 
   const createMutation = useMutation({
     mutationFn: createInvite,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-invites'] });
       onClose();
     },
     onError: (error: any) => {
@@ -48,16 +56,14 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
       newErrors.phone = 'Телефон обязателен';
     } else {
       try {
-        // Normalize the phone number before validation
         const normalizedPhone = normalizePhoneNumber(formData.phone);
-        // Update the form data with the normalized phone number
         setFormData((prev) => ({ ...prev, phone: normalizedPhone }));
       } catch (error) {
         newErrors.phone = 'Неверный формат телефона';
       }
     }
 
-    if (!formData.shopId) {
+    if (!predefinedShopId && !formData.shopId) {
       newErrors.shopId = 'Выберите проект';
     }
 
@@ -98,30 +104,32 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
           )}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Проект *
-          </label>
-          <select
-            value={formData.shopId}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, shopId: e.target.value }))
-            }
-            className={`mt-1 block w-full rounded-md border ${
-              errors.shopId ? 'border-red-500' : 'border-gray-300'
-            } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
-          >
-            <option value="">Выберите проект</option>
-            {shops?.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name} {shop.address && `(${shop.address})`}
-              </option>
-            ))}
-          </select>
-          {errors.shopId && (
-            <p className="mt-1 text-sm text-red-500">{errors.shopId}</p>
-          )}
-        </div>
+        {!predefinedShopId && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Проект *
+            </label>
+            <select
+              value={formData.shopId}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, shopId: e.target.value }))
+              }
+              className={`mt-1 block w-full rounded-md border ${
+                errors.shopId ? 'border-red-500' : 'border-gray-300'
+              } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+            >
+              <option value="">Выберите проект</option>
+              {shops?.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name} {shop.address && `(${shop.address})`}
+                </option>
+              ))}
+            </select>
+            {errors.shopId && (
+              <p className="mt-1 text-sm text-red-500">{errors.shopId}</p>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -137,9 +145,19 @@ export function CreateInviteForm({ onClose }: CreateInviteFormProps) {
             }
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           >
-            <option value="owner">Владелец</option>
-            <option value="manager">Менеджер</option>
-            <option value="cashier">Кассир</option>
+            {availableRoles ? (
+              availableRoles.map((role) => (
+                <option key={role} value={role}>
+                  {role === RoleType.MANAGER ? 'Менеджер' : 'Кассир'}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value={RoleType.OWNER}>Владелец</option>
+                <option value={RoleType.MANAGER}>Менеджер</option>
+                <option value={RoleType.CASHIER}>Кассир</option>
+              </>
+            )}
           </select>
         </div>
 

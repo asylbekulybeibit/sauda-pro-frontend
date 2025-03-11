@@ -29,7 +29,11 @@ export default function ProfilePage() {
         role: role.role,
         shop: role.shop,
       });
-      navigate(`/shop/${role.shop.id}`);
+      if (role.role === 'owner') {
+        navigate(`/owner/${role.shop.id}`);
+      } else {
+        navigate(`/shop/${role.shop.id}`);
+      }
     }
   };
 
@@ -132,7 +136,9 @@ export default function ProfilePage() {
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">Мои проекты</h2>
                 <div className="space-y-4">
-                  {profile.roles.map((role) => renderRole(role))}
+                  {profile.roles
+                    .filter((role) => role.isActive)
+                    .map((role) => renderRole(role))}
                 </div>
               </div>
             )}

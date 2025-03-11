@@ -132,6 +132,7 @@ export default function InvitesPage() {
           <option value={InviteStatus.ACCEPTED}>Принятые</option>
           <option value={InviteStatus.REJECTED}>Отклоненные</option>
           <option value={InviteStatus.PENDING}>Ожидающие</option>
+          <option value={InviteStatus.CANCELLED}>Отмененные</option>
         </select>
       </div>
 
@@ -223,6 +224,8 @@ export default function InvitesPage() {
                         ? 'bg-green-100 text-green-800'
                         : invite.status === InviteStatus.REJECTED
                         ? 'bg-red-100 text-red-800'
+                        : invite.status === InviteStatus.CANCELLED
+                        ? 'bg-gray-100 text-gray-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
@@ -230,6 +233,8 @@ export default function InvitesPage() {
                       ? 'Принят'
                       : invite.status === InviteStatus.REJECTED
                       ? 'Отклонен'
+                      : invite.status === InviteStatus.CANCELLED
+                      ? 'Отменен'
                       : 'Ожидает'}
                   </span>
                 </td>
@@ -276,6 +281,11 @@ export default function InvitesPage() {
                     {invite.status === InviteStatus.REJECTED && (
                       <span className="text-gray-500 text-sm">
                         Инвайт отклонен
+                      </span>
+                    )}
+                    {invite.status === InviteStatus.CANCELLED && (
+                      <span className="text-gray-500 text-sm">
+                        Инвайт отменен
                       </span>
                     )}
                   </div>

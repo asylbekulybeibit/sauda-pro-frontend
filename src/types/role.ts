@@ -7,13 +7,27 @@ export enum RoleType {
   CASHIER = 'cashier',
 }
 
+export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
+export interface Shop {
+  id: string;
+  name: string;
+  type: ShopType;
+  address?: string;
+}
+
 export interface UserRole {
   id: string;
   role: RoleType;
-  shop: {
-    id: string;
-    name: string;
-    type: ShopType;
-    address?: string;
-  };
+  isActive: boolean;
+  createdAt: string;
+  deactivatedAt: string | null;
+  user: User;
+  shopId: string;
+  shop: Shop;
 }

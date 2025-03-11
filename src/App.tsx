@@ -14,6 +14,10 @@ import Dashboard from './pages/admin/Dashboard';
 import ProjectsPage from './pages/admin/ProjectsPage';
 import UsersPage from './pages/admin/UsersPage';
 import InvitesPage from './pages/admin/InvitesPage';
+import OwnerLayout from './pages/owner/OwnerLayout';
+import OwnerDashboard from './pages/owner/OwnerDashboard';
+import OwnerInvitesPage from './pages/owner/InvitesPage';
+import OwnerStaffPage from './pages/owner/StaffPage';
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -80,6 +84,22 @@ function App() {
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="invites" element={<InvitesPage />} />
+        </Route>
+
+        {/* Маршруты панели владельца */}
+        <Route
+          path="/owner/:shopId"
+          element={
+            <AuthGuard>
+              <RoleGuard>
+                <OwnerLayout />
+              </RoleGuard>
+            </AuthGuard>
+          }
+        >
+          <Route index element={<OwnerDashboard />} />
+          <Route path="invites" element={<OwnerInvitesPage />} />
+          <Route path="staff" element={<OwnerStaffPage />} />
         </Route>
 
         {/* Маршруты магазина */}

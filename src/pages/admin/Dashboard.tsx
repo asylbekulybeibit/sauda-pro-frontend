@@ -51,7 +51,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500">Проекты</h3>
@@ -70,7 +70,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500">Пользователи</h3>
@@ -89,7 +89,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500">Инвайты</h3>
@@ -118,6 +118,13 @@ export default function Dashboard() {
                 {stats.invites.rejected}
               </span>
             </div>
+            <div className="flex items-center text-sm">
+              <span className="w-3 h-3 rounded-full bg-gray-400 mr-2"></span>
+              <span className="text-gray-600">Отменено:</span>
+              <span className="ml-auto font-medium">
+                {stats.invites.cancelled}
+              </span>
+            </div>
           </div>
         </motion.div>
 
@@ -126,7 +133,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white p-6 rounded-xl shadow-sm"
+          className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium text-gray-500">Суперадмины</h3>
@@ -147,7 +154,7 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="bg-white p-6 rounded-xl shadow-sm"
+        className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
       >
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Распределение магазинов
@@ -181,7 +188,7 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="bg-white p-6 rounded-xl shadow-sm"
+        className="bg-white p-6 rounded-xl shadow-sm border-4 border-gray-200"
       >
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Распределение пользователей

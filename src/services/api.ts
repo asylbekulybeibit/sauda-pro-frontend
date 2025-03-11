@@ -5,7 +5,7 @@ import { Invite, CreateInviteDto } from '@/types/invite';
 import { User, UpdateUserDto } from '@/types/user';
 import { DashboardStats } from '@/types/dashboard';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: 'http://localhost:3000',
   withCredentials: true,
   headers: {
@@ -205,7 +205,7 @@ export const acceptInvite = async (id: string): Promise<Invite> => {
 };
 
 export const cancelInvite = async (id: string): Promise<void> => {
-  await api.post(`/invites/${id}/reject`);
+  await api.patch(`/invites/${id}/cancel`);
 };
 
 // Получение списка ожидающих инвайтов для текущего пользователя
@@ -246,4 +246,14 @@ export const deleteUser = async (id: string): Promise<void> => {
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const { data } = await api.get('/dashboard/stats');
   return data;
+};
+
+// Методы для работы с сотрудниками
+export const getShopStaff = async (): Promise<UserRole[]> => {
+  const response = await api.get('/users/staff');
+  return response.data;
+};
+
+export const removeStaffMember = async (staffId: string): Promise<void> => {
+  await api.patch(`/users/staff/${staffId}/deactivate`);
 };

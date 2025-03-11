@@ -21,6 +21,7 @@ export interface InviteStats {
   pending: number;
   accepted: number;
   rejected: number;
+  cancelled: number;
   byRole: Record<RoleType, number>;
 }
 
