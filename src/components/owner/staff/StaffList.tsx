@@ -7,8 +7,6 @@ import { useState } from 'react';
 
 interface StaffListProps {
   staff: UserRole[];
-  roleFilter: RoleType | 'all';
-  statusFilter: 'active' | 'inactive' | 'all';
 }
 
 interface GroupedStaff {
@@ -20,7 +18,7 @@ interface GroupedStaff {
   history: UserRole[];
 }
 
-export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
+export function StaffList({ staff }: StaffListProps) {
   const queryClient = useQueryClient();
   const [selectedStaff, setSelectedStaff] = useState<UserRole | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -56,15 +54,6 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
 
     return acc;
   }, []);
-
-  // Фильтрация сотрудников
-  const filteredStaff = groupedStaff.filter((member) => {
-    if (roleFilter !== 'all' && member.currentRole?.role !== roleFilter)
-      return false;
-    if (statusFilter === 'active' && !member.currentRole) return false;
-    if (statusFilter === 'inactive' && member.currentRole) return false;
-    return true;
-  });
 
   const handleRemove = (member: UserRole) => {
     setSelectedStaff(member);
@@ -106,13 +95,13 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredStaff.map((member) => (
+        {groupedStaff.map((member) => (
           <div
             key={member.userId}
-            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow duration-200"
+            className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-all duration-200 border-4 border-black-100"
           >
             {/* Заголовок карточки */}
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-100">
               <div>
                 <div className="text-lg font-semibold">
                   {member.firstName} {member.lastName}
@@ -129,7 +118,10 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
               {member.history
                 .filter((role) => role.isActive)
                 .map((role) => (
-                  <div key={role.id} className="text-sm p-2 bg-gray-50 rounded">
+                  <div
+                    key={role.id}
+                    className="text-sm p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  >
                     <div className="flex justify-between items-center">
                       <div>
                         <span className="font-medium flex items-center gap-2">
@@ -140,7 +132,7 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                           Активен
                         </span>
                         {role.role !== 'owner' && (
@@ -178,7 +170,7 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
                     .map((role) => (
                       <div
                         key={role.id}
-                        className="text-sm p-2 bg-gray-50 rounded"
+                        className="text-sm p-3 bg-gray-50 rounded-lg border border-gray-200"
                       >
                         <div className="flex justify-between">
                           <span className="text-gray-600 flex items-center gap-2">
@@ -201,9 +193,9 @@ export function StaffList({ staff, roleFilter, statusFilter }: StaffListProps) {
         ))}
       </div>
 
-      {filteredStaff.length === 0 && (
+      {groupedStaff.length === 0 && (
         <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-500">
-          Нет сотрудников с выбранными параметрами
+          Нет сотрудников
         </div>
       )}
 

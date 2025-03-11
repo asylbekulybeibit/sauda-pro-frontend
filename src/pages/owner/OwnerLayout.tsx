@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Link, Outlet, useParams } from 'react-router-dom';
+import { Link, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function OwnerLayout() {
   const { shopId } = useParams();
   const { currentRole } = useRoleStore();
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   if (
@@ -15,19 +18,29 @@ export default function OwnerLayout() {
     return <div>Доступ запрещен</div>;
   }
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Хедер */}
       <header className="bg-white shadow-sm">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex">
-              {/* Логотип */}
-              <div className="flex-shrink-0 flex items-center">
-                <Link to={`/owner/${shopId}`} className="text-xl font-bold">
+            <div className="flex items-center">
+              {/* Логотип и название */}
+              <Link to={`/owner/${shopId}`} className="flex items-center">
+                <span className="text-xl font-bold">
                   {currentRole.shop.name}
-                </Link>
-              </div>
+                </span>
+                {currentRole.shop.address && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    📍 {currentRole.shop.address}
+                  </span>
+                )}
+              </Link>
             </div>
 
             {/* Профиль */}
@@ -61,10 +74,18 @@ export default function OwnerLayout() {
                     <div className="py-1">
                       <Link
                         to="/profile"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
+                        <span className="mr-2">👤</span>
                         Мой профиль
                       </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      >
+                        <span className="mr-2">🚪</span>
+                        Выйти
+                      </button>
                     </div>
                   </div>
                 )}
