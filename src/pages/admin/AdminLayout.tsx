@@ -112,13 +112,6 @@ export default function AdminLayout() {
               <span>📨</span>
               <span>Инвайты</span>
             </Link>
-            <Link
-              to="/admin/reports"
-              className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-            >
-              <span>📈</span>
-              <span>Отчеты</span>
-            </Link>
           </div>
         </nav>
 

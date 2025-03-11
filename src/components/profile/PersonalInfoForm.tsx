@@ -5,33 +5,37 @@ import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { updateProfile, getProfile } from '@/services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const profileSchema = z.object({
   firstName: z
     .string()
     .min(2, 'Имя должно содержать минимум 2 символа')
-    .optional(),
+    .optional()
+    .or(z.literal('')),
   lastName: z
     .string()
     .min(2, 'Фамилия должна содержать минимум 2 символа')
-    .optional(),
-  email: z.string().email('Введите корректный email').optional(),
+    .optional()
+    .or(z.literal('')),
+  email: z
+    .string()
+    .email('Введите корректный email')
+    .optional()
+    .or(z.literal('')),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
 
-interface UserData {
-  phone: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-}
-
 export function PersonalInfoForm() {
-  const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [userData, setUserData] = useState<UserData | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const queryClient = useQueryClient();
+
+  const { data: userData } = useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+  });
 
   const {
     register,
@@ -42,38 +46,18 @@ export function PersonalInfoForm() {
     resolver: zodResolver(profileSchema),
   });
 
-  // Загружаем данные пользователя при монтировании компонента
-  useState(() => {
-    const loadUserData = async () => {
-      try {
-        const profile = await getProfile();
-        setUserData(profile);
-        // Устанавливаем значения формы
-        reset({
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          email: profile.email,
-        });
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-    loadUserData();
-  });
-
-  const onSubmit = async (data: ProfileFormData) => {
-    try {
-      setIsLoading(true);
-      const updatedProfile = await updateProfile(data);
-      setUserData(updatedProfile);
+  const updateMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (updatedProfile) => {
+      queryClient.setQueryData(['profile'], updatedProfile);
       setSuccessMessage('Данные успешно сохранены');
       setIsEditing(false);
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    },
+  });
+
+  const onSubmit = async (data: ProfileFormData) => {
+    updateMutation.mutate(data);
   };
 
   const handleCancel = () => {
@@ -208,10 +192,10 @@ export function PersonalInfoForm() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                disabled={isLoading}
+                disabled={updateMutation.isPending}
                 className="flex-1 py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 disabled:opacity-50"
               >
-                {isLoading ? 'Сохранение...' : 'Сохранить'}
+                {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.02 }}

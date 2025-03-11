@@ -1,12 +1,18 @@
-import { RoleType } from '@/store/roleStore';
+import { RoleType } from '@/types/role';
 import { Shop } from './shop';
+
+export enum InviteStatus {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  REJECTED = 'rejected',
+}
 
 export interface Invite {
   id: string;
   phone: string;
   email?: string;
   role: RoleType;
-  isAccepted: boolean;
+  status: InviteStatus;
   createdAt: string;
   updatedAt: string;
   shop: Shop;

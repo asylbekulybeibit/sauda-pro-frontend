@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { createInvite, getShops } from '@/services/api';
-import { RoleType } from '@/store/roleStore';
+import { RoleType } from '@/types/role';
 import { ErrorModal } from '@/components/ui/error-modal';
 import { normalizePhoneNumber } from '@/utils/phone';
 

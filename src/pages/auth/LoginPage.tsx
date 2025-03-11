@@ -4,10 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { formatPhoneNumber, normalizePhoneNumber } from '@/utils/phone';
-import { generateOTP, verifyOTP, getProfile } from '@/services/api';
+import { generateOTP, verifyOTP } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
-import { useRoleStore } from '@/store/roleStore';
 
 const loginSchema = z.object({
   phone: z.string().min(10, 'Введите номер телефона'),
@@ -23,7 +22,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { setIsAuthenticated } = useAuthStore();
-  const { setCurrentRole } = useRoleStore();
 
   const {
     register,
@@ -77,7 +75,7 @@ export default function LoginPage() {
     }
   };
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async () => {
     try {
       // Проверяем, что номер телефона полный (10 цифр)
       if (digits.length !== 10) {

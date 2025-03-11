@@ -1,40 +1,22 @@
-import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { PersonalInfoForm } from '@/components/profile/PersonalInfoForm';
 import PendingInvites from '@/components/invites/PendingInvites';
-import { useRoleStore, UserRole } from '@/store/roleStore';
+import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
 import { getProfile } from '@/services/api';
+import { UserRole } from '@/types/role';
 
 export default function ProfilePage() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { setCurrentRole } = useRoleStore();
   const { logout } = useAuthStore();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        setIsLoading(true);
-        const profile = await getProfile();
-        console.log('Полученные данные профиля:', profile);
-        console.log('Роли пользователя:', profile.roles);
-        setIsSuperAdmin(profile.isSuperAdmin);
-        setUserRoles(profile.roles || []);
-      } catch (err) {
-        setError('Ошибка при загрузке данных профиля');
-        console.error('Ошибка загрузки профиля:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUserData();
-  }, []);
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: getProfile,
+  });
 
   const handleRoleSelect = (role: 'superadmin' | UserRole) => {
     if (role === 'superadmin') {
@@ -85,6 +67,14 @@ export default function ProfilePage() {
     </motion.div>
   );
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Анимированный фон */}
@@ -112,7 +102,7 @@ export default function ProfilePage() {
 
           {/* Центральная колонка - Администрирование и проекты */}
           <div className="lg:w-1/2 space-y-8">
-            {isSuperAdmin && (
+            {profile?.isSuperAdmin && (
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">
                   Администрирование системы
@@ -138,11 +128,11 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {userRoles.length > 0 && (
+            {profile?.roles && profile.roles.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">Мои проекты</h2>
                 <div className="space-y-4">
-                  {userRoles.map((role) => renderRole(role))}
+                  {profile.roles.map((role) => renderRole(role))}
                 </div>
               </div>
             )}

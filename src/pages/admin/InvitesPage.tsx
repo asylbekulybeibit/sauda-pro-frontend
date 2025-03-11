@@ -4,13 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getInvites, cancelInvite } from '@/services/api';
 import { Modal } from '@/components/ui/modal';
 import { CreateInviteForm } from '@/components/invites/CreateInviteForm';
-import { formatPhoneNumber } from '@/utils/phone';
-import { Invite } from '@/types/invite';
+import { InviteStatus } from '@/types/invite';
 
 export default function InvitesPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [filter, setFilter] = useState<{
-    status?: boolean;
+    status?: InviteStatus;
     search?: string;
   }>({});
 
@@ -31,7 +30,7 @@ export default function InvitesPage() {
 
   // Фильтрация инвайтов
   const filteredInvites = invites?.filter((invite) => {
-    if (filter.status !== undefined && invite.isAccepted !== filter.status)
+    if (filter.status !== undefined && invite.status !== filter.status)
       return false;
     if (
       filter.search &&
@@ -119,26 +118,20 @@ export default function InvitesPage() {
         {/* Фильтр по статусу */}
         <select
           className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          value={
-            filter.status === undefined
-              ? ''
-              : filter.status
-              ? 'accepted'
-              : 'pending'
-          }
+          value={filter.status || ''}
           onChange={(e) =>
             setFilter((prev) => ({
               ...prev,
-              status:
-                e.target.value === ''
-                  ? undefined
-                  : e.target.value === 'accepted',
+              status: e.target.value
+                ? (e.target.value as InviteStatus)
+                : undefined,
             }))
           }
         >
           <option value="">Все статусы</option>
-          <option value="accepted">Принятые</option>
-          <option value="pending">Ожидающие</option>
+          <option value={InviteStatus.ACCEPTED}>Принятые</option>
+          <option value={InviteStatus.REJECTED}>Отклоненные</option>
+          <option value={InviteStatus.PENDING}>Ожидающие</option>
         </select>
       </div>
 
@@ -226,12 +219,18 @@ export default function InvitesPage() {
                 <td className="px-6 py-4">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      invite.isAccepted
+                      invite.status === InviteStatus.ACCEPTED
                         ? 'bg-green-100 text-green-800'
+                        : invite.status === InviteStatus.REJECTED
+                        ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
-                    {invite.isAccepted ? 'Принят' : 'Ожидает'}
+                    {invite.status === InviteStatus.ACCEPTED
+                      ? 'Принят'
+                      : invite.status === InviteStatus.REJECTED
+                      ? 'Отклонен'
+                      : 'Ожидает'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -246,7 +245,7 @@ export default function InvitesPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center space-x-3">
-                    {!invite.isAccepted && (
+                    {invite.status === InviteStatus.PENDING && (
                       <button
                         onClick={() => handleCancel(invite.id)}
                         className="text-red-600 hover:text-red-900 text-sm font-medium flex items-center space-x-1"
@@ -269,9 +268,14 @@ export default function InvitesPage() {
                         <span>Отменить</span>
                       </button>
                     )}
-                    {invite.isAccepted && (
+                    {invite.status === InviteStatus.ACCEPTED && (
                       <span className="text-gray-500 text-sm">
                         Инвайт принят
+                      </span>
+                    )}
+                    {invite.status === InviteStatus.REJECTED && (
+                      <span className="text-gray-500 text-sm">
+                        Инвайт отклонен
                       </span>
                     )}
                   </div>

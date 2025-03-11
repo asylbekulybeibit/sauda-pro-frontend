@@ -40,9 +40,6 @@ function RoleGuard({ children }: { children: React.ReactNode }) {
 }
 
 // Заглушки для страниц админки (позже заменим на реальные компоненты)
-const ReportsPage = () => <div>Страница отчетов</div>;
-
-// Заглушки для дашбордов
 const ShopDashboard = () => <div>Панель управления магазином</div>;
 
 function App() {
@@ -83,7 +80,6 @@ function App() {
           <Route path="projects" element={<ProjectsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="invites" element={<InvitesPage />} />
-          <Route path="reports" element={<ReportsPage />} />
         </Route>
 
         {/* Маршруты магазина */}

@@ -1,14 +1,9 @@
 import axios from 'axios';
-import { UserRole } from '@/store/roleStore';
+import { UserRole } from '@/types/role';
 import { Shop, CreateShopDto, UpdateShopDto } from '@/types/shop';
 import { Invite, CreateInviteDto } from '@/types/invite';
 import { User, UpdateUserDto } from '@/types/user';
-import {
-  DashboardStats,
-  ProjectStats,
-  UserStats,
-  InviteStats,
-} from '@/types/report';
+import { DashboardStats } from '@/types/dashboard';
 
 const api = axios.create({
   baseURL: 'http://localhost:3000',
@@ -63,12 +58,6 @@ interface GenerateOTPResponse {
 interface VerifyOTPResponse {
   accessToken: string;
   message: string;
-}
-
-interface UpdateProfileData {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
 }
 
 interface Profile {
@@ -255,23 +244,6 @@ export const deleteUser = async (id: string): Promise<void> => {
 
 // Методы для работы со статистикой
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const response = await api.get('/stats/dashboard');
-  return response.data;
-};
-
-export const getProjectStats = async (
-  period?: string
-): Promise<ProjectStats> => {
-  const response = await api.get('/stats/projects', { params: { period } });
-  return response.data;
-};
-
-export const getUserStats = async (period?: string): Promise<UserStats> => {
-  const response = await api.get('/stats/users', { params: { period } });
-  return response.data;
-};
-
-export const getInviteStats = async (period?: string): Promise<InviteStats> => {
-  const response = await api.get('/stats/invites', { params: { period } });
-  return response.data;
+  const { data } = await api.get('/dashboard/stats');
+  return data;
 };

@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Shop, ShopType } from '@/types/shop';
 import { getShops, updateShop, deleteShop } from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/components/ui/modal';
 import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { EditProjectForm } from '@/components/projects/EditProjectForm';
-import { CreateInviteForm } from '@/components/invites/CreateInviteForm';
 
 // Компонент карточки пользователя проекта
 const UserRoleCard = ({ role, user }: Shop['userRoles'][0]) => {

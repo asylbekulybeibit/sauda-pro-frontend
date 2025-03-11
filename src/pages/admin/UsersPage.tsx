@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUsers, updateUser, deleteUser } from '@/services/api';
 import { User } from '@/types/user';
-import { formatPhoneNumber } from '@/utils/phone';
 import { Modal } from '@/components/ui/modal';
 
 // Компонент для отображения контактной информации

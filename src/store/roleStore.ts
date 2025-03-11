@@ -1,20 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-export type RoleType = 'owner' | 'manager' | 'cashier';
-export type ShopType = 'shop' | 'warehouse' | 'point_of_sale';
+import { RoleType } from '@/types/role';
+import { ShopType } from '@/types/shop';
 
 export interface Shop {
   id: string;
   name: string;
   type: ShopType;
-  address: string;
-}
-
-export interface UserRole {
-  id: string;
-  role: RoleType;
-  shop: Shop;
+  address?: string;
 }
 
 export type CurrentRole =

@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { getPendingInvites, acceptInvite, rejectInvite } from '@/services/api';
-import { formatPhoneNumber } from '@/utils/phone';
 import { Invite } from '@/types/invite';
 
 const PendingInviteCard = ({ invite }: { invite: Invite }) => {
