@@ -18,7 +18,7 @@ export function InventoryForm({ transaction, onClose }: InventoryFormProps) {
   const { shopId } = useParams<{ shopId: string }>();
   const [formData, setFormData] = useState({
     type: transaction?.type || 'PURCHASE',
-    productId: transaction?.product.id.toString() || '',
+    productId: transaction?.product?.id?.toString() || '',
     quantity: transaction?.quantity.toString() || '',
     comment: transaction?.comment || '',
   });
@@ -32,7 +32,9 @@ export function InventoryForm({ transaction, onClose }: InventoryFormProps) {
   });
 
   const createMutation = useMutation({
-    mutationFn: createInventoryTransaction,
+    mutationFn: (
+      data: Omit<InventoryTransaction, 'id' | 'createdAt' | 'updatedAt'>
+    ) => createInventoryTransaction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-transactions'] });
       onClose();
@@ -40,7 +42,13 @@ export function InventoryForm({ transaction, onClose }: InventoryFormProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: updateInventoryTransaction,
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<InventoryTransaction>;
+    }) => updateInventoryTransaction(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-transactions'] });
       onClose();
@@ -50,16 +58,17 @@ export function InventoryForm({ transaction, onClose }: InventoryFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
-      ...formData,
+      type: formData.type as InventoryTransaction['type'],
       quantity: parseInt(formData.quantity),
       productId: parseInt(formData.productId),
       shopId: parseInt(shopId!),
+      comment: formData.comment,
     };
 
     if (transaction) {
       await updateMutation.mutateAsync({
         id: transaction.id.toString(),
-        ...payload,
+        data: payload,
       });
     } else {
       await createMutation.mutateAsync(payload);

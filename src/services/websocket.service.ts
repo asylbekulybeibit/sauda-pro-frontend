@@ -1,4 +1,4 @@
-import { io, Socket } from 'socket.io-client';
+import { Manager } from 'socket.io-client';
 import { API_URL } from '../config';
 
 export interface WebSocketNotification {
@@ -19,7 +19,7 @@ export interface WebSocketConfig {
 
 export class WebSocketService {
   private static instance: WebSocketService;
-  private socket: Socket | null = null;
+  private socket: any | null = null;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private config: WebSocketConfig | null = null;
   private reconnectAttempts = 0;
@@ -45,13 +45,14 @@ export class WebSocketService {
       return;
     }
 
-    this.socket = io(API_URL, {
+    const manager = new Manager(API_URL, {
       auth: {
         token: this.config.token,
         shopId: this.config.shopId,
       },
-      reconnection: false, // Мы будем управлять реконнектом сами
+      reconnection: false,
     });
+    this.socket = manager.socket('/');
 
     this.setupSocketListeners();
   }
@@ -68,12 +69,12 @@ export class WebSocketService {
       }
     });
 
-    this.socket.on('disconnect', (reason) => {
+    this.socket.on('disconnect', (reason: string) => {
       console.log('WebSocket disconnected:', reason);
       this.handleDisconnect(reason);
     });
 
-    this.socket.on('error', (error) => {
+    this.socket.on('error', (error: Error) => {
       console.error('WebSocket error:', error);
       this.notifyListeners('error', error);
     });

@@ -1,22 +1,17 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getReports } from '@/services/managerApi';
 import { ReportList } from '@/components/manager/reports/ReportList';
 import { ReportForm } from '@/components/manager/reports/ReportForm';
-import { Button } from '@/components/ui/Button';
-import { PlusIcon } from '@heroicons/react/outline';
-import { Spinner } from '@/components/ui/Spinner';
+import { Button, Spin } from 'antd';
+import { TagIcon } from '@heroicons/react/outline';
 
 export function ReportsPage() {
   const { shopId } = useParams<{ shopId: string }>();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
-  const {
-    data: reports,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: reports, isLoading } = useQuery({
     queryKey: ['reports', shopId],
     queryFn: () => getReports(shopId!),
     enabled: !!shopId,
@@ -25,37 +20,27 @@ export function ReportsPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center text-red-600">
-        Произошла ошибка при загрузке данных
+        <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Отчеты</h1>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Отчеты</h1>
         <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center"
+          type="primary"
+          icon={<TagIcon className="h-5 w-5" />}
+          onClick={() => setShowForm(true)}
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
           Создать отчет
         </Button>
       </div>
 
-      <ReportList reports={reports || []} />
+      {reports && <ReportList reports={reports} />}
 
-      {isCreateModalOpen && (
-        <ReportForm onClose={() => setIsCreateModalOpen(false)} />
-      )}
+      {showForm && <ReportForm onClose={() => setShowForm(false)} />}
     </div>
   );
 }

@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { User } from '@/types/user';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deactivateStaff } from '@/services/managerApi';
-import { TrashIcon } from '@heroicons/react/outline';
+import { TrashIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '@/utils/format';
 
 interface StaffListProps {
@@ -13,28 +12,30 @@ export function StaffList({ staff }: StaffListProps) {
   const queryClient = useQueryClient();
 
   const deactivateMutation = useMutation({
-    mutationFn: deactivateStaff,
+    mutationFn: (id: string) => deactivateStaff(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
   });
 
-  const handleDeactivate = async (id: number) => {
+  const handleDeactivate = async (id: string) => {
     if (
       window.confirm('Вы уверены, что хотите деактивировать этого сотрудника?')
     ) {
-      await deactivateMutation.mutateAsync(id.toString());
+      await deactivateMutation.mutateAsync(id);
     }
   };
 
-  const getRoleText = (role: string) => {
-    switch (role) {
-      case 'MANAGER':
+  const getRoleText = (type: 'owner' | 'manager' | 'cashier') => {
+    switch (type) {
+      case 'manager':
         return 'Менеджер';
-      case 'CASHIER':
+      case 'cashier':
         return 'Кассир';
+      case 'owner':
+        return 'Владелец';
       default:
-        return role;
+        return type;
     }
   };
 
@@ -44,6 +45,17 @@ export function StaffList({ staff }: StaffListProps) {
 
   const getStatusColor = (isActive: boolean) => {
     return isActive ? 'text-green-600' : 'text-red-600';
+  };
+
+  const getUserFullName = (user: User) => {
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    } else if (user.firstName) {
+      return user.firstName;
+    } else if (user.lastName) {
+      return user.lastName;
+    }
+    return 'Без имени';
   };
 
   return (
@@ -93,7 +105,7 @@ export function StaffList({ staff }: StaffListProps) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="text-sm font-medium text-gray-900">
-                      {user.name}
+                      {getUserFullName(user)}
                     </div>
                   </div>
                 </td>
@@ -102,7 +114,7 @@ export function StaffList({ staff }: StaffListProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {getRoleText(user.role)}
+                    {user.roles[0] && getRoleText(user.roles[0].type)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

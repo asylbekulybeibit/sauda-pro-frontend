@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Report } from '@/types/report';
+import { Report, ReportType, ReportFormat } from '@/types/report';
 import { createReport, updateReport } from '@/services/managerApi';
 import { XIcon } from '@heroicons/react/outline';
 
@@ -23,7 +23,14 @@ export function ReportForm({ report, onClose }: ReportFormProps) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: createReport,
+    mutationFn: (data: {
+      shopId: number;
+      name: string;
+      type: ReportType;
+      format: ReportFormat;
+      startDate: string;
+      endDate: string;
+    }) => createReport(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       onClose();
@@ -31,7 +38,15 @@ export function ReportForm({ report, onClose }: ReportFormProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: updateReport,
+    mutationFn: (data: {
+      id: string;
+      shopId: number;
+      name: string;
+      type: ReportType;
+      format: ReportFormat;
+      startDate: string;
+      endDate: string;
+    }) => updateReport(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       onClose();
@@ -47,8 +62,8 @@ export function ReportForm({ report, onClose }: ReportFormProps) {
 
     if (report) {
       await updateMutation.mutateAsync({
-        id: report.id.toString(),
         ...payload,
+        id: report.id.toString(),
       });
     } else {
       await createMutation.mutateAsync(payload);

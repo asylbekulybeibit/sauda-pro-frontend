@@ -3,15 +3,20 @@ import { Product, Category } from '@/types/product';
 import { ProductForm } from './ProductForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteProduct } from '@/services/managerApi';
-import { PencilIcon, TrashIcon } from '@heroicons/react/outline';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/utils/format';
 
 interface ProductListProps {
   products: Product[];
   categories: Category[];
+  shopId: string;
 }
 
-export function ProductList({ products, categories }: ProductListProps) {
+export function ProductList({
+  products,
+  categories,
+  shopId,
+}: ProductListProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const queryClient = useQueryClient();
 
@@ -28,7 +33,7 @@ export function ProductList({ products, categories }: ProductListProps) {
     }
   };
 
-  const getCategoryName = (categoryId: number | null) => {
+  const getCategoryName = (categoryId: number | undefined) => {
     if (!categoryId) return 'Без категории';
     const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : 'Неизвестная категория';
@@ -141,6 +146,7 @@ export function ProductList({ products, categories }: ProductListProps) {
           product={editingProduct}
           categories={categories}
           onClose={() => setEditingProduct(null)}
+          shopId={shopId}
         />
       )}
     </div>

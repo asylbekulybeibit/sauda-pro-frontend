@@ -4,7 +4,7 @@ import { Supplier } from '@/types/supplier';
 import { Button, Table, Modal, message } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { ApiError, ApiErrorHandler } from '@/utils/error-handler';
+import { ApiErrorHandler } from '@/utils/error-handler';
 
 interface SupplierListProps {
   shopId: string;

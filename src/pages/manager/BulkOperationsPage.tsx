@@ -1,14 +1,12 @@
 import React from 'react';
-import { Card, Tabs } from 'antd';
+import { Card, Tabs, message } from 'antd';
 import { useParams } from 'react-router-dom';
 import { BulkProductUpload } from '@/components/manager/products/BulkProductUpload';
-import { useMessage } from '@/hooks/useMessage';
 
 const { TabPane } = Tabs;
 
 const BulkOperationsPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
-  const message = useMessage();
 
   const handleSuccess = () => {
     message.success('Операция успешно выполнена');

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { ManagerSidebar } from '@/components/manager/layout/Sidebar';
 import { ManagerHeader } from '@/components/manager/layout/Header';
-import { NotificationsPopover } from '@/components/Notifications/NotificationsPopover';
+import { NotificationsPopover } from '@/components/manager/notifications/NotificationsPopover';
 
 export default function ManagerLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);

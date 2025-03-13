@@ -6,8 +6,7 @@ import PendingInvites from '@/components/invites/PendingInvites';
 import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
 import { getProfile } from '@/services/api';
-import { User } from '@/types/user';
-import { RoleType } from '@/types/role';
+import { RoleType, UserRoleDetails } from '@/types/role';
 import { ShopType } from '@/types/shop';
 
 export default function ProfilePage() {
@@ -20,7 +19,7 @@ export default function ProfilePage() {
     queryFn: getProfile,
   });
 
-  const handleRoleSelect = (role: 'superadmin' | User['roles'][0]) => {
+  const handleRoleSelect = (role: 'superadmin' | UserRoleDetails) => {
     if (role === 'superadmin') {
       setCurrentRole({ type: 'superadmin' });
       navigate('/admin');
@@ -29,9 +28,9 @@ export default function ProfilePage() {
         type: 'shop',
         id: role.shop.id,
         role:
-          role.type === 'owner'
+          role.type === RoleType.OWNER
             ? RoleType.OWNER
-            : role.type === 'manager'
+            : role.type === RoleType.MANAGER
             ? RoleType.MANAGER
             : RoleType.CASHIER,
         shop: {
@@ -46,7 +45,7 @@ export default function ProfilePage() {
           address: role.shop.address,
         },
       });
-      if (role.type === 'owner') {
+      if (role.type === RoleType.OWNER) {
         navigate(`/owner/${role.shop.id}`);
       } else {
         navigate(`/shop/${role.shop.id}`);
@@ -59,7 +58,7 @@ export default function ProfilePage() {
     navigate('/login');
   };
 
-  const renderRole = (role: User['roles'][0]) => (
+  const renderRole = (role: UserRoleDetails) => (
     <motion.div
       key={role.id}
       whileHover={{ scale: 1.02 }}

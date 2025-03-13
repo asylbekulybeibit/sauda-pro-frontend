@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { LabelTemplate } from '@/types/label';
 import { Product } from '@/types/product';
 import { previewLabel } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface LabelPreviewProps {
   template: LabelTemplate;
@@ -17,11 +16,17 @@ export function LabelPreview({
   product,
   onClose,
 }: LabelPreviewProps) {
-  const { shopId } = useParams<{ shopId: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const previewMutation = useMutation({
-    mutationFn: previewLabel,
+    mutationFn: (params: {
+      templateId: number;
+      productId: number | undefined;
+    }) =>
+      previewLabel(
+        params.templateId.toString(),
+        params.productId?.toString() || ''
+      ),
     onSuccess: (data) => {
       if (iframeRef.current) {
         const blob = new Blob([data], { type: 'application/pdf' });
@@ -33,14 +38,13 @@ export function LabelPreview({
   });
 
   useEffect(() => {
-    if (template && shopId) {
+    if (template && product?.id) {
       previewMutation.mutate({
-        shopId: parseInt(shopId),
         templateId: template.id,
-        productId: product?.id,
+        productId: product.id,
       });
     }
-  }, [template, product, shopId]);
+  }, [template, product]);
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">

@@ -29,11 +29,11 @@ export const StaffPerformance: React.FC<StaffPerformanceProps> = ({
     dayjs().endOf('day').toISOString(),
   ]);
 
-  const { data: staffData, isLoading } = useStaffAnalytics(
-    shopId,
-    dateRange[0],
-    dateRange[1]
-  );
+  const {
+    data: staffData,
+    isLoading,
+  }: { data: StaffPerformanceData | undefined; isLoading: boolean } =
+    useStaffAnalytics(shopId, dateRange[0], dateRange[1]);
 
   if (isLoading) {
     return (

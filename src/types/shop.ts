@@ -28,6 +28,11 @@ export interface Shop {
       emailNotifications?: boolean;
       pushNotifications?: boolean;
     };
+    currencySettings?: {
+      currency: string;
+      decimalPlaces: number;
+      showCurrencySymbol: 'before' | 'after' | 'code';
+    };
   };
   userRoles: {
     id: string;

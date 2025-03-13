@@ -3,7 +3,7 @@ import { Card, DatePicker, Select, Input, Space, Button } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { FixedSizeList as List } from 'react-window';
 import dayjs from 'dayjs';
-import { auditApi } from '../../../api/auditApi';
+import { auditApi } from '../../../services/auditApi';
 import { AuditActionType, AuditEntityType } from '../../../types/audit';
 import { useWindowSize } from '../../../hooks/useWindowSize';
 
@@ -14,7 +14,6 @@ interface AuditLogsProps {
 }
 
 const ROW_HEIGHT = 54;
-const HEADER_HEIGHT = 55;
 
 export const AuditLogs: React.FC<AuditLogsProps> = ({ shopId }) => {
   const { height: windowHeight } = useWindowSize();

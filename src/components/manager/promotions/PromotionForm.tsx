@@ -39,7 +39,8 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: updatePromotion,
+    mutationFn: ({ id, data }: { id: string; data: Partial<Promotion> }) =>
+      updatePromotion(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       onClose();
@@ -58,7 +59,7 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
     if (promotion) {
       await updateMutation.mutateAsync({
         id: promotion.id.toString(),
-        ...payload,
+        data: payload,
       });
     } else {
       await createMutation.mutateAsync(payload);

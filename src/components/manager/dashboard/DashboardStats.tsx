@@ -1,17 +1,17 @@
 import { Product } from '@/types/product';
 import { InventoryTransaction } from '@/types/inventory';
-import { UserRole } from '@/types/role';
+import { UserRoleDetails } from '@/types/role';
 import {
   CubeIcon,
-  CashIcon,
+  BanknotesIcon as CashIcon,
   UserGroupIcon,
-  TrendingUpIcon,
-} from '@heroicons/react/outline';
+  ArrowTrendingUpIcon as TrendingUpIcon,
+} from '@heroicons/react/24/outline';
 
 interface DashboardStatsProps {
   products: Product[];
   inventory: InventoryTransaction[];
-  staff: UserRole[];
+  staff: UserRoleDetails[];
 }
 
 export function DashboardStats({

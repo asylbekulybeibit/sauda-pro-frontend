@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Category } from '@/types/product';
+import { Category } from '@/types/category';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createCategory, updateCategory } from '@/services/managerApi';
 import { XIcon } from '@heroicons/react/outline';
@@ -8,12 +8,14 @@ interface CategoryFormProps {
   category?: Category;
   categories: Category[];
   onClose: () => void;
+  shopId: string;
 }
 
 export function CategoryForm({
   category,
   categories,
   onClose,
+  shopId,
 }: CategoryFormProps) {
   const [formData, setFormData] = useState({
     name: category?.name || '',
@@ -24,7 +26,8 @@ export function CategoryForm({
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: createCategory,
+    mutationFn: (data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>) =>
+      createCategory(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       onClose();
@@ -32,7 +35,8 @@ export function CategoryForm({
   });
 
   const updateMutation = useMutation({
-    mutationFn: updateCategory,
+    mutationFn: ({ id, data }: { id: string; data: Partial<Category> }) =>
+      updateCategory(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       onClose();
@@ -42,14 +46,17 @@ export function CategoryForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
-      ...formData,
-      parentId: formData.parentId ? parseInt(formData.parentId) : null,
+      name: formData.name,
+      description: formData.description,
+      parentId: formData.parentId || undefined,
+      shopId,
+      isActive: true,
     };
 
     if (category) {
       await updateMutation.mutateAsync({
-        id: category.id.toString(),
-        ...payload,
+        id: category.id,
+        data: payload,
       });
     } else {
       await createMutation.mutateAsync(payload);

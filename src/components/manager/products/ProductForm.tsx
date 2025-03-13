@@ -2,15 +2,21 @@ import { useState } from 'react';
 import { Product, Category } from '@/types/product';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createProduct, updateProduct } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface ProductFormProps {
   product?: Product;
   categories: Category[];
   onClose: () => void;
+  shopId: string;
 }
 
-export function ProductForm({ product, categories, onClose }: ProductFormProps) {
+export function ProductForm({
+  product,
+  categories,
+  onClose,
+  shopId,
+}: ProductFormProps) {
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -24,7 +30,8 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: createProduct,
+    mutationFn: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) =>
+      createProduct(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       onClose();
@@ -32,7 +39,8 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
   });
 
   const updateMutation = useMutation({
-    mutationFn: updateProduct,
+    mutationFn: ({ id, data }: { id: string; data: Partial<Product> }) =>
+      updateProduct(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       onClose();
@@ -46,13 +54,16 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
       price: parseFloat(formData.price.toString()),
       quantity: parseInt(formData.quantity.toString()),
       minQuantity: parseInt(formData.minQuantity.toString()),
-      categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
+      categoryId: formData.categoryId
+        ? parseInt(formData.categoryId)
+        : undefined,
+      shopId: parseInt(shopId),
     };
 
     if (product) {
       await updateMutation.mutateAsync({
         id: product.id.toString(),
-        ...payload,
+        data: payload,
       });
     } else {
       await createMutation.mutateAsync(payload);
@@ -60,7 +71,9 @@ export function ProductForm({ product, categories, onClose }: ProductFormProps) 
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));

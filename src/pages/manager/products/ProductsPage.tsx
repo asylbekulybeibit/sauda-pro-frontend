@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getProducts, getCategories } from '@/services/managerApi';
 import { ProductList } from '@/components/manager/products/ProductList';
 import { ProductForm } from '@/components/manager/products/ProductForm';
-import { Button } from '@/components/ui/Button';
-import { PlusIcon } from '@heroicons/react/outline';
+import { Button, Spin } from 'antd';
+import { TagIcon } from '@heroicons/react/outline';
+import { Category as ProductCategory } from '@/types/product';
 
-export default function ProductsPage() {
-  const { shopId } = useParams();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+export function ProductsPage() {
+  const { shopId } = useParams<{ shopId: string }>();
+  const [showForm, setShowForm] = useState(false);
 
   const { data: products, isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products', shopId],
@@ -17,42 +18,55 @@ export default function ProductsPage() {
     enabled: !!shopId,
   });
 
-  const { data: categories } = useQuery({
+  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories', shopId],
     queryFn: () => getCategories(shopId!),
     enabled: !!shopId,
   });
 
-  if (isLoadingProducts) {
+  // Convert category IDs and shopId from string to number
+  const categories: ProductCategory[] =
+    categoriesData?.map((cat) => ({
+      ...cat,
+      id: Number(cat.id),
+      parentId: cat.parentId ? Number(cat.parentId) : undefined,
+      shopId: Number(cat.shopId),
+    })) || [];
+
+  if (isLoadingProducts || isLoadingCategories) {
     return (
       <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+        <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Заголовок и кнопка добавления */}
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Товары</h1>
+        <h1 className="text-2xl font-semibold">Товары</h1>
         <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center px-4 py-2"
+          type="primary"
+          icon={<TagIcon className="h-5 w-5" />}
+          onClick={() => setShowForm(true)}
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
           Добавить товар
         </Button>
       </div>
 
-      {/* Список товаров */}
-      <ProductList products={products || []} categories={categories || []} />
+      {products && (
+        <ProductList
+          products={products}
+          categories={categories}
+          shopId={shopId!}
+        />
+      )}
 
-      {/* Модальное окно создания товара */}
-      {isCreateModalOpen && (
+      {showForm && (
         <ProductForm
-          categories={categories || []}
-          onClose={() => setIsCreateModalOpen(false)}
+          categories={categories}
+          shopId={shopId!}
+          onClose={() => setShowForm(false)}
         />
       )}
     </div>

@@ -8,13 +8,19 @@ interface CurrencySettingsProps {
   onSave: (data: Partial<Shop>) => Promise<void>;
 }
 
+type CurrencySettingsFormValues = {
+  currency: string;
+  decimalPlaces: number;
+  showCurrencySymbol: 'before' | 'after' | 'code';
+};
+
 export const CurrencySettings: React.FC<CurrencySettingsProps> = ({
   shop,
   onSave,
 }) => {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<CurrencySettingsFormValues>();
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: CurrencySettingsFormValues) => {
     try {
       await onSave({
         settings: {

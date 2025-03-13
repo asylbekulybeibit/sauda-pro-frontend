@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getCategories } from '@/services/managerApi';
 import { CategoryTree } from '@/components/manager/products/CategoryTree';
 import { CategoryForm } from '@/components/manager/products/CategoryForm';
-import { Button } from '@/components/ui/Button';
-import { PlusIcon } from '@heroicons/react/outline';
+import { Button, Spin } from 'antd';
+import { TagIcon } from '@heroicons/react/outline';
 
-export default function CategoryPage() {
-  const { shopId } = useParams();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+export function CategoryPage() {
+  const { shopId } = useParams<{ shopId: string }>();
+  const [showForm, setShowForm] = useState(false);
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories', shopId],
@@ -20,35 +20,33 @@ export default function CategoryPage() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
+        <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Заголовок и кнопка добавления */}
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Категории</h1>
+        <h1 className="text-2xl font-semibold">Категории</h1>
         <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center px-4 py-2"
+          type="primary"
+          icon={<TagIcon className="h-5 w-5" />}
+          onClick={() => setShowForm(true)}
         >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Добавить категорию
+          Создать категорию
         </Button>
       </div>
 
-      {/* Дерево категорий */}
-      <CategoryTree categories={categories || []} />
+      {categories && <CategoryTree categories={categories} shopId={shopId!} />}
 
-      {/* Модальное окно создания категории */}
-      {isCreateModalOpen && (
+      {showForm && (
         <CategoryForm
           categories={categories || []}
-          onClose={() => setIsCreateModalOpen(false)}
+          shopId={shopId!}
+          onClose={() => setShowForm(false)}
         />
       )}
     </div>
   );
-} 
+}

@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createInvite } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { createStaffInvite } from '@/services/managerApi';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface InviteFormProps {
   onClose: () => void;
+}
+
+interface InviteFormData {
+  shopId: number;
+  email: string;
+  role: string;
 }
 
 export function InviteForm({ onClose }: InviteFormProps) {
@@ -18,7 +24,7 @@ export function InviteForm({ onClose }: InviteFormProps) {
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: createInvite,
+    mutationFn: (data: InviteFormData) => createStaffInvite(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites'] });
       onClose();

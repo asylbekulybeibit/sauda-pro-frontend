@@ -22,11 +22,11 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({ shopId }) => {
     dayjs().endOf('day').toISOString(),
   ]);
 
-  const { data: salesData, isLoading } = useSalesAnalytics(
-    shopId,
-    dateRange[0],
-    dateRange[1]
-  );
+  const {
+    data: salesData,
+    isLoading,
+  }: { data: SalesAnalyticsData | undefined; isLoading: boolean } =
+    useSalesAnalytics(shopId, dateRange[0], dateRange[1]);
 
   if (isLoading) {
     return (

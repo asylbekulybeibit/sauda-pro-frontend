@@ -1,17 +1,26 @@
 import { useState } from 'react';
 import { LabelTemplate, LabelType, LabelSize } from '@/types/label';
+import { Product } from '@/types/product';
 import { LabelTemplateForm } from './LabelTemplateForm';
 import { LabelGenerator } from './LabelGenerator';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteLabelTemplate } from '@/services/managerApi';
-import { PencilIcon, TrashIcon, PrinterIcon } from '@heroicons/react/outline';
+import {
+  PencilIcon,
+  TrashIcon,
+  PrinterIcon,
+} from '@heroicons/react/24/outline';
 import { formatDate } from '@/utils/format';
 
 interface LabelTemplateListProps {
   templates: LabelTemplate[];
+  products: Product[];
 }
 
-export function LabelTemplateList({ templates }: LabelTemplateListProps) {
+export function LabelTemplateList({
+  templates,
+  products,
+}: LabelTemplateListProps) {
   const [editingTemplate, setEditingTemplate] = useState<LabelTemplate | null>(
     null
   );
@@ -148,6 +157,7 @@ export function LabelTemplateList({ templates }: LabelTemplateListProps) {
       {generatingTemplate && (
         <LabelGenerator
           template={generatingTemplate}
+          products={products}
           onClose={() => setGeneratingTemplate(null)}
         />
       )}

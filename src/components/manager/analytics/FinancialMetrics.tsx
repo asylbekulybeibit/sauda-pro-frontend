@@ -1,15 +1,5 @@
 import React from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  DatePicker,
-  Space,
-  Table,
-  message,
-  Spin,
-} from 'antd';
+import { Card, Row, Col, Statistic, DatePicker, Table, Spin } from 'antd';
 import {
   DollarOutlined,
   ArrowUpOutlined,
@@ -18,7 +8,6 @@ import {
 import { Line, Pie } from '@ant-design/charts';
 import { useFinancialAnalytics } from '@/hooks/useAnalytics';
 import dayjs from 'dayjs';
-import { ApiErrorHandler } from '@/utils/error-handler';
 
 interface FinancialMetricsProps {
   shopId: string;
@@ -53,9 +42,14 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
   }
 
   const revenueLineConfig = {
-    data: financialData.revenueByDay,
+    data: financialData.dailyMetrics.map((metric) => ({
+      date: metric.date,
+      value: metric.revenue,
+      type: 'Выручка',
+    })),
     xField: 'date',
     yField: 'value',
+    seriesField: 'type',
     smooth: true,
     animation: {
       appear: {
@@ -67,7 +61,7 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
 
   const expensesPieConfig = {
     data: financialData.expensesByCategory,
-    angleField: 'value',
+    angleField: 'amount',
     colorField: 'category',
     radius: 0.8,
     label: {
@@ -84,34 +78,34 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
     ],
   };
 
-  const transactionsColumns = [
+  const topProductsColumns = [
     {
-      title: 'Дата',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date: string) => dayjs(date).format('DD.MM.YYYY'),
+      title: 'Название',
+      dataIndex: 'name',
+      key: 'name',
     },
     {
-      title: 'Тип',
-      dataIndex: 'type',
-      key: 'type',
-    },
-    {
-      title: 'Категория',
-      dataIndex: 'category',
-      key: 'category',
-    },
-    {
-      title: 'Сумма',
-      dataIndex: 'amount',
-      key: 'amount',
-      sorter: (a: any, b: any) => a.amount - b.amount,
+      title: 'Выручка',
+      dataIndex: 'revenue',
+      key: 'revenue',
       render: (value: number) => `${value.toFixed(2)} ₽`,
     },
     {
-      title: 'Описание',
-      dataIndex: 'description',
-      key: 'description',
+      title: 'Прибыль',
+      dataIndex: 'profit',
+      key: 'profit',
+      render: (value: number) => `${value.toFixed(2)} ₽`,
+    },
+    {
+      title: 'Маржа',
+      dataIndex: 'margin',
+      key: 'margin',
+      render: (value: number) => `${(value * 100).toFixed(1)}%`,
+    },
+    {
+      title: 'Количество',
+      dataIndex: 'quantity',
+      key: 'quantity',
     },
   ];
 
@@ -146,10 +140,10 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
         <Col span={8}>
           <Card>
             <Statistic
-              title="Общие расходы"
-              value={financialData.totalExpenses}
+              title="Общая прибыль"
+              value={financialData.totalProfit}
               precision={2}
-              prefix={<ArrowDownOutlined style={{ color: '#cf1322' }} />}
+              prefix={<ArrowUpOutlined style={{ color: '#3f8600' }} />}
               suffix="₽"
             />
           </Card>
@@ -157,11 +151,17 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
         <Col span={8}>
           <Card>
             <Statistic
-              title="Чистая прибыль"
-              value={financialData.netProfit}
-              precision={2}
-              prefix={<ArrowUpOutlined style={{ color: '#3f8600' }} />}
-              suffix="₽"
+              title="Рост выручки"
+              value={financialData.revenueGrowth}
+              precision={1}
+              prefix={
+                financialData.revenueGrowth > 0 ? (
+                  <ArrowUpOutlined style={{ color: '#3f8600' }} />
+                ) : (
+                  <ArrowDownOutlined style={{ color: '#cf1322' }} />
+                )
+              }
+              suffix="%"
             />
           </Card>
         </Col>
@@ -182,10 +182,10 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
           </Card>
         </Col>
         <Col span={12}>
-          <Card title="Последние транзакции">
+          <Card title="Топ продуктов">
             <Table
-              columns={transactionsColumns}
-              dataSource={financialData.recentTransactions}
+              columns={topProductsColumns}
+              dataSource={financialData.topProducts}
               rowKey="id"
               pagination={false}
             />

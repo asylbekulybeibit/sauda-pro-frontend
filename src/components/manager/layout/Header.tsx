@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import { MenuIcon } from '@heroicons/react/outline';
+import { Bars3Icon as MenuIcon } from '@heroicons/react/24/outline';
 
 interface ManagerHeaderProps {
   onMenuClick: () => void;

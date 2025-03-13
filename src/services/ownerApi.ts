@@ -1,6 +1,6 @@
 import { api } from './api';
 import { Invite } from '@/types/invite';
-import { UserRole } from '@/types/role';
+import { UserRoleDetails } from '@/types/role';
 
 // Методы для работы с инвайтами владельца
 export const cancelInvite = async (inviteId: string): Promise<void> => {
@@ -13,7 +13,9 @@ export const getOwnerInvites = async (shopId: string): Promise<Invite[]> => {
 };
 
 // Методы для работы с сотрудниками владельца
-export const getShopStaff = async (shopId: string): Promise<UserRole[]> => {
+export const getShopStaff = async (
+  shopId: string
+): Promise<UserRoleDetails[]> => {
   const response = await api.get(`/owner/staff/${shopId}`);
   return response.data;
 };

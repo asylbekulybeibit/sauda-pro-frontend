@@ -2,7 +2,7 @@ import { api } from './api';
 import { Product } from '@/types/product';
 import { Category } from '@/types/category';
 import { InventoryTransaction } from '@/types/inventory';
-import { UserRole } from '@/types/role';
+import { UserRoleDetails } from '@/types/role';
 import { Invite } from '@/types/invite';
 import { Report } from '@/types/report';
 import { Promotion } from '@/types/promotion';
@@ -110,11 +110,38 @@ export const getInventory = async (
   return response.data;
 };
 
-export const createTransaction = async (
-  data: any
+export const createInventoryTransaction = async (
+  data: Omit<InventoryTransaction, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<InventoryTransaction> => {
-  const response = await api.post('/manager/inventory/transactions', data);
-  return response.data;
+  try {
+    const response = await api.post('/manager/inventory/transactions', data);
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const updateInventoryTransaction = async (
+  id: string,
+  data: Partial<InventoryTransaction>
+): Promise<InventoryTransaction> => {
+  try {
+    const response = await api.patch(
+      `/manager/inventory/transactions/${id}`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const deleteInventoryTransaction = async (id: string): Promise<void> => {
+  try {
+    await api.delete(`/manager/inventory/transactions/${id}`);
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getLowStockProducts = async (
@@ -125,7 +152,7 @@ export const getLowStockProducts = async (
 };
 
 // Методы для работы с персоналом
-export const getStaff = async (shopId: string): Promise<UserRole[]> => {
+export const getStaff = async (shopId: string): Promise<UserRoleDetails[]> => {
   const response = await api.get(`/manager/staff/${shopId}`);
   return response.data;
 };
@@ -150,6 +177,46 @@ export const getReports = async (shopId: string): Promise<Report[]> => {
   return response.data;
 };
 
+export const updateReport = async (data: {
+  id: string;
+  shopId: number;
+  name: string;
+  type: string;
+  format: string;
+  startDate: string;
+  endDate: string;
+}): Promise<Report> => {
+  const { id, ...updateData } = data;
+  const response = await api.patch(`/manager/reports/${id}`, updateData);
+  return response.data;
+};
+
+export const deleteReport = async (id: string): Promise<void> => {
+  await api.delete(`/manager/reports/${id}`);
+};
+
+export const downloadReport = async (
+  id: string
+): Promise<{
+  data: Blob;
+  type: string;
+  filename: string;
+}> => {
+  const response = await api.get(`/manager/reports/${id}/download`, {
+    responseType: 'blob',
+  });
+  const contentType = response.headers['content-type'];
+  const filename =
+    response.headers['content-disposition']
+      ?.split('filename=')[1]
+      ?.replace(/["']/g, '') || 'report';
+  return {
+    data: response.data,
+    type: contentType,
+    filename,
+  };
+};
+
 // Методы для работы с акциями
 export const getPromotions = async (shopId: string): Promise<Promotion[]> => {
   const response = await api.get(`/manager/promotions/shop/${shopId}`);
@@ -159,6 +226,18 @@ export const getPromotions = async (shopId: string): Promise<Promotion[]> => {
 export const createPromotion = async (data: any): Promise<Promotion> => {
   const response = await api.post('/manager/promotions', data);
   return response.data;
+};
+
+export const updatePromotion = async (
+  id: string,
+  data: Partial<Promotion>
+): Promise<Promotion> => {
+  const response = await api.patch(`/manager/promotions/${id}`, data);
+  return response.data;
+};
+
+export const deletePromotion = async (id: string): Promise<void> => {
+  await api.delete(`/manager/promotions/${id}`);
 };
 
 // Методы для работы с поставщиками

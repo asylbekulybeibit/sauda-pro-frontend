@@ -3,7 +3,7 @@ import { InventoryTransaction } from '@/types/inventory';
 import { InventoryForm } from './InventoryForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteInventoryTransaction } from '@/services/managerApi';
-import { PencilIcon, TrashIcon } from '@heroicons/react/outline';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatDate } from '@/utils/format';
 
 interface InventoryListProps {
@@ -16,7 +16,7 @@ export function InventoryList({ transactions }: InventoryListProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: deleteInventoryTransaction,
+    mutationFn: (id: string) => deleteInventoryTransaction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-transactions'] });
     },
@@ -118,7 +118,7 @@ export function InventoryList({ transactions }: InventoryListProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {transaction.product.name}
+                    {transaction.product?.name || 'Неизвестный товар'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

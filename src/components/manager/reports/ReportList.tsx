@@ -3,7 +3,11 @@ import { Report } from '@/types/report';
 import { ReportForm } from './ReportForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteReport, downloadReport } from '@/services/managerApi';
-import { PencilIcon, TrashIcon, DownloadIcon } from '@heroicons/react/outline';
+import {
+  PencilIcon,
+  TrashIcon,
+  ArrowDownTrayIcon as DownloadIcon,
+} from '@heroicons/react/24/outline';
 import { formatDate } from '@/utils/format';
 
 interface ReportListProps {
@@ -15,14 +19,14 @@ export function ReportList({ reports }: ReportListProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: deleteReport,
+    mutationFn: (id: string) => deleteReport(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
     },
   });
 
   const downloadMutation = useMutation({
-    mutationFn: downloadReport,
+    mutationFn: (id: string) => downloadReport(id),
   });
 
   const handleDelete = async (id: number) => {
@@ -34,15 +38,19 @@ export function ReportList({ reports }: ReportListProps) {
   const handleDownload = async (id: number) => {
     try {
       const response = await downloadMutation.mutateAsync(id.toString());
-      const blob = new Blob([response.data], { type: response.type });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', response.filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      if (response && response.data instanceof Blob) {
+        const blob = response.data;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', response.filename || 'report');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error) {
       console.error('Ошибка при скачивании отчета:', error);
     }

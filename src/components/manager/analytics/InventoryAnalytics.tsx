@@ -17,7 +17,11 @@ export const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({
   shopId,
 }) => {
   const { height: windowHeight } = useWindowSize();
-  const { data: inventoryData, isLoading } = useInventoryAnalytics(shopId);
+  const {
+    data: inventoryData,
+    isLoading,
+  }: { data: InventoryAnalyticsData | undefined; isLoading: boolean } =
+    useInventoryAnalytics(shopId);
 
   if (isLoading) {
     return (

@@ -56,44 +56,6 @@ const ContactInfo = ({
   );
 };
 
-// Компонент для отображения ролей пользователя
-const UserRoles = ({ user }: { user: User }) => {
-  if (!user.isSuperAdmin && user.roles.length === 0) {
-    return <span className="text-gray-400">—</span>;
-  }
-
-  const activeRoles = user.roles.filter((role) => role.isActive);
-
-  return (
-    <div className="space-y-2">
-      {user.isSuperAdmin && (
-        <div className="flex items-center space-x-2 border-b pb-2 mb-2">
-          <span>👑</span>
-          <span className="font-medium">Суперадмин</span>
-        </div>
-      )}
-      {activeRoles.map((role) => (
-        <div key={role.id} className="flex items-center space-x-2">
-          <span>
-            {role.type === 'owner'
-              ? '👔'
-              : role.type === 'manager'
-              ? '👨‍💼'
-              : '💰'}
-          </span>
-          <span>
-            {role.type === 'owner'
-              ? 'Владелец'
-              : role.type === 'manager'
-              ? 'Менеджер'
-              : 'Кассир'}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 // Компонент для отображения проектов и ролей
 const UserProjectsAndRoles = ({ user }: { user: User }) => {
   if (!user.isSuperAdmin && user.roles.length === 0) {

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { LabelTemplate } from '@/types/label';
 import { Product } from '@/types/product';
@@ -17,7 +16,6 @@ export function LabelGenerator({
   products,
   onClose,
 }: LabelGeneratorProps) {
-  const { shopId } = useParams<{ shopId: string }>();
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [copies, setCopies] = useState<{ [key: string]: number }>({});
 
@@ -36,11 +34,10 @@ export function LabelGenerator({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = {
-      shopId: parseInt(shopId!),
       templateId: template.id,
-      items: selectedProducts.map((productId) => ({
+      products: selectedProducts.map((productId) => ({
         productId: parseInt(productId),
-        copies: copies[productId] || 1,
+        quantity: copies[productId] || 1,
       })),
     };
     await generateMutation.mutateAsync(data);

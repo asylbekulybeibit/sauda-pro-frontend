@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Category } from '@/types/product';
+import { Category } from '@/types/category';
 import { CategoryForm } from './CategoryForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteCategory } from '@/services/managerApi';
@@ -7,19 +7,20 @@ import {
   PencilIcon,
   TrashIcon,
   ChevronRightIcon,
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 
 interface CategoryTreeProps {
   categories: Category[];
+  shopId: string;
 }
 
 interface CategoryNode extends Category {
   children: CategoryNode[];
 }
 
-export function CategoryTree({ categories }: CategoryTreeProps) {
+export function CategoryTree({ categories, shopId }: CategoryTreeProps) {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<number>>(
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
   const queryClient = useQueryClient();
@@ -32,7 +33,7 @@ export function CategoryTree({ categories }: CategoryTreeProps) {
   });
 
   const buildCategoryTree = (categories: Category[]): CategoryNode[] => {
-    const categoryMap = new Map<number, CategoryNode>();
+    const categoryMap = new Map<string, CategoryNode>();
     const roots: CategoryNode[] = [];
 
     // Создаем узлы для всех категорий
@@ -56,13 +57,13 @@ export function CategoryTree({ categories }: CategoryTreeProps) {
     return roots;
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Вы уверены, что хотите удалить эту категорию?')) {
-      await deleteMutation.mutateAsync(id.toString());
+      await deleteMutation.mutateAsync(id);
     }
   };
 
-  const toggleExpand = (categoryId: number) => {
+  const toggleExpand = (categoryId: string) => {
     setExpandedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(categoryId)) {
@@ -141,6 +142,7 @@ export function CategoryTree({ categories }: CategoryTreeProps) {
           category={editingCategory}
           categories={categories}
           onClose={() => setEditingCategory(null)}
+          shopId={shopId}
         />
       )}
     </div>

@@ -97,7 +97,10 @@ export const SupplierProducts: React.FC<SupplierProductsProps> = ({
       title: 'Действия',
       key: 'actions',
       render: (_: any, record: Product) => (
-        <Button danger onClick={() => handleRemoveProduct(record.id)}>
+        <Button
+          danger
+          onClick={() => handleRemoveProduct(record.id.toString())}
+        >
           Удалить
         </Button>
       ),

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { UserRole } from '@/types/role';
+import { UserRoleDetails } from '@/types/role';
 import { Shop, CreateShopDto, UpdateShopDto } from '@/types/shop';
 import { Invite, CreateInviteDto } from '@/types/invite';
 import { User, UpdateUserDto } from '@/types/user';
@@ -67,7 +67,7 @@ interface Profile {
   lastName?: string;
   email?: string;
   isSuperAdmin: boolean;
-  roles: UserRole[];
+  roles: UserRoleDetails[];
 }
 
 // Методы аутентификации
@@ -249,7 +249,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 };
 
 // Методы для работы с сотрудниками
-export const getShopStaff = async (): Promise<UserRole[]> => {
+export const getShopStaff = async (): Promise<UserRoleDetails[]> => {
   const response = await api.get('/users/staff');
   return response.data;
 };

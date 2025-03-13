@@ -50,7 +50,7 @@ export const SupplierFormPage: React.FC = () => {
       <h2>{id ? 'Редактирование поставщика' : 'Новый поставщик'}</h2>
       <SupplierForm
         shopId={currentShop.id}
-        initialData={supplier}
+        initialData={supplier || undefined}
         onSuccess={() => {
           navigate('/manager/suppliers');
           message.success(

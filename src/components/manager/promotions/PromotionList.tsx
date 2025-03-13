@@ -3,8 +3,8 @@ import { Promotion } from '@/types/promotion';
 import { PromotionForm } from './PromotionForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deletePromotion } from '@/services/managerApi';
-import { PencilIcon, TrashIcon } from '@heroicons/react/outline';
-import { formatDate, formatPrice } from '@/utils/format';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { formatDate } from '@/utils/format';
 
 interface PromotionListProps {
   promotions: Promotion[];
@@ -17,7 +17,7 @@ export function PromotionList({ promotions }: PromotionListProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: deletePromotion,
+    mutationFn: (id: string) => deletePromotion(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
     },

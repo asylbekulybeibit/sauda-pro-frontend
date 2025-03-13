@@ -6,7 +6,6 @@ import {
   StaffPerformanceData,
   FinancialMetricsData,
 } from '@/types/analytics';
-import dayjs from 'dayjs';
 
 export const useAnalyticsKeys = {
   sales: (shopId: string, startDate: string, endDate: string) => [

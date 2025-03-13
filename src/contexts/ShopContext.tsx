@@ -1,10 +1,12 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { Shop } from '@/types/shop';
+import { updateShop as apiUpdateShop } from '@/services/api';
 
 interface ShopContextType {
   currentShop: Shop | null;
   setCurrentShop: (shop: Shop | null) => void;
   loading: boolean;
+  updateShop: (data: Partial<Shop>) => Promise<void>;
 }
 
 export const ShopContext = createContext<ShopContextType | null>(null);
@@ -34,12 +36,19 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
     }
   }, [currentShop]);
 
+  const updateShop = async (data: Partial<Shop>) => {
+    if (!currentShop) return;
+    const updatedShop = await apiUpdateShop(currentShop.id, data);
+    setCurrentShop(updatedShop);
+  };
+
   return (
     <ShopContext.Provider
       value={{
         currentShop,
         setCurrentShop,
         loading,
+        updateShop,
       }}
     >
       {children}

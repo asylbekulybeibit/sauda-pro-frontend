@@ -3,14 +3,12 @@ import {
   HomeIcon,
   ShoppingBagIcon,
   UsersIcon,
-  ChartBarIcon,
-  CogIcon,
-  ClipboardListIcon,
-  CashIcon,
+  Cog6ToothIcon as CogIcon,
+  ClipboardDocumentListIcon as ClipboardListIcon,
+  BanknotesIcon as CashIcon,
   TagIcon,
-  TruckIcon,
   ChartPieIcon,
-} from '@heroicons/react/outline';
+} from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
 interface ManagerSidebarProps {

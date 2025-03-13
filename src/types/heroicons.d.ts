@@ -1,0 +1,23 @@
+declare module '@heroicons/react/outline' {
+  export const TagIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const CubeIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const CashIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const UserGroupIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const TrendingUpIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ExclamationIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const XIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const PencilIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const TrashIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const PrinterIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const MenuIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const HomeIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ShoppingBagIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const UsersIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ChartBarIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const CogIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ClipboardListIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const TruckIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ChartPieIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const ChevronRightIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+  export const DownloadIcon: React.FC<React.SVGProps<SVGSVGElement>>;
+}

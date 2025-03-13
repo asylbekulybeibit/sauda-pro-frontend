@@ -61,7 +61,7 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
     {
       title: 'Изменение',
       key: 'change',
-      render: (_, record: PriceHistory) => {
+      render: (_: unknown, record: PriceHistory) => {
         const change = record.newPrice - record.oldPrice;
         const percentage = ((change / record.oldPrice) * 100).toFixed(2);
         const color = change > 0 ? 'red' : change < 0 ? 'green' : 'inherit';
