@@ -1,30 +1,24 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createStaffInvite } from '@/services/managerApi';
 import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
+import { RoleType } from '@/types/role';
 
 interface InviteFormProps {
   onClose: () => void;
+  shopId: string;
 }
 
-interface InviteFormData {
-  shopId: number;
-  email: string;
-  role: string;
-}
-
-export function InviteForm({ onClose }: InviteFormProps) {
-  const { shopId } = useParams<{ shopId: string }>();
+export function InviteForm({ onClose, shopId }: InviteFormProps) {
   const [formData, setFormData] = useState({
-    email: '',
-    role: 'CASHIER',
+    phone: '',
+    role: RoleType.CASHIER,
   });
 
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: (data: InviteFormData) => createStaffInvite(data),
+    mutationFn: (data: any) => createStaffInvite(data, shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites'] });
       onClose();
@@ -33,12 +27,7 @@ export function InviteForm({ onClose }: InviteFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      ...formData,
-      shopId: parseInt(shopId!),
-    };
-
-    await createMutation.mutateAsync(payload);
+    await createMutation.mutateAsync(formData);
   };
 
   const handleChange = (
@@ -64,18 +53,19 @@ export function InviteForm({ onClose }: InviteFormProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
-              htmlFor="email"
+              htmlFor="phone"
               className="block text-sm font-medium text-gray-700"
             >
-              Email
+              Номер телефона
             </label>
             <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
+              type="tel"
+              id="phone"
+              name="phone"
+              value={formData.phone}
               onChange={handleChange}
               required
+              placeholder="+7 (999) 999-99-99"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
@@ -94,8 +84,8 @@ export function InviteForm({ onClose }: InviteFormProps) {
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             >
-              <option value="CASHIER">Кассир</option>
-              <option value="MANAGER">Менеджер</option>
+              <option value={RoleType.CASHIER}>Кассир</option>
+              <option value={RoleType.MANAGER}>Менеджер</option>
             </select>
           </div>
 

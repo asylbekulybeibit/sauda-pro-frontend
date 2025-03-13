@@ -153,17 +153,27 @@ export const getLowStockProducts = async (
 
 // Методы для работы с персоналом
 export const getStaff = async (shopId: string): Promise<UserRoleDetails[]> => {
-  const response = await api.get(`/manager/staff/${shopId}`);
+  try {
+    const response = await api.get(`/manager/staff/shop/${shopId}`);
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const createStaffInvite = async (
+  data: any,
+  shopId: string
+): Promise<Invite> => {
+  const response = await api.post(`/manager/staff/shop/${shopId}/invite`, data);
   return response.data;
 };
 
-export const createStaffInvite = async (data: any): Promise<Invite> => {
-  const response = await api.post('/manager/staff/invite', data);
-  return response.data;
-};
-
-export const deactivateStaff = async (staffId: string): Promise<void> => {
-  await api.patch(`/manager/staff/${staffId}/deactivate`);
+export const deactivateStaff = async (
+  staffId: string,
+  shopId: string
+): Promise<void> => {
+  await api.patch(`/manager/staff/shop/${shopId}/staff/${staffId}/deactivate`);
 };
 
 // Методы для работы с отчетами
