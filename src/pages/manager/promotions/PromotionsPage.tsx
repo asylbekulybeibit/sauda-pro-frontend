@@ -7,7 +7,7 @@ import { PromotionForm } from '@/components/manager/promotions/PromotionForm';
 import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/outline';
 
-export function PromotionsPage() {
+function PromotionsPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -44,3 +44,5 @@ export function PromotionsPage() {
     </div>
   );
 }
+
+export default PromotionsPage;

@@ -1,182 +1,172 @@
-import { useLocation, Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useRoleStore } from '@/store/roleStore';
+import { RoleType, UserRoleDetails } from '@/types/role';
 import {
   HomeIcon,
   ShoppingBagIcon,
-  UsersIcon,
-  Cog6ToothIcon as CogIcon,
-  ClipboardDocumentListIcon as ClipboardListIcon,
   BanknotesIcon as CashIcon,
+  UsersIcon,
   TagIcon,
   ChartPieIcon,
+  ClipboardIcon as ClipboardListIcon,
+  Cog6ToothIcon as CogIcon,
+  ChartBarIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { Disclosure } from '@headlessui/react';
+
+interface NavigationChild {
+  name: string;
+  href: string;
+}
+
+interface NavigationItem {
+  name: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  href?: string;
+  children?: NavigationChild[];
+}
 
 interface ManagerSidebarProps {
-  isOpen: boolean;
-  setIsOpen: (isOpen: boolean) => void;
+  onNavigate?: () => void;
 }
 
-const navigation = [
-  { name: 'Дашборд', href: '/manager', icon: HomeIcon },
-  {
-    name: 'Товары и склад',
-    icon: ShoppingBagIcon,
-    children: [
-      { name: 'Товары', href: '/manager/products' },
-      { name: 'Категории', href: '/manager/products/categories' },
-      { name: 'Склад', href: '/manager/inventory' },
-      { name: 'Перемещения', href: '/manager/inventory/transfers' },
-      { name: 'Поставщики', href: '/manager/suppliers' },
-    ],
-  },
-  {
-    name: 'Продажи',
-    icon: CashIcon,
-    children: [
-      { name: 'История продаж', href: '/manager/sales' },
-      { name: 'Отчеты', href: '/manager/sales/reports' },
-    ],
-  },
-  {
-    name: 'Сотрудники',
-    icon: UsersIcon,
-    children: [
-      { name: 'Список сотрудников', href: '/manager/staff' },
-      { name: 'Приглашения', href: '/manager/staff/invites' },
-    ],
-  },
-  {
-    name: 'Маркетинг',
-    icon: TagIcon,
-    children: [
-      { name: 'Акции', href: '/manager/promotions' },
-      { name: 'Ценники', href: '/manager/labels' },
-    ],
-  },
-  { name: 'Аналитика', href: '/manager/analytics', icon: ChartPieIcon },
-  { name: 'Аудит', href: '/manager/audit', icon: ClipboardListIcon },
-  { name: 'Настройки', href: '/manager/settings', icon: CogIcon },
-];
-
-export function ManagerSidebar({ isOpen, setIsOpen }: ManagerSidebarProps) {
+export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
   const location = useLocation();
+  const { currentRole } = useRoleStore();
+
+  if (!currentRole || currentRole.type !== 'shop') return null;
+
+  const shopId = currentRole.shop.id;
+
+  const navigation = [
+    { name: 'Дашборд', href: `/manager/${shopId}`, icon: HomeIcon },
+    {
+      name: 'Товары и склад',
+      icon: ShoppingBagIcon,
+      children: [
+        { name: 'Товары', href: `/manager/${shopId}/products` },
+        { name: 'Категории', href: `/manager/${shopId}/categories` },
+        { name: 'Склад', href: `/manager/${shopId}/inventory` },
+      ],
+    },
+    {
+      name: 'Продажи',
+      icon: CashIcon,
+      children: [
+        { name: 'История продаж', href: `/manager/${shopId}/sales` },
+        { name: 'Возвраты', href: `/manager/${shopId}/sales/returns` },
+      ],
+    },
+    { name: 'Сотрудники', href: `/manager/${shopId}/staff`, icon: UsersIcon },
+    {
+      name: 'Маркетинг',
+      icon: ChartBarIcon,
+      children: [
+        { name: 'Акции', href: `/manager/${shopId}/promotions` },
+        { name: 'Этикетки', href: `/manager/${shopId}/labels` },
+      ],
+    },
+    {
+      name: 'Аналитика',
+      icon: ChartPieIcon,
+      children: [
+        { name: 'Отчеты', href: `/manager/${shopId}/reports` },
+        { name: 'Статистика', href: `/manager/${shopId}/analytics` },
+      ],
+    },
+    { name: 'Настройки', href: `/manager/${shopId}/settings`, icon: CogIcon },
+  ];
 
   return (
-    <>
-      {/* Мобильное меню */}
-      <div
-        className={clsx(
-          'fixed inset-0 flex z-40 md:hidden',
-          isOpen ? 'block' : 'hidden'
-        )}
-      >
-        {/* Затемнение */}
-        <div
-          className={clsx(
-            'fixed inset-0 bg-gray-600 bg-opacity-75',
-            isOpen ? 'block' : 'hidden'
-          )}
-          onClick={() => setIsOpen(false)}
-        />
+    <div className="w-64 h-full overflow-y-auto bg-white">
+      <nav className="mt-5 px-2 space-y-1">
+        {navigation.map((item) => {
+          const isActive = item.href
+            ? location.pathname === item.href
+            : item.children?.some((child) => location.pathname === child.href);
 
-        {/* Боковая панель */}
-        <div className="relative flex-1 flex flex-col max-w-xs w-full pt-5 pb-4 bg-white">
-          <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setIsOpen(false)}
-            >
-              <span className="sr-only">Закрыть меню</span>
-              <svg
-                className="h-6 w-6 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
+          if (item.children) {
+            return (
+              <Disclosure
+                as="div"
+                key={item.name}
+                className="space-y-1"
+                defaultOpen={item.children.some(
+                  (child) => location.pathname === child.href
+                )}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-          <SidebarContent currentPath={location.pathname} />
-        </div>
-      </div>
+                {({ open }) => (
+                  <>
+                    <Disclosure.Button
+                      className={`${
+                        isActive
+                          ? 'bg-gray-100 text-gray-900'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }
+                      group w-full flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                    >
+                      <item.icon
+                        className={`${
+                          isActive ? 'text-gray-500' : 'text-gray-400'
+                        } mr-3 flex-shrink-0 h-6 w-6`}
+                        aria-hidden="true"
+                      />
+                      <span className="flex-1">{item.name}</span>
+                      <ChevronRightIcon
+                        className={`${
+                          open ? 'transform rotate-90' : ''
+                        } ml-3 flex-shrink-0 h-5 w-5 text-gray-400 transition-transform duration-150 ease-in-out`}
+                        aria-hidden="true"
+                      />
+                    </Disclosure.Button>
+                    <Disclosure.Panel className="space-y-1">
+                      {item.children.map((subItem) => (
+                        <Link
+                          key={subItem.name}
+                          to={subItem.href}
+                          onClick={onNavigate}
+                          className={`${
+                            location.pathname === subItem.href
+                              ? 'bg-gray-100 text-gray-900'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }
+                          group w-full flex items-center pl-11 pr-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
+                        >
+                          {subItem.name}
+                        </Link>
+                      ))}
+                    </Disclosure.Panel>
+                  </>
+                )}
+              </Disclosure>
+            );
+          }
 
-      {/* Десктопное меню */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64">
-          <div className="flex flex-col h-0 flex-1">
-            <div className="flex items-center h-16 flex-shrink-0 px-4 bg-indigo-700">
-              <h1 className="text-xl font-bold text-white">SaudaPro</h1>
-            </div>
-            <div className="flex-1 flex flex-col overflow-y-auto bg-white">
-              <SidebarContent currentPath={location.pathname} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function SidebarContent({ currentPath }: { currentPath: string }) {
-  return (
-    <nav className="mt-5 flex-1 px-2 space-y-1">
-      {navigation.map((item) =>
-        !item.children ? (
-          <Link
-            key={item.name}
-            to={item.href}
-            className={clsx(
-              'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-              currentPath === item.href
-                ? 'bg-indigo-100 text-indigo-600'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            )}
-          >
-            <item.icon
-              className={clsx(
-                'mr-3 flex-shrink-0 h-6 w-6',
-                currentPath === item.href
-                  ? 'text-indigo-600'
-                  : 'text-gray-400 group-hover:text-gray-500'
-              )}
-              aria-hidden="true"
-            />
-            {item.name}
-          </Link>
-        ) : (
-          <div key={item.name} className="space-y-1">
-            <div className="flex items-center px-2 py-2 text-sm font-medium text-gray-600">
-              <item.icon className="mr-3 flex-shrink-0 h-6 w-6 text-gray-400" />
+          return (
+            <Link
+              key={item.name}
+              to={item.href!}
+              onClick={onNavigate}
+              className={`${
+                isActive
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }
+              group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-150`}
+            >
+              <item.icon
+                className={`${
+                  isActive ? 'text-gray-500' : 'text-gray-400'
+                } mr-3 flex-shrink-0 h-6 w-6`}
+                aria-hidden="true"
+              />
               {item.name}
-            </div>
-            <div className="space-y-1 ml-8">
-              {item.children.map((child) => (
-                <Link
-                  key={child.name}
-                  to={child.href}
-                  className={clsx(
-                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
-                    currentPath === child.href
-                      ? 'bg-indigo-100 text-indigo-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  )}
-                >
-                  {child.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )
-      )}
-    </nav>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 }

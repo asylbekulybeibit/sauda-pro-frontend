@@ -27,12 +27,7 @@ export default function ProfilePage() {
       setCurrentRole({
         type: 'shop',
         id: role.shop.id,
-        role:
-          role.type === RoleType.OWNER
-            ? RoleType.OWNER
-            : role.type === RoleType.MANAGER
-            ? RoleType.MANAGER
-            : RoleType.CASHIER,
+        role: role.type,
         shop: {
           id: role.shop.id,
           name: role.shop.name,
@@ -48,7 +43,7 @@ export default function ProfilePage() {
       if (role.type === RoleType.OWNER) {
         navigate(`/owner/${role.shop.id}`);
       } else {
-        navigate(`/shop/${role.shop.id}`);
+        navigate(`/manager/${role.shop.id}`);
       }
     }
   };

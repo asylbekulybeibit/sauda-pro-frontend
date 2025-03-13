@@ -7,7 +7,7 @@ import { LabelTemplateForm } from '@/components/manager/labels/LabelTemplateForm
 import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/outline';
 
-export function LabelsPage() {
+function LabelsPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -52,3 +52,5 @@ export function LabelsPage() {
     </div>
   );
 }
+
+export default LabelsPage;

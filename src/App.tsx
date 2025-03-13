@@ -12,6 +12,8 @@ import { useAuthStore } from '@/store/authStore';
 import { Spin } from 'antd';
 import LoginPage from './pages/auth/LoginPage';
 import { RoleType } from './types/role';
+import { ShopProvider } from '@/contexts/ShopContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Ленивая загрузка компонентов
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
@@ -32,6 +34,29 @@ const BulkOperationsPage = React.lazy(
 );
 const AuditPage = React.lazy(() => import('./pages/manager/AuditPage'));
 const ManagerLayout = React.lazy(() => import('./pages/manager/ManagerLayout'));
+const ManagerDashboard = React.lazy(
+  () => import('./pages/manager/ManagerDashboard')
+);
+const ProductsPage = React.lazy(
+  () => import('./pages/manager/products/ProductsPage')
+);
+const CategoryPage = React.lazy(
+  () => import('./pages/manager/products/CategoryPage')
+);
+const InventoryPage = React.lazy(
+  () => import('./pages/manager/inventory/InventoryPage')
+);
+const SalesPage = React.lazy(() => import('./pages/manager/sales/SalesPage'));
+const StaffPage = React.lazy(() => import('./pages/manager/staff/StaffPage'));
+const PromotionsPage = React.lazy(
+  () => import('./pages/manager/promotions/PromotionsPage')
+);
+const LabelsPage = React.lazy(
+  () => import('./pages/manager/labels/LabelsPage')
+);
+const SettingsPage = React.lazy(
+  () => import('./pages/manager/settings/SettingsPage')
+);
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -77,119 +102,109 @@ function RoleGuard({
   return <>{children}</>;
 }
 
-function LoadingFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Spin size="large" />
-    </div>
-  );
-}
+const LoadingFallback = () => (
+  <div
+    style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+    }}
+  >
+    <Spin size="large" />
+  </div>
+);
 
-function App() {
+const queryClient = new QueryClient();
+
+export default function App() {
   const { isAuthenticated } = useAuthStore();
   const { currentRole } = useRoleStore();
 
   return (
-    <Router>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          {/* Публичные маршруты */}
-          <Route
-            path="/login"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/profile" replace />
-              ) : (
-                <LoginPage />
-              )
-            }
-          />
+    <QueryClientProvider client={queryClient}>
+      <ShopProvider>
+        <Router>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Публичные маршруты */}
+              <Route
+                path="/login"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/profile" replace />
+                  ) : (
+                    <LoginPage />
+                  )
+                }
+              />
 
-          {/* Защищенные маршруты */}
-          <Route element={<AuthGuard />}>
-            <Route path="/profile" element={<ProfilePage />} />
+              {/* Защищенные маршруты */}
+              <Route element={<AuthGuard />}>
+                <Route path="/profile" element={<ProfilePage />} />
 
-            {/* Маршруты админ-панели */}
-            <Route
-              path="/admin/*"
-              element={
-                <RoleGuard allowedRoles={[RoleType.SUPERADMIN]}>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <AdminLayout />
-                  </Suspense>
-                </RoleGuard>
-              }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="projects" element={<ProjectsPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="invites" element={<InvitesPage />} />
-            </Route>
+                {/* Маршруты админ-панели */}
+                <Route
+                  path="/admin/*"
+                  element={
+                    <RoleGuard allowedRoles={[RoleType.SUPERADMIN]}>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <AdminLayout />
+                      </Suspense>
+                    </RoleGuard>
+                  }
+                >
+                  <Route index element={<Dashboard />} />
+                  <Route path="projects" element={<ProjectsPage />} />
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="invites" element={<InvitesPage />} />
+                </Route>
 
-            {/* Маршруты панели владельца */}
-            <Route
-              path="/owner/:shopId/*"
-              element={
-                <RoleGuard allowedRoles={[RoleType.OWNER]}>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <OwnerLayout />
-                  </Suspense>
-                </RoleGuard>
-              }
-            >
-              <Route index element={<OwnerDashboard />} />
-              <Route path="invites" element={<OwnerInvitesPage />} />
-              <Route path="staff" element={<OwnerStaffPage />} />
-            </Route>
+                {/* Маршруты панели владельца */}
+                <Route
+                  path="/owner/:shopId/*"
+                  element={
+                    <RoleGuard allowedRoles={[RoleType.OWNER]}>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <OwnerLayout />
+                      </Suspense>
+                    </RoleGuard>
+                  }
+                >
+                  <Route index element={<OwnerDashboard />} />
+                  <Route path="invites" element={<OwnerInvitesPage />} />
+                  <Route path="staff" element={<OwnerStaffPage />} />
+                </Route>
 
-            {/* Маршруты магазина */}
-            <Route
-              path="/shop/*"
-              element={
-                <RoleGuard allowedRoles={[RoleType.MANAGER, RoleType.OWNER]}>
-                  <Suspense fallback={<LoadingFallback />}>
-                    <ManagerLayout />
-                  </Suspense>
-                </RoleGuard>
-              }
-            >
-              <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="bulk-operations" element={<BulkOperationsPage />} />
-              <Route path="audit" element={<AuditPage />} />
-            </Route>
-          </Route>
+                {/* Маршруты панели менеджера */}
+                <Route
+                  path="/manager/:shopId/*"
+                  element={
+                    <RoleGuard allowedRoles={[RoleType.MANAGER]}>
+                      <Suspense fallback={<LoadingFallback />}>
+                        <ManagerLayout />
+                      </Suspense>
+                    </RoleGuard>
+                  }
+                >
+                  <Route index element={<ManagerDashboard />} />
+                  <Route path="products/*" element={<ProductsPage />} />
+                  <Route path="categories" element={<CategoryPage />} />
+                  <Route path="inventory" element={<InventoryPage />} />
+                  <Route path="sales" element={<SalesPage />} />
+                  <Route path="staff" element={<StaffPage />} />
+                  <Route path="promotions" element={<PromotionsPage />} />
+                  <Route path="labels" element={<LabelsPage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+              </Route>
 
-          {/* Редирект с корневого пути */}
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? (
-                currentRole?.type === 'superadmin' ? (
-                  <Navigate to="/admin" replace />
-                ) : (
-                  <Navigate to="/profile" replace />
-                )
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-
-          {/* Редирект для всех остальных путей */}
-          <Route
-            path="*"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/profile" replace />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-        </Routes>
-      </Suspense>
-    </Router>
+              {/* Редирект на профиль по умолчанию */}
+              <Route path="/" element={<Navigate to="/profile" replace />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </ShopProvider>
+    </QueryClientProvider>
   );
 }
-
-export default App;

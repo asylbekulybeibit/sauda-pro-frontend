@@ -8,7 +8,7 @@ import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/outline';
 import { Category as ProductCategory } from '@/types/product';
 
-export function ProductsPage() {
+function ProductsPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -72,3 +72,5 @@ export function ProductsPage() {
     </div>
   );
 }
+
+export default ProductsPage;

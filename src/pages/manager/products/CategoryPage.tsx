@@ -7,7 +7,7 @@ import { CategoryForm } from '@/components/manager/products/CategoryForm';
 import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/outline';
 
-export function CategoryPage() {
+function CategoryPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -50,3 +50,5 @@ export function CategoryPage() {
     </div>
   );
 }
+
+export default CategoryPage;

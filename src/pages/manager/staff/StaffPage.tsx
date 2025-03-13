@@ -42,7 +42,7 @@ const convertToUser = (roleDetails: UserRoleDetails): User => ({
   ],
 });
 
-export function StaffPage() {
+function StaffPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
@@ -96,3 +96,5 @@ export function StaffPage() {
     </div>
   );
 }
+
+export default StaffPage;

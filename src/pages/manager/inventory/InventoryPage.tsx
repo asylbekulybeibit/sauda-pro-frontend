@@ -7,7 +7,7 @@ import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/outline';
 import { useState } from 'react';
 
-export function InventoryPage() {
+function InventoryPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -44,3 +44,5 @@ export function InventoryPage() {
     </div>
   );
 }
+
+export default InventoryPage;
