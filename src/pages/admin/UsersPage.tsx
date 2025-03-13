@@ -62,6 +62,8 @@ const UserRoles = ({ user }: { user: User }) => {
     return <span className="text-gray-400">—</span>;
   }
 
+  const activeRoles = user.roles.filter((role) => role.isActive);
+
   return (
     <div className="space-y-2">
       {user.isSuperAdmin && (
@@ -70,19 +72,19 @@ const UserRoles = ({ user }: { user: User }) => {
           <span className="font-medium">Суперадмин</span>
         </div>
       )}
-      {user.roles.map((role) => (
+      {activeRoles.map((role) => (
         <div key={role.id} className="flex items-center space-x-2">
           <span>
-            {role.role === 'owner'
+            {role.type === 'owner'
               ? '👔'
-              : role.role === 'manager'
+              : role.type === 'manager'
               ? '👨‍💼'
               : '💰'}
           </span>
           <span>
-            {role.role === 'owner'
+            {role.type === 'owner'
               ? 'Владелец'
-              : role.role === 'manager'
+              : role.type === 'manager'
               ? 'Менеджер'
               : 'Кассир'}
           </span>
@@ -92,17 +94,39 @@ const UserRoles = ({ user }: { user: User }) => {
   );
 };
 
-// Убираем отдельный компонент UserProjects, так как теперь проекты отображаются вместе с ролями
-const UserProjects = ({ user }: { user: User }) => {
-  if (!user.roles.length) {
+// Компонент для отображения проектов и ролей
+const UserProjectsAndRoles = ({ user }: { user: User }) => {
+  if (!user.isSuperAdmin && user.roles.length === 0) {
     return <span className="text-gray-400">—</span>;
   }
 
+  const activeRoles = user.roles.filter((role) => role.isActive);
+
   return (
     <div className="space-y-2">
-      {user.isSuperAdmin && <div className="h-[38px]" />}
-      {user.roles.map((role) => (
+      {user.isSuperAdmin && (
+        <div className="flex items-center space-x-2 border-b pb-2 mb-2">
+          <span>👑</span>
+          <span className="font-medium">Суперадмин</span>
+        </div>
+      )}
+      {activeRoles.map((role) => (
         <div key={role.id} className="flex items-center space-x-2">
+          <span>
+            {role.type === 'owner'
+              ? '👔'
+              : role.type === 'manager'
+              ? '👨‍💼'
+              : '💰'}
+          </span>
+          <span>
+            {role.type === 'owner'
+              ? 'Владелец'
+              : role.type === 'manager'
+              ? 'Менеджер'
+              : 'Кассир'}
+          </span>
+          <span className="text-gray-400 mx-2">·</span>
           <span className="text-gray-600">{role.shop.name}</span>
           <span className="text-gray-400">
             {role.shop.type === 'shop'
@@ -311,11 +335,11 @@ export default function UsersPage() {
     const matchesRole =
       roleFilter === 'all' ||
       (roleFilter === 'superadmin' && user.isSuperAdmin) ||
-      (roleFilter === 'owner' && user.roles.some((r) => r.role === 'owner')) ||
+      (roleFilter === 'owner' && user.roles.some((r) => r.type === 'owner')) ||
       (roleFilter === 'manager' &&
-        user.roles.some((r) => r.role === 'manager')) ||
+        user.roles.some((r) => r.type === 'manager')) ||
       (roleFilter === 'cashier' &&
-        user.roles.some((r) => r.role === 'cashier')) ||
+        user.roles.some((r) => r.type === 'cashier')) ||
       (roleFilter === 'no-role' && user.roles.length === 0);
 
     return matchesSearch && matchesRole;
@@ -369,10 +393,7 @@ export default function UsersPage() {
                 Контактная информация
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Роли
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Проекты
+                Роли и проекты
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Статус
@@ -400,10 +421,7 @@ export default function UsersPage() {
                   />
                 </td>
                 <td className="px-6 py-4">
-                  <UserRoles user={user} />
-                </td>
-                <td className="px-6 py-4">
-                  <UserProjects user={user} />
+                  <UserProjectsAndRoles user={user} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span

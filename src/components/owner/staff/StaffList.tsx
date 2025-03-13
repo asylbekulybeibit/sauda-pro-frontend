@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserRole, RoleType } from '@/types/role';
+import { UserRoleDetails, RoleType } from '@/types/role';
 import { removeStaffMember } from '@/services/ownerApi';
 import { formatDate } from '@/utils/date';
 import { Modal } from '@/components/ui/modal';
 import { useState } from 'react';
 
 interface StaffListProps {
-  staff: UserRole[];
+  staff: UserRoleDetails[];
 }
 
 interface GroupedStaff {
@@ -14,13 +14,15 @@ interface GroupedStaff {
   firstName: string;
   lastName: string;
   phone: string;
-  currentRole?: UserRole;
-  history: UserRole[];
+  currentRole?: UserRoleDetails;
+  history: UserRoleDetails[];
 }
 
 export function StaffList({ staff }: StaffListProps) {
   const queryClient = useQueryClient();
-  const [selectedStaff, setSelectedStaff] = useState<UserRole | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<UserRoleDetails | null>(
+    null
+  );
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   const removeMutation = useMutation({
@@ -55,7 +57,7 @@ export function StaffList({ staff }: StaffListProps) {
     return acc;
   }, []);
 
-  const handleRemove = (member: UserRole) => {
+  const handleRemove = (member: UserRoleDetails) => {
     setSelectedStaff(member);
     setIsConfirmModalOpen(true);
   };
@@ -125,7 +127,7 @@ export function StaffList({ staff }: StaffListProps) {
                     <div className="flex justify-between items-center">
                       <div>
                         <span className="font-medium flex items-center gap-2">
-                          {getRoleIcon(role.role)} {getRoleName(role.role)}
+                          {getRoleIcon(role.type)} {getRoleName(role.type)}
                         </span>
                         <div className="text-gray-500 ml-7">
                           с {formatDate(role.createdAt)}
@@ -135,7 +137,7 @@ export function StaffList({ staff }: StaffListProps) {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                           Активен
                         </span>
-                        {role.role !== 'owner' && (
+                        {role.type !== 'owner' && (
                           <button
                             onClick={() => handleRemove(role)}
                             className="text-sm text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors duration-200"
@@ -174,7 +176,7 @@ export function StaffList({ staff }: StaffListProps) {
                       >
                         <div className="flex justify-between">
                           <span className="text-gray-600 flex items-center gap-2">
-                            {getRoleIcon(role.role)} {getRoleName(role.role)}
+                            {getRoleIcon(role.type)} {getRoleName(role.type)}
                           </span>
                           <span className="text-red-600">Уволен</span>
                         </div>

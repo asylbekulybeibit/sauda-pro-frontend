@@ -7,21 +7,40 @@ export enum ShopType {
 export interface Shop {
   id: string;
   name: string;
-  address?: string;
-  phone?: string;
+  address: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  currency: string;
   type: ShopType;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  settings?: {
+    taxRate?: number;
+    printerSettings?: {
+      defaultPrinter?: string;
+      labelWidth?: number;
+      labelHeight?: number;
+    };
+    notificationSettings?: {
+      lowStockThreshold?: number;
+      emailNotifications?: boolean;
+      pushNotifications?: boolean;
+    };
+  };
   userRoles: {
     id: string;
-    role: 'owner' | 'manager' | 'cashier';
+    type: 'owner' | 'manager' | 'cashier';
+    isActive: boolean;
+    deactivatedAt: string | null;
     user: {
       id: string;
       phone: string;
       firstName?: string;
       lastName?: string;
       email?: string;
+      isActive?: boolean;
     };
   }[];
 }

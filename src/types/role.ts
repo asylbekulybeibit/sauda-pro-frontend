@@ -21,13 +21,21 @@ export interface Shop {
   address?: string;
 }
 
-export interface UserRole {
+export interface UserRoleDetails {
   id: string;
-  role: RoleType;
+  type: RoleType;
   isActive: boolean;
   createdAt: string;
   deactivatedAt: string | null;
   user: User;
   shopId: string;
   shop: Shop;
+}
+
+// Simplified role type for route protection
+export type SimpleRole = RoleType;
+
+export interface RoleState {
+  currentRole: SimpleRole | null;
+  setCurrentRole: (role: SimpleRole | null) => void;
 }

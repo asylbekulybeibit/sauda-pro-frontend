@@ -10,12 +10,23 @@ export interface User {
   updatedAt: string;
   roles: {
     id: string;
-    role: 'owner' | 'manager' | 'cashier';
+    userId: string;
+    shopId: string;
+    type: 'owner' | 'manager' | 'cashier';
+    isActive: boolean;
+    deactivatedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
     shop: {
       id: string;
       name: string;
-      type: 'shop' | 'warehouse' | 'point_of_sale';
       address?: string;
+      phone?: string;
+      email?: string | null;
+      isActive: boolean;
+      type: 'shop' | 'warehouse' | 'point_of_sale';
+      createdAt: string;
+      updatedAt: string;
     };
   }[];
 }

@@ -8,23 +8,23 @@ import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
 import { EditProjectForm } from '@/components/projects/EditProjectForm';
 
 // Компонент карточки пользователя проекта
-const UserRoleCard = ({ role, user }: Shop['userRoles'][0]) => {
+const UserRoleCard = ({ type, user }: Shop['userRoles'][0]) => {
   const roleEmoji = {
     owner: '👔',
     manager: '👨‍💼',
     cashier: '💰',
-  }[role];
+  }[type];
 
   const roleName = {
     owner: 'Владелец',
     manager: 'Менеджер',
     cashier: 'Кассир',
-  }[role];
+  }[type];
 
   return (
     <div className="flex items-center space-x-2 text-sm">
       <span>{roleEmoji}</span>
-      <span className="text-gray-500">{roleName}</span>
+      <span className="text-gray-500">{roleName}:</span>
       <span className="font-medium">
         {user.firstName} {user.lastName}
       </span>
@@ -131,9 +131,11 @@ const ProjectCard = ({ project }: { project: Shop }) => {
             Пользователи
           </div>
           <div className="space-y-2">
-            {project.userRoles.map((userRole) => (
-              <UserRoleCard key={userRole.id} {...userRole} />
-            ))}
+            {project.userRoles
+              .filter((userRole) => userRole.isActive)
+              .map((userRole) => (
+                <UserRoleCard key={userRole.id} {...userRole} />
+              ))}
           </div>
         </div>
       )}

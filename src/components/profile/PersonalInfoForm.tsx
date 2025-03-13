@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,7 +44,23 @@ export function PersonalInfoForm() {
     formState: { errors },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: userData?.firstName || '',
+      lastName: userData?.lastName || '',
+      email: userData?.email || '',
+    },
   });
+
+  // Обновляем значения формы при получении данных пользователя
+  useEffect(() => {
+    if (userData) {
+      reset({
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        email: userData.email || '',
+      });
+    }
+  }, [userData, reset]);
 
   const updateMutation = useMutation({
     mutationFn: updateProfile,
@@ -60,13 +76,23 @@ export function PersonalInfoForm() {
     updateMutation.mutate(data);
   };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+    // Устанавливаем текущие значения при входе в режим редактирования
+    reset({
+      firstName: userData?.firstName || '',
+      lastName: userData?.lastName || '',
+      email: userData?.email || '',
+    });
+  };
+
   const handleCancel = () => {
     setIsEditing(false);
     // Сбрасываем форму к текущим данным пользователя
     reset({
-      firstName: userData?.firstName,
-      lastName: userData?.lastName,
-      email: userData?.email,
+      firstName: userData?.firstName || '',
+      lastName: userData?.lastName || '',
+      email: userData?.email || '',
     });
   };
 
@@ -118,7 +144,7 @@ export function PersonalInfoForm() {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setIsEditing(true)}
+              onClick={handleEdit}
               className="mt-4 w-full py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
             >
               Редактировать

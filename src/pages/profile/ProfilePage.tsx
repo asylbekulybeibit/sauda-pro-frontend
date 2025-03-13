@@ -6,7 +6,9 @@ import PendingInvites from '@/components/invites/PendingInvites';
 import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
 import { getProfile } from '@/services/api';
-import { UserRole } from '@/types/role';
+import { User } from '@/types/user';
+import { RoleType } from '@/types/role';
+import { ShopType } from '@/types/shop';
 
 export default function ProfilePage() {
   const { setCurrentRole } = useRoleStore();
@@ -18,7 +20,7 @@ export default function ProfilePage() {
     queryFn: getProfile,
   });
 
-  const handleRoleSelect = (role: 'superadmin' | UserRole) => {
+  const handleRoleSelect = (role: 'superadmin' | User['roles'][0]) => {
     if (role === 'superadmin') {
       setCurrentRole({ type: 'superadmin' });
       navigate('/admin');
@@ -26,10 +28,25 @@ export default function ProfilePage() {
       setCurrentRole({
         type: 'shop',
         id: role.shop.id,
-        role: role.role,
-        shop: role.shop,
+        role:
+          role.type === 'owner'
+            ? RoleType.OWNER
+            : role.type === 'manager'
+            ? RoleType.MANAGER
+            : RoleType.CASHIER,
+        shop: {
+          id: role.shop.id,
+          name: role.shop.name,
+          type:
+            role.shop.type === 'shop'
+              ? ShopType.SHOP
+              : role.shop.type === 'warehouse'
+              ? ShopType.WAREHOUSE
+              : ShopType.POINT_OF_SALE,
+          address: role.shop.address,
+        },
       });
-      if (role.role === 'owner') {
+      if (role.type === 'owner') {
         navigate(`/owner/${role.shop.id}`);
       } else {
         navigate(`/shop/${role.shop.id}`);
@@ -42,7 +59,7 @@ export default function ProfilePage() {
     navigate('/login');
   };
 
-  const renderRole = (role: UserRole) => (
+  const renderRole = (role: User['roles'][0]) => (
     <motion.div
       key={role.id}
       whileHover={{ scale: 1.02 }}
@@ -56,17 +73,23 @@ export default function ProfilePage() {
           {role.shop.address && (
             <p className="text-gray-500">📍 {role.shop.address}</p>
           )}
-          <p className="text-violet-600 mt-2">
-            {role.role === 'owner'
-              ? 'Владелец'
-              : role.role === 'manager'
-              ? 'Менеджер'
-              : 'Кассир'}
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">
+              {role.type === 'owner'
+                ? '👔'
+                : role.type === 'manager'
+                ? '👨‍💼'
+                : '💰'}
+            </span>
+            <span className="text-lg">
+              {role.type === 'owner'
+                ? 'Владелец'
+                : role.type === 'manager'
+                ? 'Менеджер'
+                : 'Кассир'}
+            </span>
+          </div>
         </div>
-        <span className="text-2xl">
-          {role.role === 'owner' ? '👔' : role.role === 'manager' ? '👨‍💼' : '💰'}
-        </span>
       </div>
     </motion.div>
   );
