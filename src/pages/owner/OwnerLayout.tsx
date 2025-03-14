@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
+import { Bars3Icon } from '@heroicons/react/24/outline';
 
 export default function OwnerLayout() {
   const { shopId } = useParams();
@@ -9,6 +10,7 @@ export default function OwnerLayout() {
   const { logout } = useAuthStore();
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,8 +46,16 @@ export default function OwnerLayout() {
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
+              {/* Кнопка-гамбургер */}
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none"
+              >
+                <Bars3Icon className="h-6 w-6" />
+              </button>
+
               {/* Логотип и название */}
-              <Link to={`/owner/${shopId}`} className="flex items-center">
+              <Link to={`/owner/${shopId}`} className="flex items-center ml-4">
                 <span className="text-xl font-bold">
                   {currentRole.shop.name}
                 </span>
@@ -106,12 +116,25 @@ export default function OwnerLayout() {
       </header>
 
       {/* Основной контент */}
-      <div className="flex min-h-[calc(100vh-4rem)]">
+      <div className="flex min-h-[calc(100vh-4rem)] relative">
+        {/* Затемнение фона при открытом сайдбаре */}
+        <div
+          className={`absolute inset-0 bg-gray-900/20 transition-opacity duration-300 ${
+            isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setIsSidebarOpen(false)}
+        />
+
         {/* Боковая навигация */}
-        <nav className="w-64 bg-white shadow-sm p-4">
-          <div className="space-y-1">
+        <nav
+          className={`${
+            isSidebarOpen ? 'w-64' : 'w-0'
+          } bg-white shadow-sm overflow-hidden transition-all duration-300 relative z-20`}
+        >
+          <div className="p-4 space-y-1">
             <Link
               to={`/owner/${shopId}`}
+              onClick={() => setIsSidebarOpen(false)}
               className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
             >
               <span>📊</span>
@@ -119,6 +142,7 @@ export default function OwnerLayout() {
             </Link>
             <Link
               to={`/owner/${shopId}/staff`}
+              onClick={() => setIsSidebarOpen(false)}
               className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
             >
               <span>👥</span>
@@ -126,6 +150,7 @@ export default function OwnerLayout() {
             </Link>
             <Link
               to={`/owner/${shopId}/invites`}
+              onClick={() => setIsSidebarOpen(false)}
               className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
             >
               <span>📨</span>

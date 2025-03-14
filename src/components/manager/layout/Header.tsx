@@ -1,4 +1,4 @@
-import {  useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Bars3Icon } from '@heroicons/react/24/outline';
@@ -79,7 +79,7 @@ export function ManagerHeader() {
             <div className="flex items-center space-x-4">
               <button
                 type="button"
-                onClick={() => setIsSidebarOpen(true)}
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="text-gray-500 hover:text-gray-600 focus:outline-none"
               >
                 <Bars3Icon className="h-6 w-6" />
@@ -152,10 +152,14 @@ export function ManagerHeader() {
           />
         )}
 
-        <div className="flex-1">
+        <div
+          className={`flex-1 transition-all duration-300 ${
+            isSidebarOpen ? 'ml-64' : 'ml-0'
+          }`}
+        >
           <div className="p-6 pl-10 w-full">
             <button
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="lg:hidden inline-flex items-center p-2 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none mb-4"
             >
               <Bars3Icon className="h-6 w-6" />

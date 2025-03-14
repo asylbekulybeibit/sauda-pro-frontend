@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserRoleDetails, RoleType } from '@/types/role';
 import { removeStaffMember } from '@/services/ownerApi';
-import { formatDate } from '@/utils/date';
+import { formatDateTime } from '@/utils/date';
 import { Modal } from '@/components/ui/modal';
 import { useState } from 'react';
 
@@ -130,7 +130,7 @@ export function StaffList({ staff }: StaffListProps) {
                           {getRoleIcon(role.type)} {getRoleName(role.type)}
                         </span>
                         <div className="text-gray-500 ml-7">
-                          с {formatDate(role.createdAt)}
+                          с {formatDateTime(role.createdAt)}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -181,9 +181,9 @@ export function StaffList({ staff }: StaffListProps) {
                           <span className="text-red-600">Уволен</span>
                         </div>
                         <div className="text-gray-500 ml-7">
-                          {formatDate(role.createdAt)}
+                          {formatDateTime(role.createdAt)}
                           {role.deactivatedAt && (
-                            <> - {formatDate(role.deactivatedAt)}</>
+                            <> - {formatDateTime(role.deactivatedAt)}</>
                           )}
                         </div>
                       </div>

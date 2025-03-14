@@ -27,6 +27,7 @@ interface NavigationItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   href?: string;
   children?: NavigationChild[];
+  color: string;
 }
 
 interface ManagerSidebarProps {
@@ -42,10 +43,16 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
   const shopId = currentRole.shop.id;
 
   const navigation = [
-    { name: 'Дашборд', href: `/manager/${shopId}`, icon: HomeIcon },
+    {
+      name: 'Дашборд',
+      href: `/manager/${shopId}`,
+      icon: HomeIcon,
+      color: 'bg-blue-100 text-blue-600',
+    },
     {
       name: 'Товары и склад',
       icon: ShoppingBagIcon,
+      color: 'bg-purple-100 text-purple-600',
       children: [
         { name: 'Товары', href: `/manager/${shopId}/products` },
         { name: 'Категории', href: `/manager/${shopId}/categories` },
@@ -55,20 +62,28 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
     {
       name: 'Продажи',
       icon: CashIcon,
+      color: 'bg-green-100 text-green-600',
       children: [
         { name: 'История продаж', href: `/manager/${shopId}/sales` },
         { name: 'Возвраты', href: `/manager/${shopId}/sales/returns` },
       ],
     },
-    { name: 'Сотрудники', href: `/manager/${shopId}/staff`, icon: UsersIcon },
+    {
+      name: 'Сотрудники',
+      href: `/manager/${shopId}/staff`,
+      icon: UsersIcon,
+      color: 'bg-orange-100 text-orange-600',
+    },
     {
       name: 'Приглашения',
       href: `/manager/${shopId}/invites`,
       icon: UserPlusIcon,
+      color: 'bg-pink-100 text-pink-600',
     },
     {
       name: 'Маркетинг',
       icon: ChartBarIcon,
+      color: 'bg-indigo-100 text-indigo-600',
       children: [
         { name: 'Акции', href: `/manager/${shopId}/promotions` },
         { name: 'Этикетки', href: `/manager/${shopId}/labels` },
@@ -77,12 +92,18 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
     {
       name: 'Аналитика',
       icon: ChartPieIcon,
+      color: 'bg-cyan-100 text-cyan-600',
       children: [
         { name: 'Отчеты', href: `/manager/${shopId}/reports` },
         { name: 'Статистика', href: `/manager/${shopId}/analytics` },
       ],
     },
-    { name: 'Настройки', href: `/manager/${shopId}/settings`, icon: CogIcon },
+    {
+      name: 'Настройки',
+      href: `/manager/${shopId}/settings`,
+      icon: CogIcon,
+      color: 'bg-gray-100 text-gray-600',
+    },
   ];
 
   return (
@@ -115,8 +136,10 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
                     >
                       <item.icon
                         className={`${
-                          isActive ? 'text-gray-500' : 'text-gray-400'
-                        } mr-3 flex-shrink-0 h-6 w-6`}
+                          isActive
+                            ? item.color
+                            : 'text-gray-400 hover:' + item.color
+                        } mr-3 flex-shrink-0 h-6 w-6 p-1 rounded-lg transition-all duration-150`}
                         aria-hidden="true"
                       />
                       <span className="flex-1">{item.name}</span>
@@ -164,8 +187,8 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
             >
               <item.icon
                 className={`${
-                  isActive ? 'text-gray-500' : 'text-gray-400'
-                } mr-3 flex-shrink-0 h-6 w-6`}
+                  isActive ? item.color : 'text-gray-400 hover:' + item.color
+                } mr-3 flex-shrink-0 h-6 w-6 p-1 rounded-lg transition-all duration-150`}
                 aria-hidden="true"
               />
               {item.name}
