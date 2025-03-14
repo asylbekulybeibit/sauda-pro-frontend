@@ -104,7 +104,7 @@ export function ProductList({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {formatPrice(product.price)}
+                    {formatPrice(product.sellingPrice)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
