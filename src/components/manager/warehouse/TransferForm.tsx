@@ -23,7 +23,7 @@ interface TransferFormProps {
 }
 
 interface TransferItem {
-  productId: number;
+  productId: string;
   product: Product;
   quantity: number;
   comment?: string;
@@ -32,6 +32,15 @@ interface TransferItem {
 interface Shop {
   id: string;
   name: string;
+}
+
+interface TransferFormData {
+  items: {
+    productId: string;
+    quantity: number;
+    comment?: string;
+  }[];
+  // ... existing code ...
 }
 
 export function TransferForm({
@@ -78,7 +87,7 @@ export function TransferForm({
         toShopId: values.toShopId,
         date: values.date.toISOString(),
         items: items.map((item) => ({
-          productId: item.productId,
+          productId: parseInt(item.productId),
           quantity: item.quantity,
           comment: item.comment,
         })),
@@ -94,8 +103,8 @@ export function TransferForm({
     }
   };
 
-  const handleAddProduct = (productId: number) => {
-    const product = products?.find((p) => p.id === productId);
+  const handleAddProduct = (productId: string) => {
+    const product = products?.find((p) => p.id.toString() === productId);
     if (!product) return;
 
     if (items.some((item) => item.productId === productId)) {
@@ -106,7 +115,7 @@ export function TransferForm({
     setItems([...items, { productId, product, quantity: 1 }]);
   };
 
-  const handleQuantityChange = (productId: number, quantity: number | null) => {
+  const handleQuantityChange = (productId: string, quantity: number | null) => {
     setItems(
       items.map((item) =>
         item.productId === productId
@@ -116,7 +125,7 @@ export function TransferForm({
     );
   };
 
-  const handleCommentChange = (productId: number, comment: string) => {
+  const handleCommentChange = (productId: string, comment: string) => {
     setItems(
       items.map((item) =>
         item.productId === productId ? { ...item, comment } : item
@@ -124,7 +133,7 @@ export function TransferForm({
     );
   };
 
-  const handleRemoveProduct = (productId: number) => {
+  const handleRemoveProduct = (productId: string) => {
     setItems(items.filter((item) => item.productId !== productId));
   };
 

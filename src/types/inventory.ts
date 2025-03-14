@@ -18,8 +18,9 @@ export interface InventoryTransaction {
   quantity: number;
   price?: number;
   description?: string;
+  note?: string;
   comment?: string;
-  shopId: number;
+  shopId: string;
   createdAt: string;
   updatedAt: string;
 }

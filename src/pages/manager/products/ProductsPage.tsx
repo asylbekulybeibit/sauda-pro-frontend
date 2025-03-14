@@ -40,6 +40,8 @@ function ProductsPage() {
           type="primary"
           icon={<TagIcon className="h-5 w-5" />}
           onClick={() => setShowForm(true)}
+          className="bg-blue-500"
+
         >
           Добавить товар
         </Button>

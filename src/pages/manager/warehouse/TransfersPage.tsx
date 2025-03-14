@@ -93,6 +93,8 @@ function TransfersPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setShowForm(true)}
+          className="bg-blue-500"
+
         >
           Создать перемещение
         </Button>

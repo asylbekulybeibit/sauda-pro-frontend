@@ -1,7 +1,7 @@
 import { api } from './api';
 import { Product } from '@/types/product';
 import { Category } from '@/types/category';
-import { InventoryTransaction } from '@/types/inventory';
+import { InventoryTransaction, TransactionType } from '@/types/inventory';
 import { UserRoleDetails } from '@/types/role';
 import { Invite } from '@/types/invite';
 import { Report } from '@/types/report';
@@ -134,15 +134,18 @@ export const getInventory = async (
   return response.data;
 };
 
-export const createInventoryTransaction = async (
-  data: Omit<InventoryTransaction, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<InventoryTransaction> => {
-  try {
-    const response = await api.post('/manager/inventory/transactions', data);
-    return response.data;
-  } catch (error) {
-    throw ApiErrorHandler.handle(error);
-  }
+export const createInventoryTransaction = async (data: {
+  shopId: string;
+  type: TransactionType;
+  productId: string;
+  quantity: number;
+  price?: number;
+  note?: string;
+  description?: string;
+  comment?: string;
+}): Promise<InventoryTransaction> => {
+  const response = await api.post('/manager/inventory/transactions', data);
+  return response.data;
 };
 
 export const updateInventoryTransaction = async (
@@ -475,13 +478,13 @@ export const isApiError = (error: unknown): error is ApiError => {
 };
 
 export interface CreatePurchaseRequest {
-  shopId: number;
+  shopId: string;
   supplierId: string;
   invoiceNumber: string;
   date: string;
   comment?: string;
   items: Array<{
-    productId: number;
+    productId: string;
     quantity: number;
     price: number;
     partialQuantity?: number;
@@ -502,7 +505,7 @@ export interface PurchaseResponse {
     phone?: string;
   };
   items: Array<{
-    productId: number;
+    productId: string;
     product: {
       name: string;
       sku: string;
@@ -515,7 +518,7 @@ export interface PurchaseResponse {
   comment?: string;
 }
 
-export const fetchProducts = async (shopId: number): Promise<Product[]> => {
+export const fetchProducts = async (shopId: string): Promise<Product[]> => {
   const response = await fetch(`/api/shops/${shopId}/products`);
   if (!response.ok) {
     throw new Error('Failed to fetch products');
@@ -549,8 +552,8 @@ export const createPurchase = async (
   return response.json();
 };
 
-export const getPurchaseById = async (id: number): Promise<Purchase> => {
-  const response = await api.get(`/manager/purchases/${id}`);
+export const getPurchaseById = async (id: string): Promise<Purchase> => {
+  const response = await api.get(`/manager/inventory/purchases/${id}`);
   return response.data;
 };
 
@@ -564,7 +567,7 @@ export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
 };
 
 export const getTransfers = async (shopId: string): Promise<Transfer[]> => {
-  const response = await api.get(`/manager/transfers/shop/${shopId}`);
+  const response = await api.get(`/manager/transfers/${shopId}`);
   return response.data;
 };
 
@@ -587,4 +590,18 @@ export const updateTransferStatus = async (
 
 export const deleteTransfer = async (id: number): Promise<void> => {
   await api.delete(`/manager/transfers/${id}`);
+};
+
+export const getSales = async (shopId: string) => {
+  const response = await api.get<InventoryTransaction[]>(
+    `/manager/inventory/sales/${shopId}`
+  );
+  return response.data;
+};
+
+export const getReturns = async (shopId: string) => {
+  const response = await api.get<InventoryTransaction[]>(
+    `/manager/inventory/returns/${shopId}`
+  );
+  return response.data;
 };

@@ -82,6 +82,8 @@ function WriteOffsPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setShowForm(true)}
+          className="bg-blue-500"
+
         >
           Создать списание
         </Button>

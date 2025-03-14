@@ -21,7 +21,7 @@ interface WriteOffFormProps {
 }
 
 interface WriteOffItem {
-  productId: number;
+  productId: string;
   product: Product;
   quantity: number;
   price: number;
@@ -63,7 +63,7 @@ export default function WriteOffForm({
       }
 
       await createMutation.mutateAsync({
-        shopId: Number(shopId),
+        shopId,
         type: 'WRITE_OFF',
         productId: items[0].productId,
         quantity: -items[0].quantity,
@@ -75,7 +75,7 @@ export default function WriteOffForm({
       if (items.length > 1) {
         for (let i = 1; i < items.length; i++) {
           await createMutation.mutateAsync({
-            shopId: Number(shopId),
+            shopId,
             type: 'WRITE_OFF',
             productId: items[i].productId,
             quantity: -items[i].quantity,
@@ -92,7 +92,7 @@ export default function WriteOffForm({
     }
   };
 
-  const handleAddProduct = (productId: number) => {
+  const handleAddProduct = (productId: string) => {
     const product = products?.find((p) => p.id === productId);
     if (!product) return;
 

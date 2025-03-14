@@ -11,9 +11,7 @@ import {
   DatePicker,
   Card,
   Space,
-  Tooltip,
   Dropdown,
-  Menu,
   Modal,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -107,7 +105,7 @@ function IncomingPage() {
     return statusColors[status as keyof typeof statusColors] || 'default';
   };
 
-  const handleDeletePurchase = (id: number) => {
+  const handleDeletePurchase = (id: string) => {
     Modal.confirm({
       title: 'Подтверждение удаления',
       content: 'Вы действительно хотите удалить этот приход?',
@@ -197,7 +195,7 @@ function IncomingPage() {
                 label: 'Удалить',
                 icon: <DeleteOutlined />,
                 danger: true,
-                onClick: () => handleDeletePurchase(record.id),
+                onClick: () => handleDeletePurchase(record.id.toString()),
               },
             ],
           }}
@@ -270,6 +268,7 @@ function IncomingPage() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setShowForm(true)}
+            className="bg-blue-500"
           >
             Новый приход
           </Button>
@@ -367,7 +366,7 @@ function IncomingPage() {
 
       {showForm && (
         <PurchaseForm
-          shopId={Number(shopId)}
+          shopId={shopId!}
           onClose={() => setShowForm(false)}
           onSuccess={() => {
             setShowForm(false);

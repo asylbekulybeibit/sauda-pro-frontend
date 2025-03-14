@@ -4,7 +4,7 @@ import { formatDate, formatPrice } from '@/utils/format';
 
 interface PurchasePreviewProps {
   data: {
-    id: number;
+    id: string;
     date: string;
     invoiceNumber: string;
     supplier: {
@@ -13,7 +13,7 @@ interface PurchasePreviewProps {
       phone?: string;
     };
     items: {
-      productId: number;
+      productId: string;
       product: {
         name: string;
         sku: string;

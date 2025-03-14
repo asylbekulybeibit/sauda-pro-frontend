@@ -48,7 +48,7 @@ function InventoryPage() {
       const productsWithInventory = productsResponse.map(
         (product: Product) => ({
           ...product,
-          lastInventoryDate: lastInventoryDates.get(product.id),
+          lastInventoryDate: lastInventoryDates.get(Number(product.id)),
         })
       );
 
@@ -118,6 +118,7 @@ function InventoryPage() {
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setShowForm(true)}
+          className="bg-blue-500"
         >
           Начать инвентаризацию
         </Button>

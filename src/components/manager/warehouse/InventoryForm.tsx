@@ -60,7 +60,7 @@ export function InventoryForm({
       title: 'Товар',
       dataIndex: 'productId',
       key: 'productId',
-      render: (productId: number) => {
+      render: (productId: string) => {
         const product = products?.find((p) => p.id === productId);
         return product?.name || '';
       },
@@ -256,6 +256,8 @@ export function InventoryForm({
               type="primary"
               onClick={handleSubmit}
               loading={createInventoryMutation.isPending}
+          className="bg-blue-500"
+
             >
               Завершить инвентаризацию
             </Button>

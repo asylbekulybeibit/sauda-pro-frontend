@@ -1,12 +1,14 @@
 import { Product } from '@/types/product';
 import { ExclamationTriangleIcon as ExclamationIcon } from '@heroicons/react/24/outline';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 interface LowStockListProps {
   products: Product[];
 }
 
 export function LowStockList({ products }: LowStockListProps) {
+  const { shopId } = useParams<{ shopId: string }>();
+
   // Фильтруем товары с низким остатком (меньше минимального количества)
   const lowStockProducts = products
     .filter((product) => product.quantity <= product.minQuantity)
@@ -52,7 +54,7 @@ export function LowStockList({ products }: LowStockListProps) {
                   </div>
                   <div>
                     <Link
-                      to={`/manager/products/${product.id}`}
+                      to={`/manager/${shopId}/warehouse/products/${product.id}`}
                       className="inline-flex items-center shadow-sm px-2.5 py-0.5 border border-gray-300 text-sm leading-5 font-medium rounded-full text-gray-700 bg-white hover:bg-gray-50"
                     >
                       Просмотр

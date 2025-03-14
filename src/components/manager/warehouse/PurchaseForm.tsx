@@ -48,18 +48,8 @@ interface ExcelRow {
   quantity?: string | number;
 }
 
-interface PurchaseItem {
-  productId: number;
-  quantity: number;
-  price: number;
-  partialQuantity?: number;
-  serialNumber?: string;
-  expiryDate?: string;
-  needsLabels: boolean;
-}
-
 interface PreviewData {
-  id: number;
+  id: string;
   date: string;
   invoiceNumber: string;
   supplier: {
@@ -68,7 +58,7 @@ interface PreviewData {
     phone?: string;
   };
   items: Array<{
-    productId: number;
+    productId: string;
     product: {
       name: string;
       sku: string;
@@ -79,6 +69,17 @@ interface PreviewData {
   }>;
   totalAmount: number;
   comment?: string;
+}
+
+interface PurchaseItem {
+  productId: string;
+  quantity: number;
+  price: number;
+  total: number;
+  partialQuantity?: number;
+  serialNumber?: string;
+  expiryDate?: string;
+  needsLabels: boolean;
 }
 
 interface FormData {
@@ -93,7 +94,7 @@ interface FormData {
 }
 
 interface PurchaseFormProps {
-  shopId: number;
+  shopId: string;
   onClose: () => void;
   onSuccess: () => void;
   initialData?: FormData;
@@ -181,30 +182,21 @@ export function PurchaseForm({
 
   // Обработчики
   const handleBarcodeScan = (barcode: string) => {
-    const product = products.find((p) => p.barcode === barcode);
+    const product = products?.find(
+      (p) => p.barcode === barcode || p.barcodes?.includes(barcode)
+    );
+
     if (product) {
-      const newItem: PurchaseItem = {
-        productId: product.id,
+      return {
+        productId: product.id.toString(),
         quantity: 1,
         price: product.purchasePrice,
+        total: product.purchasePrice,
         needsLabels: false,
       };
-
-      const existingItem = items.find((item) => item.productId === product.id);
-      if (existingItem) {
-        setItems(
-          items.map((item) =>
-            item.productId === product.id
-              ? { ...item, quantity: (item.quantity || 0) + 1 }
-              : item
-          )
-        );
-      } else {
-        setItems([...items, newItem]);
-      }
-    } else {
-      message.error('Товар не найден');
     }
+
+    return null;
   };
 
   const handleExcelUpload = (file: File) => {
@@ -216,7 +208,7 @@ export function PurchaseForm({
       const rows = XLSX.utils.sheet_to_json<ExcelRow>(firstSheet);
 
       const newItems = rows
-        .map((row): PurchaseItem | undefined => {
+        .map((row) => {
           const product = products?.find(
             (p) =>
               p.sku === row.sku ||
@@ -234,41 +226,41 @@ export function PurchaseForm({
           const quantity = Number(row.quantity) || 1;
 
           return {
-            productId: product.id,
+            productId: product.id.toString(),
             quantity,
             price: product.purchasePrice,
+            total: product.purchasePrice * quantity,
             needsLabels: false,
           };
         })
         .filter((item): item is PurchaseItem => item !== undefined);
 
-      if (newItems.length > 0) {
-        setItems((prevItems) => {
-          const mergedItems = [...prevItems];
-          newItems.forEach((newItem) => {
-            const existingIndex = mergedItems.findIndex(
-              (item) => item.productId === newItem.productId
-            );
-            if (existingIndex >= 0) {
-              mergedItems[existingIndex] = {
-                ...mergedItems[existingIndex],
-                quantity:
-                  (mergedItems[existingIndex].quantity || 0) + newItem.quantity,
-              };
-            } else {
-              mergedItems.push(newItem);
-            }
-          });
-          return mergedItems;
-        });
-        message.success(`Добавлено ${newItems.length} товаров`);
-      }
+      // Merge with existing items
+      const mergedItems = [...items];
+      newItems.forEach((newItem) => {
+        const existingIndex = mergedItems.findIndex(
+          (item) => item.productId === newItem.productId
+        );
+        if (existingIndex >= 0) {
+          mergedItems[existingIndex] = {
+            ...mergedItems[existingIndex],
+            quantity:
+              (mergedItems[existingIndex].quantity || 0) + newItem.quantity,
+            total: (mergedItems[existingIndex].total || 0) + newItem.total,
+          };
+        } else {
+          mergedItems.push(newItem);
+        }
+      });
+
+      setItems(mergedItems);
+      message.success(`Добавлено ${newItems.length} товаров`);
     };
     reader.readAsArrayBuffer(file);
     return false;
   };
 
-  const handleQuantityChange = (productId: number, value: number | null) => {
+  const handleQuantityChange = (productId: string, value: number | null) => {
     if (value === null) return;
 
     setItems(
@@ -279,7 +271,7 @@ export function PurchaseForm({
   };
 
   const handleExpiryDateChange = (
-    productId: number,
+    productId: string,
     date: dayjs.Dayjs | null
   ) => {
     setItems(
@@ -302,44 +294,44 @@ export function PurchaseForm({
 
   const handlePriceChange = (index: number, value: number | null) => {
     if (value === null) return;
-    const newItems = [...items];
-    const product = products.find((p) => p.id === items[index].productId);
 
-    if (product && value < product.purchasePrice) {
+    const newItems = [...items];
+    const item = items[index];
+    const product = products?.find((p) => p.id.toString() === item.productId);
+
+    if (!product) {
+      message.error('Товар не найден');
+      return;
+    }
+
+    if (value < product.purchasePrice) {
       Modal.confirm({
         title: 'Внимание',
         icon: <ExclamationCircleOutlined />,
         content: 'Цена ниже текущей закупочной. Продолжить?',
         onOk: () => {
           newItems[index].price = value;
+          newItems[index].total = value * newItems[index].quantity;
           setItems(newItems);
         },
       });
     } else {
       newItems[index].price = value;
+      newItems[index].total = value * newItems[index].quantity;
       setItems(newItems);
     }
   };
 
   const handleAddProduct = (product: Product) => {
-    const existingItem = items.find((item) => item.productId === product.id);
-    if (existingItem) {
-      setItems(
-        items.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      const newItem: PurchaseItem = {
-        productId: product.id,
-        quantity: 1,
-        price: product.purchasePrice,
-        needsLabels: false,
-      };
-      setItems([...items, newItem]);
-    }
+    const productId = product.id.toString();
+    const newItem: PurchaseItem = {
+      productId,
+      quantity: 1,
+      price: product.purchasePrice,
+      total: product.purchasePrice,
+      needsLabels: false,
+    };
+    setItems([...items, newItem]);
     setSearchValue('');
   };
 
@@ -354,7 +346,9 @@ export function PurchaseForm({
       }
 
       const previewItems = items.map((item) => {
-        const product = products.find((p) => p.id === item.productId);
+        const product = products.find(
+          (p) => p.id.toString() === item.productId
+        );
         if (!product) {
           throw new Error(`Товар с ID ${item.productId} не найден`);
         }
@@ -377,7 +371,7 @@ export function PurchaseForm({
       );
 
       setPreviewData({
-        id: Math.random(), // Временный ID для превью
+        id: crypto.randomUUID(),
         date: values.date.format('YYYY-MM-DD'),
         invoiceNumber: values.invoiceNumber,
         supplier: {
@@ -428,7 +422,10 @@ export function PurchaseForm({
       await createPurchaseMutation.mutateAsync(purchaseData);
       onClose();
     } catch (error) {
-      ApiErrorHandler.handle(error);
+      console.error('Error submitting purchase:', error);
+      if (error instanceof Error) {
+        message.error(error.message);
+      }
     }
   };
 
@@ -445,30 +442,30 @@ export function PurchaseForm({
     }
   };
 
-  const handleCopy = async (purchaseId: number) => {
+  const handleCopy = async (purchaseId: string) => {
     try {
-      const purchase = purchases.find((p) => p.id === purchaseId);
-      if (!purchase) {
-        throw new Error('Приход не найден');
-      }
-
-      form.setFieldsValue({
-        supplierId: purchase.supplier.id,
-        invoiceNumber: '', // Очищаем номер накладной при копировании
-        date: dayjs(), // Устанавливаем текущую дату
-        comment: purchase.comment,
-      });
+      const purchase = await getPurchaseById(purchaseId);
+      if (!purchase) return;
 
       setItems(
         purchase.items.map((item) => ({
-          productId: item.productId,
+          productId: item.productId.toString(),
           quantity: item.quantity,
           price: item.price,
+          total: item.total,
           needsLabels: false,
         }))
       );
+
+      form.setFieldsValue({
+        supplierId: purchase.supplier.id.toString(),
+        invoiceNumber: '',
+        date: dayjs(),
+        comment: purchase.comment,
+      });
     } catch (error) {
-      ApiErrorHandler.handle(error);
+      console.error('Error copying purchase:', error);
+      message.error('Ошибка при копировании закупки');
     }
   };
 
@@ -490,11 +487,11 @@ export function PurchaseForm({
 
   const columns = [
     {
-      title: 'Наименование',
+      title: 'Название',
       dataIndex: 'productId',
       key: 'name',
-      render: (productId: number) => {
-        const product = products.find((p) => p.id === productId);
+      render: (productId: string) => {
+        const product = products.find((p) => p.id.toString() === productId);
         return product?.name || 'Неизвестный товар';
       },
     },
@@ -502,8 +499,8 @@ export function PurchaseForm({
       title: 'Артикул',
       dataIndex: 'productId',
       key: 'sku',
-      render: (productId: number) => {
-        const product = products.find((p) => p.id === productId);
+      render: (productId: string) => {
+        const product = products.find((p) => p.id.toString() === productId);
         return product?.sku || 'Н/Д';
       },
     },
@@ -533,13 +530,29 @@ export function PurchaseForm({
           parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, ''))}
           onChange={(val) => {
             if (val === null) return;
-            setItems(
-              items.map((item) =>
-                item.productId === record.productId
-                  ? { ...item, price: val }
-                  : item
-              )
+            const newItems = [...items];
+            const index = items.findIndex(
+              (item) => item.productId === record.productId
             );
+            if (index === -1) return;
+
+            const product = products?.find((p) => p.id === record.productId);
+            if (product && val < product.purchasePrice) {
+              Modal.confirm({
+                title: 'Внимание',
+                icon: <ExclamationCircleOutlined />,
+                content: 'Цена ниже текущей закупочной. Продолжить?',
+                onOk: () => {
+                  newItems[index].price = val;
+                  newItems[index].total = val * newItems[index].quantity;
+                  setItems(newItems);
+                },
+              });
+            } else {
+              newItems[index].price = val;
+              newItems[index].total = val * newItems[index].quantity;
+              setItems(newItems);
+            }
           }}
         />
       ),
@@ -726,19 +739,17 @@ export function PurchaseForm({
                   }))}
                 />
               </Form.Item>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() =>
-                  handleAddProduct(
-                    products.find(
-                      (p) => p.id === parseInt(searchValue)
-                    ) as Product
-                  )
-                }
-              >
-                Добавить товар
-              </Button>
+              {searchValue && (
+                <Button
+                  onClick={() =>
+                    handleAddProduct(
+                      products.find((p) => p.id === searchValue) as Product
+                    )
+                  }
+                >
+                  Добавить
+                </Button>
+              )}
               <Upload beforeUpload={handleExcelUpload} showUploadList={false}>
                 <Button icon={<UploadOutlined />}>Загрузить из Excel</Button>
               </Upload>
@@ -782,6 +793,8 @@ export function PurchaseForm({
                 type="primary"
                 onClick={handleSubmit}
                 loading={createPurchaseMutation.isPending}
+            className="bg-blue-500"
+
               >
                 Сохранить
               </Button>

@@ -225,6 +225,7 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             onClick={handleUpload}
             disabled={!preview || preview.hasErrors || uploading}
             loading={uploading}
+            
           >
             Загрузить
           </Button>

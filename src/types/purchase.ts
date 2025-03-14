@@ -1,5 +1,5 @@
 export interface Purchase {
-  id: number;
+  id: string;
   date: string;
   invoiceNumber: string;
   supplier: {
@@ -9,7 +9,7 @@ export interface Purchase {
     phone?: string;
   };
   items: Array<{
-    productId: number;
+    productId: string;
     product: {
       name: string;
       sku: string;

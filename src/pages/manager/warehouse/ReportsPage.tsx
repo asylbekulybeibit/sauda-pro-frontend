@@ -190,6 +190,8 @@ function ReportsPage() {
           type="primary"
           icon={<DownloadOutlined />}
           onClick={handleExport}
+          className="bg-blue-500"
+
         >
           Экспорт
         </Button>

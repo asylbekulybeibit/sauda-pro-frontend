@@ -33,18 +33,23 @@ const AnalyticsPage = React.lazy(
 const BulkOperationsPage = React.lazy(
   () => import('./pages/manager/BulkOperationsPage')
 );
-const AuditPage = React.lazy(() => import('./pages/manager/AuditPage'));
 const ManagerDashboard = React.lazy(
   () => import('./pages/manager/ManagerDashboard')
 );
 const ProductsPage = React.lazy(
   () => import('./pages/manager/products/ProductsPage')
 );
+const ProductDetailsPage = React.lazy(
+  () => import('./pages/manager/products/ProductDetailsPage')
+);
 const CategoryPage = React.lazy(
   () => import('./pages/manager/products/CategoryPage')
 );
 
 const SalesPage = React.lazy(() => import('./pages/manager/sales/SalesPage'));
+const ReturnsPage = React.lazy(
+  () => import('./pages/manager/sales/ReturnsPage')
+);
 const StaffPage = React.lazy(() => import('./pages/manager/staff/StaffPage'));
 const PromotionsPage = React.lazy(
   () => import('./pages/manager/promotions/PromotionsPage')
@@ -207,10 +212,15 @@ export default function App() {
                   }
                 >
                   <Route index element={<ManagerDashboard />} />
-                  <Route path="products/*" element={<ProductsPage />} />
+                  <Route path="products" element={<ProductsPage />} />
+                  <Route
+                    path="products/:productId"
+                    element={<ProductDetailsPage />}
+                  />
                   <Route path="categories" element={<CategoryPage />} />
 
                   <Route path="sales" element={<SalesPage />} />
+                  <Route path="sales/returns" element={<ReturnsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="promotions" element={<PromotionsPage />} />
@@ -226,7 +236,11 @@ export default function App() {
                     <Route path="incoming" element={<IncomingPage />} />
                     <Route path="inventory" element={<InventoryPage />} />
                     <Route path="transfers" element={<TransfersPage />} />
-                    <Route path="writeoffs" element={<WriteOffsPage />} />
+                    <Route path="write-offs" element={<WriteOffsPage />} />
+                    <Route
+                      path="products/:productId"
+                      element={<ProductDetailsPage />}
+                    />
                     <Route path="reports" element={<WarehouseReportsPage />} />
                   </Route>
                 </Route>
