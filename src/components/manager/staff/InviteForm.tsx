@@ -1,111 +1,208 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createStaffInvite } from '@/services/managerApi';
-import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
+import { createInvite } from '@/services/managerApi';
 import { RoleType } from '@/types/role';
+import { normalizePhoneNumber } from '@/utils/phone';
+import { Modal } from 'antd';
 
-interface InviteFormProps {
+interface ErrorModalProps {
+  isOpen: boolean;
   onClose: () => void;
+  message: string;
+}
+
+function ErrorModal({ isOpen, onClose, message }: ErrorModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-center mb-4">
+          <span className="text-4xl">⚠️</span>
+        </div>
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Ошибка</h3>
+          <p className="text-gray-500">{message}</p>
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Закрыть
+          </button>
+        </div>
+      </div>
+      <div className="fixed inset-0 bg-gray-500 opacity-75 -z-10" />
+    </div>
+  );
+}
+
+interface CreateInviteFormProps {
+  onClose: () => void;
+  predefinedShopId?: string; // Если задан, селект проекта не показывается
+}
+
+interface FormData {
+  phone: string;
+  role: RoleType;
   shopId: string;
 }
 
-export function InviteForm({ onClose, shopId }: InviteFormProps) {
-  const [formData, setFormData] = useState({
+export function CreateInviteForm({
+  onClose,
+  predefinedShopId,
+}: CreateInviteFormProps) {
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState<FormData>({
     phone: '',
     role: RoleType.CASHIER,
+    shopId: predefinedShopId || '',
   });
-
-  const queryClient = useQueryClient();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => createStaffInvite(data, shopId),
+    mutationFn: () =>
+      createInvite(formData.shopId, {
+        phone: normalizePhoneNumber(formData.phone),
+        role: RoleType.CASHIER,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites'] });
       onClose();
+    },
+    onError: (error: any) => {
+      let errorMessage = 'Произошла ошибка при отправке приглашения';
+
+      if (error.response?.status === 404) {
+        errorMessage =
+          'Не удалось отправить приглашение. Пожалуйста, обновите страницу и попробуйте снова.';
+      } else if (error.response?.data?.message) {
+        // Map backend error messages to user-friendly Russian messages
+        const errorMessageMap: Record<string, string> = {
+          'Для этого номера телефона уже есть активное приглашение':
+            'Для этого номера телефона уже есть активное приглашение. Дождитесь ответа или отмените существующее приглашение.',
+          'Этот номер телефона уже зарегистрирован как кассир в вашем магазине':
+            'Этот номер телефона уже зарегистрирован как  кассир в вашем магазине.',
+          'Invalid phone number format': 'Неверный формат номера телефона',
+          'Shop not found': 'Магазин не найден',
+          'Cannot invite to this role':
+            'У вас нет прав для приглашения сотрудника на эту роль',
+        };
+
+        errorMessage =
+          errorMessageMap[error.response.data.message] ||
+          error.response.data.message;
+      }
+
+      setErrorMessage(errorMessage);
+      setErrorModalOpen(true);
     },
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createMutation.mutateAsync(formData);
+    const errors: Record<string, string> = {};
+
+    if (!formData.phone) {
+      errors.phone = 'Введите номер телефона';
+    } else {
+      try {
+        normalizePhoneNumber(formData.phone);
+      } catch (error) {
+        errors.phone = 'Неверный формат номера телефона';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setErrors(errors);
+      return;
+    }
+
+    createMutation.mutate();
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^\d+]/g, '');
+    setFormData((prev) => ({
+      ...prev,
+      phone: value,
+    }));
+    setErrors((prev) => ({ ...prev, phone: '' }));
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Пригласить сотрудника</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <XIcon className="h-6 w-6" />
-          </button>
+    <Modal
+      title="Приглашение нового сотрудника"
+      open={true}
+      onCancel={onClose}
+      footer={null}
+      width={600}
+      maskClosable={false}
+      centered
+      className="invite-form-modal"
+    >
+      <form onSubmit={handleSubmit} className="p-4 space-y-6">
+        <div>
+          <label htmlFor="phone" className="block text-base text-gray-700 mb-2">
+            Телефон *
+          </label>
+          <input
+            type="tel"
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handlePhoneChange}
+            className="block w-full h-12 px-4 rounded-lg border border-[#E5E7EB] text-base focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="+7XXXXXXXXXX"
+          />
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Номер телефона
-            </label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-              placeholder="+7 (999) 999-99-99"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-          </div>
+        <div>
+          <label htmlFor="role" className="block text-base text-gray-700 mb-2">
+            Роль
+          </label>
+          <select
+            id="role"
+            name="role"
+            value={formData.role}
+            disabled
+            className="block w-full h-12 px-4 rounded-lg border border-[#E5E7EB] text-base bg-white focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-white disabled:opacity-100"
+          >
+            <option value={RoleType.CASHIER}>Кассир</option>
+          </select>
+        </div>
 
-          <div>
-            <label
-              htmlFor="role"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Роль
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            >
-              <option value={RoleType.CASHIER}>Кассир</option>
-              <option value={RoleType.MANAGER}>Менеджер</option>
-            </select>
-          </div>
+        <div className="flex justify-end space-x-4 pt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3 text-base font-normal text-gray-700 hover:text-gray-900"
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            disabled={createMutation.isPending}
+            className="px-6 py-3 text-base font-normal text-white bg-[#6366F1] rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {createMutation.isPending ? 'Отправка...' : 'Отправить'}
+          </button>
+        </div>
+      </form>
 
-          <div className="flex justify-end space-x-3 mt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Отправить приглашение
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      {errorModalOpen && (
+        <ErrorModal
+          isOpen={errorModalOpen}
+          onClose={() => setErrorModalOpen(false)}
+          message={errorMessage}
+        />
+      )}
+    </Modal>
   );
 }

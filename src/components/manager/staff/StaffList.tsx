@@ -180,8 +180,8 @@ export function StaffList({ roles, shopId }: StaffListProps) {
                     .filter((role) => !role.isActive)
                     .sort(
                       (a, b) =>
-                        new Date(b.createdAt).getTime() -
-                        new Date(a.createdAt).getTime()
+                        new Date(b.deactivatedAt || b.createdAt).getTime() -
+                        new Date(a.deactivatedAt || a.createdAt).getTime()
                     )
                     .map((role) => (
                       <div

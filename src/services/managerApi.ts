@@ -10,6 +10,7 @@ import { Supplier } from '@/types/supplier';
 import { LabelTemplate, GenerateLabelsRequest } from '@/types/label';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler, ApiError } from '@/utils/error-handler';
+import { RoleType } from '@/types/role';
 
 // Методы для работы с товарами
 export const getProducts = async (shopId: string): Promise<Product[]> => {
@@ -161,20 +162,72 @@ export const getStaff = async (shopId: string): Promise<UserRoleDetails[]> => {
   }
 };
 
-export const createStaffInvite = async (
-  data: any,
-  shopId: string
-): Promise<Invite> => {
-  const response = await api.post(`/manager/staff/shop/${shopId}/invite`, data);
-  return response.data;
-};
-
 export const deactivateStaff = async (
   staffId: string,
   shopId: string
 ): Promise<void> => {
-  await api.patch(`/manager/staff/shop/${shopId}/staff/${staffId}/deactivate`);
+  try {
+    await api.patch(
+      `/manager/staff/shop/${shopId}/staff/${staffId}/deactivate`
+    );
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
 };
+
+interface CreateInviteDto {
+  phone: string;
+  role: RoleType;
+}
+
+interface InviteStats {
+  total: number;
+  activeInvites: number;
+  acceptedInvites: number;
+  rejectedInvites: number;
+  cancelledInvites: number;
+  byStatus: Record<string, number>;
+  byRole: Record<string, number>;
+  averageAcceptanceTime: number | null;
+}
+
+export async function getInvites(shopId: string): Promise<Invite[]> {
+  const { data } = await api.get(`/manager/staff/shop/${shopId}/invites`);
+  return data;
+}
+
+export async function getInviteStats(shopId: string): Promise<InviteStats> {
+  const { data } = await api.get(`/manager/staff/shop/${shopId}/invites/stats`);
+  return data;
+}
+
+export async function createInvite(
+  shopId: string,
+  dto: CreateInviteDto
+): Promise<Invite> {
+  const { data } = await api.post(`/manager/staff/shop/${shopId}/invites`, dto);
+  return data;
+}
+
+export async function cancelInvite(
+  shopId: string,
+  inviteId: string
+): Promise<Invite> {
+  const { data } = await api.post(
+    `/manager/staff/shop/${shopId}/invites/${inviteId}/cancel`
+  );
+  return data;
+}
+
+export async function resendInvite(
+  shopId: string,
+  inviteId: string
+): Promise<Invite> {
+  const { data } = await api.post(
+    `/manager/staff/shop/${shopId}/invites/${inviteId}/resend`
+  );
+  return data;
+}
 
 // Методы для работы с отчетами
 export const createReport = async (data: any): Promise<Report> => {

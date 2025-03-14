@@ -3,10 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { getStaff } from '@/services/managerApi';
 import { StaffList } from '@/components/manager/staff/StaffList';
-import { InviteForm } from '@/components/manager/staff/InviteForm';
+import { CreateInviteForm as InviteForm } from '@/components/manager/staff/InviteForm';
 import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/24/outline';
-import { UserRoleDetails } from '@/types/role';
 
 function StaffPage() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -46,6 +45,7 @@ function StaffPage() {
           type="primary"
           icon={<TagIcon className="h-5 w-5" />}
           onClick={() => setIsInviteModalOpen(true)}
+          className="bg-indigo-500 hover:bg-indigo-600 border-none shadow-sm"
         >
           Пригласить сотрудника
         </Button>
@@ -56,7 +56,7 @@ function StaffPage() {
       {isInviteModalOpen && (
         <InviteForm
           onClose={() => setIsInviteModalOpen(false)}
-          shopId={shopId!}
+          predefinedShopId={shopId!}
         />
       )}
     </div>

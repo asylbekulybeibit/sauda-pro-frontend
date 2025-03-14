@@ -8,6 +8,13 @@ export enum InviteStatus {
   CANCELLED = 'cancelled',
 }
 
+export interface User {
+  id: string;
+  phone: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 export interface Invite {
   id: string;
   phone: string;
@@ -32,6 +39,8 @@ export interface Invite {
     lastName?: string;
     email?: string;
   };
+  user?: User;
+  sender?: User;
 }
 
 export interface CreateInviteDto {

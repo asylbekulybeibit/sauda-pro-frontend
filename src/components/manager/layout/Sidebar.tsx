@@ -12,6 +12,7 @@ import {
   Cog6ToothIcon as CogIcon,
   ChartBarIcon,
   ChevronRightIcon,
+  UserPlusIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { Disclosure } from '@headlessui/react';
@@ -60,6 +61,11 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       ],
     },
     { name: 'Сотрудники', href: `/manager/${shopId}/staff`, icon: UsersIcon },
+    {
+      name: 'Приглашения',
+      href: `/manager/${shopId}/invites`,
+      icon: UserPlusIcon,
+    },
     {
       name: 'Маркетинг',
       icon: ChartBarIcon,

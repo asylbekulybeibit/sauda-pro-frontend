@@ -57,6 +57,9 @@ const LabelsPage = React.lazy(
 const SettingsPage = React.lazy(
   () => import('./pages/manager/settings/SettingsPage')
 );
+const ManagerInvitesPage = React.lazy(
+  () => import('./pages/manager/invites/ManagerInvitesPage')
+);
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -193,6 +196,7 @@ export default function App() {
                   <Route path="inventory" element={<InventoryPage />} />
                   <Route path="sales" element={<SalesPage />} />
                   <Route path="staff" element={<StaffPage />} />
+                  <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
