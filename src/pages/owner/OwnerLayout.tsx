@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, Outlet, useParams, useNavigate } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
@@ -9,6 +9,20 @@ export default function OwnerLayout() {
   const { logout } = useAuthStore();
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   if (
     !currentRole ||
@@ -44,52 +58,48 @@ export default function OwnerLayout() {
             </div>
 
             {/* Профиль */}
-            <div className="flex items-center">
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900"
+            <div className="flex items-center relative" ref={menuRef}>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center text-base px-6 py-3 font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-200 focus:outline-none"
+              >
+                <span className="text-lg">👔 Владелец</span>
+                <svg
+                  className={`ml-3 h-6 w-6 text-gray-400 transition-transform duration-200 ${
+                    isProfileMenuOpen ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <span>👔 Владелец</span>
-                  <svg
-                    className={`h-5 w-5 transition-transform ${
-                      isProfileMenuOpen ? 'rotate-180' : ''
-                    }`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
 
-                {/* Выпадающее меню профиля */}
-                {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                    <div className="py-1">
-                      <Link
-                        to="/profile"
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <span className="mr-2">👤</span>
-                        Мой профиль
-                      </Link>
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        <span className="mr-2">🚪</span>
-                        Выйти
-                      </button>
-                    </div>
+              {/* Выпадающее меню профиля */}
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 top-full w-56 rounded-lg shadow-lg py-2 bg-white ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <Link
+                      to="/profile"
+                      className="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <span className="text-lg">👔 Мой профиль</span>
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full text-left px-6 py-3 text-base text-red-600 hover:bg-red-50 transition-colors duration-200"
+                    >
+                      <span className="text-lg">🚪 Выйти</span>
+                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

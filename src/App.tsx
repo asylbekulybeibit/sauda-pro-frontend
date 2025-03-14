@@ -14,6 +14,7 @@ import LoginPage from './pages/auth/LoginPage';
 import { RoleType } from './types/role';
 import { ShopProvider } from '@/contexts/ShopContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ManagerHeader } from '@/components/manager/layout/Header';
 
 // Ленивая загрузка компонентов
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
@@ -33,7 +34,6 @@ const BulkOperationsPage = React.lazy(
   () => import('./pages/manager/BulkOperationsPage')
 );
 const AuditPage = React.lazy(() => import('./pages/manager/AuditPage'));
-const ManagerLayout = React.lazy(() => import('./pages/manager/ManagerLayout'));
 const ManagerDashboard = React.lazy(
   () => import('./pages/manager/ManagerDashboard')
 );
@@ -185,7 +185,7 @@ export default function App() {
                   element={
                     <RoleGuard allowedRoles={[RoleType.MANAGER]}>
                       <Suspense fallback={<LoadingFallback />}>
-                        <ManagerLayout />
+                        <ManagerHeader />
                       </Suspense>
                     </RoleGuard>
                   }
