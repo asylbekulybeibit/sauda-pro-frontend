@@ -5,7 +5,7 @@ import { getCategories } from '@/services/managerApi';
 import { CategoryTree } from '@/components/manager/products/CategoryTree';
 import { CategoryForm } from '@/components/manager/products/CategoryForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 
 function CategoryPage() {
   const { shopId } = useParams<{ shopId: string }>();

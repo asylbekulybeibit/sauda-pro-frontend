@@ -15,7 +15,7 @@ import { RoleType } from '@/types/role';
 // Методы для работы с товарами
 export const getProducts = async (shopId: string): Promise<Product[]> => {
   try {
-    const response = await api.get(`/manager/products/shop/${shopId}`);
+    const response = await api.get('/manager/products');
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -56,7 +56,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
 // Методы для работы с категориями
 export const getCategories = async (shopId: string): Promise<Category[]> => {
   try {
-    const response = await api.get(`/manager/categories/shop/${shopId}`);
+    const response = await api.get('/manager/categories');
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -360,7 +360,7 @@ export const removeProductFromSupplier = async (
 export const getLabelTemplates = async (
   shopId: string
 ): Promise<LabelTemplate[]> => {
-  const response = await api.get(`/manager/labels/templates/${shopId}`);
+  const response = await api.get(`/manager/labels/templates?shopId=${shopId}`);
   return response.data;
 };
 

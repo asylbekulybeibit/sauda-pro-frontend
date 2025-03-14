@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Promotion } from '@/types/promotion';
 import { getProducts } from '@/services/managerApi';
 import { createPromotion, updatePromotion } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { Product } from '@/types/product';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface PromotionFormProps {
   promotion?: Promotion;

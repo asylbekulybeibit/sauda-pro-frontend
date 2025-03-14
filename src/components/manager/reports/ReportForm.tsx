@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Report, ReportType, ReportFormat } from '@/types/report';
 import { createReport, updateReport } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface ReportFormProps {
   report?: Report;

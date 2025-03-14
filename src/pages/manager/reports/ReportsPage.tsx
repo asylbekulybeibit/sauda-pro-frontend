@@ -5,7 +5,7 @@ import { getReports } from '@/services/managerApi';
 import { ReportList } from '@/components/manager/reports/ReportList';
 import { ReportForm } from '@/components/manager/reports/ReportForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 
 export function ReportsPage() {
   const { shopId } = useParams<{ shopId: string }>();

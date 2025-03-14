@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { LabelTemplate } from '@/types/label';
 import { Product } from '@/types/product';
 import { generateLabels } from '@/services/managerApi';
-import { XIcon } from '@heroicons/react/outline';
+import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
 
 interface LabelGeneratorProps {
   template: LabelTemplate;

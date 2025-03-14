@@ -5,7 +5,7 @@ import { getLabelTemplates, getProducts } from '@/services/managerApi';
 import { LabelTemplateList } from '@/components/manager/labels/LabelTemplateList';
 import { LabelTemplateForm } from '@/components/manager/labels/LabelTemplateForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 
 function LabelsPage() {
   const { shopId } = useParams<{ shopId: string }>();

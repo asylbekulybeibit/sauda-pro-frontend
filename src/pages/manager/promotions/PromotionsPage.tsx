@@ -5,7 +5,7 @@ import { getPromotions } from '@/services/managerApi';
 import { PromotionList } from '@/components/manager/promotions/PromotionList';
 import { PromotionForm } from '@/components/manager/promotions/PromotionForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 
 function PromotionsPage() {
   const { shopId } = useParams<{ shopId: string }>();

@@ -1,5 +1,5 @@
 import { Promotion } from '@/types/promotion';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 import { formatDate } from '@/utils/date';
 

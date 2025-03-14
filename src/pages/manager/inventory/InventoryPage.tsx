@@ -4,7 +4,7 @@ import { getInventory } from '@/services/managerApi';
 import { InventoryList } from '@/components/manager/inventory/InventoryList';
 import { InventoryForm } from '@/components/manager/inventory/InventoryForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
 function InventoryPage() {

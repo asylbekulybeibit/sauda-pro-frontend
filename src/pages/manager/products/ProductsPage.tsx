@@ -5,7 +5,7 @@ import { getProducts, getCategories } from '@/services/managerApi';
 import { ProductList } from '@/components/manager/products/ProductList';
 import { ProductForm } from '@/components/manager/products/ProductForm';
 import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/outline';
+import { TagIcon } from '@heroicons/react/24/outline';
 import { Category as ProductCategory } from '@/types/product';
 
 function ProductsPage() {

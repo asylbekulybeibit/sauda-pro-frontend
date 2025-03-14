@@ -1,5 +1,5 @@
 import { Product } from '@/types/product';
-import { ExclamationIcon } from '@heroicons/react/outline';
+import { ExclamationTriangleIcon as ExclamationIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom';
 
 interface LowStockListProps {
