@@ -6,7 +6,7 @@ import { ProductList } from '@/components/manager/products/ProductList';
 import { ProductForm } from '@/components/manager/products/ProductForm';
 import { Button, Spin } from 'antd';
 import { TagIcon } from '@heroicons/react/24/outline';
-import { Category as ProductCategory } from '@/types/product';
+import { Category } from '@/types/category';
 
 function ProductsPage() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -18,20 +18,11 @@ function ProductsPage() {
     enabled: !!shopId,
   });
 
-  const { data: categoriesData, isLoading: isLoadingCategories } = useQuery({
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories', shopId],
     queryFn: () => getCategories(shopId!),
     enabled: !!shopId,
   });
-
-  // Convert category IDs and shopId from string to number
-  const categories: ProductCategory[] =
-    categoriesData?.map((cat) => ({
-      ...cat,
-      id: Number(cat.id),
-      parentId: cat.parentId ? Number(cat.parentId) : undefined,
-      shopId: Number(cat.shopId),
-    })) || [];
 
   if (isLoadingProducts || isLoadingCategories) {
     return (
@@ -57,14 +48,14 @@ function ProductsPage() {
       {products && (
         <ProductList
           products={products}
-          categories={categories}
+          categories={categories || []}
           shopId={shopId!}
         />
       )}
 
       {showForm && (
         <ProductForm
-          categories={categories}
+          categories={categories || []}
           shopId={shopId!}
           onClose={() => setShowForm(false)}
         />

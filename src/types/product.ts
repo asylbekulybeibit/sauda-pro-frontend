@@ -1,27 +1,17 @@
 export interface Product {
-  id: number;
+  id: string;
   name: string;
   sku: string;
   barcode?: string;
+  barcodes?: string[];
   purchasePrice: number;
   sellingPrice: number;
   quantity: number;
+  minQuantity: number;
   description?: string;
-  categoryId?: number;
-  images?: string[];
+  categoryId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface Category {
-  id: number;
-  name: string;
-  description?: string;
-  parentId?: number;
-  parent?: Category;
-  children?: Category[];
-  shopId: number;
-  createdAt: string;
-  updatedAt: string;
+  shopId: string;
 }

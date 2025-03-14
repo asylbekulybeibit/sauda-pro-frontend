@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Product, Category } from '@/types/product';
+import { Product } from '@/types/product';
+import { Category } from '@/types/category';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createProduct, updateProduct } from '@/services/managerApi';
 import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
@@ -18,53 +19,40 @@ export function ProductForm({
   shopId,
 }: ProductFormProps) {
   console.log('ProductForm render - Initial categories:', categories);
-  console.log('ProductForm render - Categories type:', typeof categories);
   console.log(
-    'ProductForm render - Is categories array?',
-    Array.isArray(categories)
+    'ProductForm render - Raw categories data:',
+    JSON.stringify(categories, null, 2)
   );
 
-  // Простая фильтрация категорий
+  // Фильтруем только активные категории
   const validCategories = (categories || []).filter((category) => {
-    console.log('Processing category:', {
-      id: category?.id,
-      name: category?.name,
-      isActive: category?.isActive,
-      type: category?.id ? typeof category.id : 'undefined',
-    });
-
-    // Проверяем наличие всех необходимых полей и активность категории
     const isValid = Boolean(
-      category &&
-        category.name &&
-        category.isActive !== false && // категория активна или поле не указано
-        typeof category.id !== 'undefined' && // id существует
-        category.id !== null // id не null
+      category && category.name && category.id && category.isActive !== false
     );
 
-    console.log('Category validation result:', {
-      category: category?.name,
-      id: category?.id,
+    console.log('Category validation:', {
+      id: category.id,
+      name: category.name,
       isValid,
     });
 
     return isValid;
   });
 
-  console.log(
-    'Filtered valid categories:',
-    validCategories.map((c) => ({ id: c.id, name: c.name }))
-  );
+  console.log('Final valid categories:', validCategories);
 
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
-    sellingPrice: product?.sellingPrice?.toString() || '',
-    purchasePrice: product?.purchasePrice?.toString() || '',
-    quantity: product?.quantity?.toString() || '',
-    minQuantity: product?.minQuantity?.toString() || '',
+    sellingPrice: product?.sellingPrice ? product.sellingPrice.toString() : '',
+    purchasePrice: product?.purchasePrice
+      ? product.purchasePrice.toString()
+      : '',
+    quantity: product?.quantity?.toString() || '0',
+    minQuantity: product?.minQuantity?.toString() || '0',
     barcode: (product?.barcodes && product.barcodes[0]) || '',
     categoryId: product?.categoryId || '',
+    sku: product?.sku || '',
   });
 
   console.log('Form initial state:', formData);
@@ -89,8 +77,19 @@ export function ProductForm({
     },
   });
 
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    console.log('handleChange:', { name, value, type: typeof value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const payload = {
       ...formData,
       sellingPrice: parseFloat(formData.sellingPrice) || 0,
@@ -99,26 +98,20 @@ export function ProductForm({
       minQuantity: parseInt(formData.minQuantity) || 0,
       categoryId: formData.categoryId || undefined,
       shopId,
-      barcodes: formData.barcode ? [formData.barcode] : undefined,
+      barcodes: formData.barcode ? [formData.barcode] : [],
+      isActive: true,
     };
+
+    console.log('Submitting payload:', payload);
 
     if (product) {
       await updateMutation.mutateAsync({
-        id: product.id.toString(),
+        id: product.id,
         data: payload,
       });
     } else {
       await createMutation.mutateAsync(payload);
     }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -158,6 +151,23 @@ export function ProductForm({
 
             <div>
               <label
+                htmlFor="sku"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Артикул
+              </label>
+              <input
+                type="text"
+                id="sku"
+                name="sku"
+                value={formData.sku}
+                onChange={handleChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
                 htmlFor="categoryId"
                 className="block text-sm font-medium text-gray-700"
               >
@@ -171,20 +181,11 @@ export function ProductForm({
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
                 <option value="">Без категории</option>
-                {validCategories.map((category, index) => {
-                  const id = category.id?.toString() || `category-${index}`;
-                  const name = category.name || '';
-                  console.log('Rendering category option:', {
-                    id,
-                    name,
-                    index,
-                  });
-                  return (
-                    <option key={`${id}-${index}`} value={id}>
-                      {name}
-                    </option>
-                  );
-                })}
+                {validCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </div>
 

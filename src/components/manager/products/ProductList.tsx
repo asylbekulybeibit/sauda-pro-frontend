@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Product, Category } from '@/types/product';
+import { Product } from '@/types/product';
+import { Category } from '@/types/category';
 import { ProductForm } from './ProductForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteProduct } from '@/services/managerApi';
@@ -27,13 +28,13 @@ export function ProductList({
     },
   });
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Вы уверены, что хотите удалить этот товар?')) {
-      await deleteMutation.mutateAsync(id.toString());
+      await deleteMutation.mutateAsync(id);
     }
   };
 
-  const getCategoryName = (categoryId: number | undefined) => {
+  const getCategoryName = (categoryId: string | undefined) => {
     if (!categoryId) return 'Без категории';
     const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : 'Неизвестная категория';
