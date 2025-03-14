@@ -43,9 +43,7 @@ const ProductsPage = React.lazy(
 const CategoryPage = React.lazy(
   () => import('./pages/manager/products/CategoryPage')
 );
-const InventoryPage = React.lazy(
-  () => import('./pages/manager/inventory/InventoryPage')
-);
+
 const SalesPage = React.lazy(() => import('./pages/manager/sales/SalesPage'));
 const StaffPage = React.lazy(() => import('./pages/manager/staff/StaffPage'));
 const PromotionsPage = React.lazy(
@@ -59,6 +57,24 @@ const SettingsPage = React.lazy(
 );
 const ManagerInvitesPage = React.lazy(
   () => import('./pages/manager/invites/ManagerInvitesPage')
+);
+const TransfersPage = React.lazy(
+  () => import('./pages/manager/warehouse/TransfersPage')
+);
+const WriteOffsPage = React.lazy(
+  () => import('./pages/manager/warehouse/WriteOffsPage')
+);
+const WarehouseReportsPage = React.lazy(
+  () => import('./pages/manager/warehouse/ReportsPage')
+);
+const WarehousePage = React.lazy(
+  () => import('./pages/manager/warehouse/WarehousePage')
+);
+const IncomingPage = React.lazy(
+  () => import('./pages/manager/warehouse/IncomingPage')
+);
+const InventoryPage = React.lazy(
+  () => import('./pages/manager/warehouse/InventoryPage')
 );
 
 // Компонент для защиты роутов, требующих аутентификации
@@ -193,13 +209,26 @@ export default function App() {
                   <Route index element={<ManagerDashboard />} />
                   <Route path="products/*" element={<ProductsPage />} />
                   <Route path="categories" element={<CategoryPage />} />
-                  <Route path="inventory" element={<InventoryPage />} />
+
                   <Route path="sales" element={<SalesPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
+                  <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route
+                    path="bulk-operations"
+                    element={<BulkOperationsPage />}
+                  />
+                  <Route path="warehouse">
+                    <Route index element={<WarehousePage />} />
+                    <Route path="incoming" element={<IncomingPage />} />
+                    <Route path="inventory" element={<InventoryPage />} />
+                    <Route path="transfers" element={<TransfersPage />} />
+                    <Route path="writeoffs" element={<WriteOffsPage />} />
+                    <Route path="reports" element={<WarehouseReportsPage />} />
+                  </Route>
                 </Route>
               </Route>
 

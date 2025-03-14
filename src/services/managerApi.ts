@@ -7,15 +7,38 @@ import { Invite } from '@/types/invite';
 import { Report } from '@/types/report';
 import { Promotion } from '@/types/promotion';
 import { Supplier } from '@/types/supplier';
-import { LabelTemplate, GenerateLabelsRequest } from '@/types/label';
+import { LabelTemplate } from '@/types/label';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler, ApiError } from '@/utils/error-handler';
 import { RoleType } from '@/types/role';
+import { Purchase } from '@/types/purchase';
+import axios from 'axios';
+import { Transfer } from '@/types/transfer';
+
+interface GenerateLabelsRequest {
+  templateId: number;
+  products: Array<{
+    productId: number;
+    quantity: number;
+  }>;
+}
+
+interface CreateTransferDto {
+  fromShopId: string;
+  toShopId: string;
+  date: string;
+  items: Array<{
+    productId: number;
+    quantity: number;
+    comment?: string;
+  }>;
+  comment?: string;
+}
 
 // Методы для работы с товарами
 export const getProducts = async (shopId: string): Promise<Product[]> => {
   try {
-    const response = await api.get('/manager/products');
+    const response = await api.get(`/manager/products/shop/${shopId}`);
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -56,7 +79,7 @@ export const deleteProduct = async (id: string): Promise<void> => {
 // Методы для работы с категориями
 export const getCategories = async (shopId: string): Promise<Category[]> => {
   try {
-    const response = await api.get('/manager/categories');
+    const response = await api.get(`/manager/categories/shop/${shopId}`);
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -449,4 +472,119 @@ export const getPriceChangesReport = async (
 // Хелпер для проверки ошибок
 export const isApiError = (error: unknown): error is ApiError => {
   return error instanceof Error && 'code' in error && 'status' in error;
+};
+
+export interface CreatePurchaseRequest {
+  shopId: number;
+  supplierId: string;
+  invoiceNumber: string;
+  date: string;
+  comment?: string;
+  items: Array<{
+    productId: number;
+    quantity: number;
+    price: number;
+    partialQuantity?: number;
+    serialNumber?: string;
+    expiryDate?: string;
+  }>;
+  updatePrices?: boolean;
+  createLabels?: boolean;
+}
+
+export interface PurchaseResponse {
+  id: number;
+  date: string;
+  invoiceNumber: string;
+  supplier: {
+    name: string;
+    address?: string;
+    phone?: string;
+  };
+  items: Array<{
+    productId: number;
+    product: {
+      name: string;
+      sku: string;
+    };
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
+  totalAmount: number;
+  comment?: string;
+}
+
+export const fetchProducts = async (shopId: number): Promise<Product[]> => {
+  const response = await fetch(`/api/shops/${shopId}/products`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch products');
+  }
+  return response.json();
+};
+
+export const fetchSuppliers = async (): Promise<Supplier[]> => {
+  const response = await fetch('/api/suppliers');
+  if (!response.ok) {
+    throw new Error('Failed to fetch suppliers');
+  }
+  return response.json();
+};
+
+export const createPurchase = async (
+  data: CreatePurchaseRequest
+): Promise<PurchaseResponse> => {
+  const response = await fetch('/api/purchases', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create purchase');
+  }
+
+  return response.json();
+};
+
+export const getPurchaseById = async (id: number): Promise<Purchase> => {
+  const response = await api.get(`/manager/purchases/${id}`);
+  return response.data;
+};
+
+export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
+  try {
+    const response = await axios.get(`/manager/shops/${shopId}/purchases`);
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const getTransfers = async (shopId: string): Promise<Transfer[]> => {
+  const response = await api.get(`/manager/transfers/shop/${shopId}`);
+  return response.data;
+};
+
+export const createTransfer = async (
+  data: CreateTransferDto
+): Promise<Transfer> => {
+  const response = await api.post('/manager/transfers', data);
+  return response.data;
+};
+
+export const updateTransferStatus = async (
+  id: number,
+  status: Transfer['status']
+): Promise<Transfer> => {
+  const response = await api.patch(`/manager/transfers/${id}/status`, {
+    status,
+  });
+  return response.data;
+};
+
+export const deleteTransfer = async (id: number): Promise<void> => {
+  await api.delete(`/manager/transfers/${id}`);
 };

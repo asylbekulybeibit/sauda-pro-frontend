@@ -13,6 +13,8 @@ import {
   ChartBarIcon,
   ChevronRightIcon,
   UserPlusIcon,
+  CubeIcon,
+  ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { Disclosure } from '@headlessui/react';
@@ -42,7 +44,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
 
   const shopId = currentRole.shop.id;
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     {
       name: 'Дашборд',
       href: `/manager/${shopId}`,
@@ -56,7 +58,6 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       children: [
         { name: 'Товары', href: `/manager/${shopId}/products` },
         { name: 'Категории', href: `/manager/${shopId}/categories` },
-        { name: 'Склад', href: `/manager/${shopId}/inventory` },
       ],
     },
     {
@@ -66,6 +67,37 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       children: [
         { name: 'История продаж', href: `/manager/${shopId}/sales` },
         { name: 'Возвраты', href: `/manager/${shopId}/sales/returns` },
+      ],
+    },
+    {
+      name: 'Склад',
+      icon: ArchiveBoxIcon,
+      color: 'bg-orange-100 text-orange-600',
+      children: [
+        {
+          name: 'Обзор',
+          href: `/manager/${shopId}/warehouse`,
+        },
+        {
+          name: 'Приход товара',
+          href: `/manager/${shopId}/warehouse/incoming`,
+        },
+        {
+          name: 'Инвентаризация',
+          href: `/manager/${shopId}/warehouse/inventory`,
+        },
+        {
+          name: 'Перемещения',
+          href: `/manager/${shopId}/warehouse/transfers`,
+        },
+        {
+          name: 'Списания',
+          href: `/manager/${shopId}/warehouse/writeoffs`,
+        },
+        {
+          name: 'Отчеты',
+          href: `/manager/${shopId}/warehouse/reports`,
+        },
       ],
     },
     {
@@ -151,7 +183,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
                       />
                     </Disclosure.Button>
                     <Disclosure.Panel className="space-y-1">
-                      {item.children.map((subItem) => (
+                      {item.children?.map((subItem) => (
                         <Link
                           key={subItem.name}
                           to={subItem.href}

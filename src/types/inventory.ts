@@ -1,4 +1,10 @@
-export type TransactionType = 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'RETURN';
+export type TransactionType =
+  | 'SALE'
+  | 'PURCHASE'
+  | 'ADJUSTMENT'
+  | 'RETURN'
+  | 'WRITE_OFF'
+  | 'TRANSFER';
 
 export interface InventoryTransaction {
   id: number;

@@ -1,14 +1,15 @@
 export interface Product {
   id: number;
   name: string;
-  description?: string;
-  price: number;
-  quantity: number;
-  minQuantity: number;
+  sku: string;
   barcode?: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  quantity: number;
+  description?: string;
   categoryId?: number;
-  category?: Category;
-  shopId: number;
+  images?: string[];
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

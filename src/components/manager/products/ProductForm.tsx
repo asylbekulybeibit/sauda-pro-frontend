@@ -17,15 +17,57 @@ export function ProductForm({
   onClose,
   shopId,
 }: ProductFormProps) {
+  console.log('ProductForm render - Initial categories:', categories);
+  console.log('ProductForm render - Categories type:', typeof categories);
+  console.log(
+    'ProductForm render - Is categories array?',
+    Array.isArray(categories)
+  );
+
+  // Простая фильтрация категорий
+  const validCategories = (categories || []).filter((category) => {
+    console.log('Processing category:', {
+      id: category?.id,
+      name: category?.name,
+      isActive: category?.isActive,
+      type: category?.id ? typeof category.id : 'undefined',
+    });
+
+    // Проверяем наличие всех необходимых полей и активность категории
+    const isValid = Boolean(
+      category &&
+        category.name &&
+        category.isActive !== false && // категория активна или поле не указано
+        typeof category.id !== 'undefined' && // id существует
+        category.id !== null // id не null
+    );
+
+    console.log('Category validation result:', {
+      category: category?.name,
+      id: category?.id,
+      isValid,
+    });
+
+    return isValid;
+  });
+
+  console.log(
+    'Filtered valid categories:',
+    validCategories.map((c) => ({ id: c.id, name: c.name }))
+  );
+
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
-    price: product?.price || '',
-    quantity: product?.quantity || '',
-    minQuantity: product?.minQuantity || '',
-    barcode: product?.barcode || '',
-    categoryId: product?.categoryId?.toString() || '',
+    sellingPrice: product?.sellingPrice?.toString() || '',
+    purchasePrice: product?.purchasePrice?.toString() || '',
+    quantity: product?.quantity?.toString() || '',
+    minQuantity: product?.minQuantity?.toString() || '',
+    barcode: (product?.barcodes && product.barcodes[0]) || '',
+    categoryId: product?.categoryId || '',
   });
+
+  console.log('Form initial state:', formData);
 
   const queryClient = useQueryClient();
 
@@ -51,13 +93,13 @@ export function ProductForm({
     e.preventDefault();
     const payload = {
       ...formData,
-      price: parseFloat(formData.price.toString()),
-      quantity: parseInt(formData.quantity.toString()),
-      minQuantity: parseInt(formData.minQuantity.toString()),
-      categoryId: formData.categoryId
-        ? parseInt(formData.categoryId)
-        : undefined,
-      shopId: parseInt(shopId),
+      sellingPrice: parseFloat(formData.sellingPrice) || 0,
+      purchasePrice: parseFloat(formData.purchasePrice) || 0,
+      quantity: parseInt(formData.quantity) || 0,
+      minQuantity: parseInt(formData.minQuantity) || 0,
+      categoryId: formData.categoryId || undefined,
+      shopId,
+      barcodes: formData.barcode ? [formData.barcode] : undefined,
     };
 
     if (product) {
@@ -124,31 +166,60 @@ export function ProductForm({
               <select
                 id="categoryId"
                 name="categoryId"
-                value={formData.categoryId}
+                value={formData.categoryId || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
                 <option value="">Без категории</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {validCategories.map((category, index) => {
+                  const id = category.id?.toString() || `category-${index}`;
+                  const name = category.name || '';
+                  console.log('Rendering category option:', {
+                    id,
+                    name,
+                    index,
+                  });
+                  return (
+                    <option key={`${id}-${index}`} value={id}>
+                      {name}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
             <div>
               <label
-                htmlFor="price"
+                htmlFor="sellingPrice"
                 className="block text-sm font-medium text-gray-700"
               >
-                Цена
+                Цена продажи
               </label>
               <input
                 type="number"
-                id="price"
-                name="price"
-                value={formData.price}
+                id="sellingPrice"
+                name="sellingPrice"
+                value={formData.sellingPrice}
+                onChange={handleChange}
+                required
+                min="0"
+                step="0.01"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="purchasePrice"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Закупочная цена
+              </label>
+              <input
+                type="number"
+                id="purchasePrice"
+                name="purchasePrice"
+                value={formData.purchasePrice}
                 onChange={handleChange}
                 required
                 min="0"
