@@ -10,6 +10,7 @@ import { FixedSizeList as List } from 'react-window';
 import { useStaffAnalytics } from '@/hooks/useAnalytics';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { StaffPerformanceData } from '@/types/analytics';
+import { formatPrice } from '@/utils/format';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -114,11 +115,11 @@ export const StaffPerformance: React.FC<StaffPerformanceProps> = ({
       >
         <div style={{ flex: 2 }}>{item.name}</div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          {item.sales.toFixed(2)} ₽
+          {formatPrice(item.sales)}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>{item.transactions}</div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          {item.averageCheck.toFixed(2)} ₽
+          {formatPrice(item.averageCheck)}
         </div>
         <div style={{ flex: 1, textAlign: 'right' }}>{item.returns}</div>
         <div style={{ flex: 1, textAlign: 'right' }}>
@@ -161,7 +162,7 @@ export const StaffPerformance: React.FC<StaffPerformanceProps> = ({
               value={staffData.totalSales}
               prefix={<DollarOutlined />}
               precision={2}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>
@@ -172,7 +173,7 @@ export const StaffPerformance: React.FC<StaffPerformanceProps> = ({
               value={staffData.averageSalesPerEmployee}
               prefix={<ShoppingOutlined />}
               precision={2}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>

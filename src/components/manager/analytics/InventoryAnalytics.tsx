@@ -6,6 +6,7 @@ import { FixedSizeList as List } from 'react-window';
 import { useInventoryAnalytics } from '@/hooks/useAnalytics';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { InventoryAnalyticsData } from '@/types/analytics';
+import { formatPrice } from '@/utils/format';
 
 interface InventoryAnalyticsProps {
   shopId: string;
@@ -41,8 +42,15 @@ export const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({
     colorField: 'category',
     radius: 0.8,
     label: {
-      type: 'outer',
-      content: '{name} {percentage}',
+      text: 'category',
+      position: 'outside',
+      style: {
+        fontSize: 14,
+        textAlign: 'center',
+      },
+    },
+    legend: {
+      position: 'bottom',
     },
     interactions: [
       {
@@ -83,7 +91,7 @@ export const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({
             status={item.quantity <= item.minQuantity ? 'exception' : 'normal'}
           />
         </div>
-        <div style={{ flex: 1 }}>{`${item.price.toFixed(2)} ₽`}</div>
+        <div style={{ flex: 1 }}>{formatPrice(item.price)}</div>
       </div>
     );
   };
@@ -109,7 +117,7 @@ export const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({
       >
         <div style={{ flex: 2 }}>{item.category}</div>
         <div style={{ flex: 1 }}>{item.quantity}</div>
-        <div style={{ flex: 1 }}>{`${item.value.toFixed(2)} ₽`}</div>
+        <div style={{ flex: 1 }}>{formatPrice(item.value)}</div>
       </div>
     );
   };
@@ -137,7 +145,7 @@ export const InventoryAnalytics: React.FC<InventoryAnalyticsProps> = ({
               title="Общая стоимость"
               value={inventoryData.totalValue}
               precision={2}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>

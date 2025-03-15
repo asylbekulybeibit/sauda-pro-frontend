@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Shop } from '@/types/shop';
 import { updateShop as apiUpdateShop } from '@/services/api';
+import { getManagerShop } from '@/services/managerApi';
 
 interface ShopContextType {
   currentShop: Shop | null;
@@ -16,17 +18,37 @@ interface ShopProviderProps {
 }
 
 export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
+  const { shopId } = useParams<{ shopId: string }>();
   const [currentShop, setCurrentShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Здесь можно добавить загрузку последнего выбранного магазина из localStorage
-    const savedShop = localStorage.getItem('currentShop');
-    if (savedShop) {
-      setCurrentShop(JSON.parse(savedShop));
+    async function initializeShop() {
+      try {
+        // Если есть shopId в URL, загружаем данные магазина
+        if (shopId) {
+          console.log('Loading shop data for ID:', shopId);
+          const shop = await getManagerShop(shopId);
+          console.log('Loaded shop data:', shop);
+          setCurrentShop(shop);
+          localStorage.setItem('currentShop', JSON.stringify(shop));
+        } else {
+          // Если нет shopId в URL, пробуем загрузить из localStorage
+          const savedShop = localStorage.getItem('currentShop');
+          if (savedShop) {
+            console.log('Loading shop from localStorage');
+            setCurrentShop(JSON.parse(savedShop));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading shop:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  }, []);
+
+    initializeShop();
+  }, [shopId]);
 
   useEffect(() => {
     if (currentShop) {

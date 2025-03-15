@@ -6,8 +6,6 @@ import { InventoryAnalytics } from '@/components/manager/analytics/InventoryAnal
 import { StaffPerformance } from '@/components/manager/analytics/StaffPerformance';
 import { FinancialMetrics } from '@/components/manager/analytics/FinancialMetrics';
 
-const { TabPane } = Tabs;
-
 const AnalyticsPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
 
@@ -15,23 +13,33 @@ const AnalyticsPage: React.FC = () => {
     return null;
   }
 
+  const items = [
+    {
+      key: 'sales',
+      label: 'Продажи',
+      children: <SalesAnalytics shopId={shopId} />,
+    },
+    {
+      key: 'inventory',
+      label: 'Инвентарь',
+      children: <InventoryAnalytics shopId={shopId} />,
+    },
+    {
+      key: 'staff',
+      label: 'Персонал',
+      children: <StaffPerformance shopId={shopId} />,
+    },
+    {
+      key: 'financial',
+      label: 'Финансы',
+      children: <FinancialMetrics shopId={shopId} />,
+    },
+  ];
+
   return (
     <div style={{ padding: '24px' }}>
       <h1>Аналитика</h1>
-      <Tabs defaultActiveKey="sales">
-        <TabPane tab="Продажи" key="sales">
-          <SalesAnalytics shopId={shopId} />
-        </TabPane>
-        <TabPane tab="Инвентарь" key="inventory">
-          <InventoryAnalytics shopId={shopId} />
-        </TabPane>
-        <TabPane tab="Персонал" key="staff">
-          <StaffPerformance shopId={shopId} />
-        </TabPane>
-        <TabPane tab="Финансы" key="financial">
-          <FinancialMetrics shopId={shopId} />
-        </TabPane>
-      </Tabs>
+      <Tabs defaultActiveKey="sales" items={items} />
     </div>
   );
 };

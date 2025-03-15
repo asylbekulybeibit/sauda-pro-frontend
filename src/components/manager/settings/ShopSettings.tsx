@@ -1,7 +1,8 @@
 import React from 'react';
-import { Form, Input, Select, Button, message } from 'antd';
+import { Form, Input, Select, Button, message, InputNumber } from 'antd';
 import { Shop } from '@/types/shop';
 import { ApiErrorHandler } from '@/utils/error-handler';
+import { formatPrice } from '../../../utils/format';
 
 interface ShopSettingsProps {
   shop: Shop;
@@ -98,6 +99,21 @@ export const ShopSettings: React.FC<ShopSettingsProps> = ({ shop, onSave }) => {
             { value: 'USD', label: 'Доллар США ($)' },
             { value: 'EUR', label: 'Евро (€)' },
           ]}
+        />
+      </Form.Item>
+
+      <Form.Item
+        label="Минимальная сумма заказа"
+        name="minOrderAmount"
+        rules={[
+          { required: true, message: 'Введите минимальную сумму заказа' },
+        ]}
+      >
+        <InputNumber
+          min={0}
+          precision={2}
+          addonAfter="₸"
+          style={{ width: '200px' }}
         />
       </Form.Item>
 

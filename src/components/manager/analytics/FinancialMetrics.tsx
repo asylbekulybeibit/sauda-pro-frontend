@@ -1,12 +1,9 @@
 import React from 'react';
 import { Card, Row, Col, Statistic, DatePicker, Table, Spin } from 'antd';
-import {
-  DollarOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-} from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { Line, Pie } from '@ant-design/charts';
 import { useFinancialAnalytics } from '@/hooks/useAnalytics';
+import { formatPrice } from '@/utils/format';
 import dayjs from 'dayjs';
 
 interface FinancialMetricsProps {
@@ -85,16 +82,16 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
       key: 'name',
     },
     {
-      title: 'Выручка',
-      dataIndex: 'revenue',
-      key: 'revenue',
-      render: (value: number) => `${value.toFixed(2)} ₽`,
+      title: 'Сумма',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (value: number) => formatPrice(value),
     },
     {
       title: 'Прибыль',
       dataIndex: 'profit',
       key: 'profit',
-      render: (value: number) => `${value.toFixed(2)} ₽`,
+      render: (value: number) => formatPrice(value),
     },
     {
       title: 'Маржа',
@@ -129,11 +126,10 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
         <Col span={8}>
           <Card>
             <Statistic
-              title="Общий доход"
+              title="Общая выручка"
               value={financialData.totalRevenue}
               precision={2}
-              prefix={<DollarOutlined />}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>
@@ -143,8 +139,7 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
               title="Общая прибыль"
               value={financialData.totalProfit}
               precision={2}
-              prefix={<ArrowUpOutlined style={{ color: '#3f8600' }} />}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>
@@ -152,16 +147,22 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({
           <Card>
             <Statistic
               title="Рост выручки"
-              value={financialData.revenueGrowth}
+              value={financialData.revenueGrowth ?? 0}
               precision={1}
               prefix={
-                financialData.revenueGrowth > 0 ? (
+                financialData.revenueGrowth ===
+                null ? null : financialData.revenueGrowth > 0 ? (
                   <ArrowUpOutlined style={{ color: '#3f8600' }} />
                 ) : (
                   <ArrowDownOutlined style={{ color: '#cf1322' }} />
                 )
               }
               suffix="%"
+              formatter={(value) =>
+                financialData.revenueGrowth === null
+                  ? 'Нет данных'
+                  : value?.toString()
+              }
             />
           </Card>
         </Col>

@@ -14,6 +14,7 @@ import { RoleType } from '@/types/role';
 import { Purchase } from '@/types/purchase';
 import axios from 'axios';
 import { Transfer } from '@/types/transfer';
+import { Shop } from '@/types/shop';
 
 interface GenerateLabelsRequest {
   templateId: number;
@@ -604,4 +605,30 @@ export const getReturns = async (shopId: string) => {
     `/manager/inventory/returns/${shopId}`
   );
   return response.data;
+};
+
+export const getWriteOffs = async (
+  shopId: string
+): Promise<InventoryTransaction[]> => {
+  console.log('Calling getWriteOffs with shopId:', shopId);
+  try {
+    const response = await api.get<InventoryTransaction[]>(
+      `/manager/inventory/write-offs/${shopId}`
+    );
+    console.log('Write-offs API response:', response);
+    return response.data;
+  } catch (error) {
+    console.error('Error in getWriteOffs:', error);
+    throw error;
+  }
+};
+
+// Методы для работы с магазином
+export const getManagerShop = async (shopId: string): Promise<Shop> => {
+  try {
+    const response = await api.get(`/manager/shops/${shopId}`);
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
 };

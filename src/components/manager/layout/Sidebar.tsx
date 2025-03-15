@@ -126,8 +126,8 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: ChartPieIcon,
       color: 'bg-cyan-100 text-cyan-600',
       children: [
-        { name: 'Отчеты', href: `/manager/${shopId}/reports` },
         { name: 'Статистика', href: `/manager/${shopId}/analytics` },
+        { name: 'Отчеты', href: `/manager/${shopId}/analytics/reports` },
       ],
     },
     {

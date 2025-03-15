@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { useSalesAnalytics } from '@/hooks/useAnalytics';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { SalesAnalyticsData } from '@/types/analytics';
+import { formatPrice } from '../../../utils/format';
 
 interface SalesAnalyticsProps {
   shopId: string;
@@ -66,7 +67,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({ shopId }) => {
       formatter: (datum: any) => {
         return {
           name: datum.type,
-          value: `${datum.value.toFixed(2)} ₽`,
+          value: `${formatPrice(datum.value as number)}`,
         };
       },
     },
@@ -117,7 +118,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({ shopId }) => {
         <div style={{ flex: 2 }}>{item.name}</div>
         <div style={{ flex: 1, textAlign: 'right' }}>{item.quantity}</div>
         <div style={{ flex: 1, textAlign: 'right' }}>
-          {item.revenue.toFixed(2)} ₽
+          {formatPrice(item.revenue)}
         </div>
       </div>
     );
@@ -151,7 +152,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({ shopId }) => {
               value={salesData.totalSales}
               precision={2}
               prefix={<ShoppingOutlined />}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>
@@ -162,7 +163,7 @@ export const SalesAnalytics: React.FC<SalesAnalyticsProps> = ({ shopId }) => {
               value={salesData.averageOrderValue}
               precision={2}
               prefix={<RiseOutlined />}
-              suffix="₽"
+              formatter={(value) => formatPrice(value as number)}
             />
           </Card>
         </Col>

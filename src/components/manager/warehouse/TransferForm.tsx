@@ -258,6 +258,8 @@ export function TransferForm({
                 onClick={handleSubmit}
                 disabled={items.length === 0}
                 loading={createMutation.isPending}
+          className="bg-blue-500"
+
               >
                 Создать
               </Button>

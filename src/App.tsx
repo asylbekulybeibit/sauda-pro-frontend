@@ -45,6 +45,9 @@ const ProductDetailsPage = React.lazy(
 const CategoryPage = React.lazy(
   () => import('./pages/manager/products/CategoryPage')
 );
+const ReportsPage = React.lazy(
+  () => import('./pages/manager/reports/ReportsPage')
+);
 
 const SalesPage = React.lazy(() => import('./pages/manager/sales/SalesPage'));
 const ReturnsPage = React.lazy(
@@ -139,7 +142,13 @@ const LoadingFallback = () => (
   </div>
 );
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+    },
+  },
+});
 
 export default function App() {
   const { isAuthenticated } = useAuthStore();
@@ -226,7 +235,10 @@ export default function App() {
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
-                  <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route path="analytics">
+                    <Route index element={<AnalyticsPage />} />
+                    <Route path="reports" element={<ReportsPage />} />
+                  </Route>
                   <Route
                     path="bulk-operations"
                     element={<BulkOperationsPage />}
@@ -236,7 +248,7 @@ export default function App() {
                     <Route path="incoming" element={<IncomingPage />} />
                     <Route path="inventory" element={<InventoryPage />} />
                     <Route path="transfers" element={<TransfersPage />} />
-                    <Route path="write-offs" element={<WriteOffsPage />} />
+                    <Route path="writeoffs" element={<WriteOffsPage />} />
                     <Route
                       path="products/:productId"
                       element={<ProductDetailsPage />}

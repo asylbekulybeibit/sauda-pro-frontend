@@ -35,6 +35,12 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({
     }
   };
 
+  const currencyOptions = [
+    { value: 'KZT', label: 'Тенге (₸)' },
+    { value: 'USD', label: 'Доллар ($)' },
+    { value: 'EUR', label: 'Евро (€)' },
+  ];
+
   return (
     <Form
       form={form}
@@ -47,15 +53,7 @@ export const CurrencySettings: React.FC<CurrencySettingsProps> = ({
         label="Валюта"
         rules={[{ required: true, message: 'Выберите валюту' }]}
       >
-        <Select
-          placeholder="Выберите валюту"
-          options={[
-            { value: 'RUB', label: 'Российский рубль (₽)' },
-            { value: 'USD', label: 'Доллар США ($)' },
-            { value: 'EUR', label: 'Евро (€)' },
-            { value: 'KZT', label: 'Тенге (₸)' },
-          ]}
-        />
+        <Select placeholder="Выберите валюту" options={currencyOptions} />
       </Form.Item>
 
       <Form.Item

@@ -1,13 +1,21 @@
 import React from 'react';
-import { Card } from 'antd';
+import { Card, Spin } from 'antd';
 import { CurrencySettings } from '@/components/manager/settings/CurrencySettings';
 import { useShop } from '@/hooks/useShop';
 
 const CurrencySettingsPage: React.FC = () => {
-  const { currentShop, updateShop } = useShop();
+  const { currentShop, updateShop, loading } = useShop();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-32">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (!currentShop) {
-    return <div>Пожалуйста, выберите магазин</div>;
+    return <div>Ошибка загрузки данных магазина</div>;
   }
 
   return (

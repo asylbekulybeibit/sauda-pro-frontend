@@ -234,6 +234,7 @@ export default function WriteOffForm({
                 onClick={handleSubmit}
                 disabled={items.length === 0}
                 loading={createMutation.isPending}
+                className="bg-blue-500"
               >
                 Создать
               </Button>
