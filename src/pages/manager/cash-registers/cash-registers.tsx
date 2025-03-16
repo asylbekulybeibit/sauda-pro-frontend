@@ -39,30 +39,6 @@ export default function CashRegistersPage() {
 
   const handleCreateSuccess = async (values: FormValues) => {
     try {
-      // Преобразуем значения формы в формат DTO
-      const paymentMethods = [
-        // Системные методы оплаты
-        ...values.systemPaymentMethods.map((type) => ({
-          source: PaymentMethodSource.SYSTEM,
-          systemType: type,
-          isActive: true,
-        })),
-        // Кастомные методы оплаты
-        ...(values.customPaymentMethods || []).map((method) => ({
-          source: PaymentMethodSource.CUSTOM,
-          name: method.name,
-          code: method.code,
-          description: method.description,
-          isActive: true,
-        })),
-      ];
-
-      await cashRegistersApi.create(shopId!, {
-        name: values.name,
-        type: values.type,
-        location: values.location,
-        paymentMethods,
-      });
       setIsCreateModalOpen(false);
       refetch();
       message.success('Касса успешно создана');

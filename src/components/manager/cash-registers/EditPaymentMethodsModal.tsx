@@ -12,6 +12,7 @@ import {
   CashRegister,
   PaymentMethodType,
   PaymentMethodSource,
+  PaymentMethodStatus,
 } from '@/types/cash-register';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { cashRegistersApi } from '@/services/cashRegistersApi';
@@ -38,6 +39,7 @@ interface FormValues {
     code: string;
     description?: string;
     isActive: boolean;
+    status: PaymentMethodStatus;
   }>;
 }
 
@@ -54,17 +56,25 @@ export default function EditPaymentMethodsModal({
     systemPaymentMethods: register.paymentMethods
       .filter(
         (method) =>
-          method.source === PaymentMethodSource.SYSTEM && method.systemType
+          method.source === PaymentMethodSource.SYSTEM &&
+          method.systemType &&
+          method.status === PaymentMethodStatus.ACTIVE &&
+          method.isActive === true
       )
       .map((method) => method.systemType!),
     customPaymentMethods: register.paymentMethods
-      .filter((method) => method.source === PaymentMethodSource.CUSTOM)
+      .filter(
+        (method) =>
+          method.source === PaymentMethodSource.CUSTOM &&
+          method.isActive === true
+      )
       .map((method) => ({
         id: method.id,
         name: method.name!,
         code: method.code!,
         description: method.description,
         isActive: method.isActive,
+        status: method.status,
       })),
   };
 
@@ -72,24 +82,43 @@ export default function EditPaymentMethodsModal({
     try {
       // Преобразуем значения формы в формат API
       const paymentMethods = [
-        // Системные методы
+        // Системные методы - активные
         ...values.systemPaymentMethods.map((type) => ({
           source: PaymentMethodSource.SYSTEM,
           systemType: type,
           isActive: true,
+          status: PaymentMethodStatus.ACTIVE,
         })),
-        // Кастомные методы
+        // Системные методы - неактивные
+        ...register.paymentMethods
+          .filter(
+            (method) =>
+              method.source === PaymentMethodSource.SYSTEM &&
+              method.systemType &&
+              !values.systemPaymentMethods.includes(method.systemType)
+          )
+          .map((method) => ({
+            source: PaymentMethodSource.SYSTEM,
+            systemType: method.systemType,
+            isActive: true,
+            status: PaymentMethodStatus.INACTIVE,
+          })),
+        // Кастомные методы с их статусами
         ...values.customPaymentMethods.map((method) => ({
-          id: method.id,
           source: PaymentMethodSource.CUSTOM,
           name: method.name,
           code: method.code,
           description: method.description,
-          isActive: method.isActive,
+          isActive: true,
+          status: method.status,
         })),
       ];
 
-      await cashRegistersApi.updatePaymentMethods(register.id, paymentMethods);
+      await cashRegistersApi.updatePaymentMethods(
+        register.shopId,
+        register.id,
+        paymentMethods
+      );
       message.success('Методы оплаты обновлены');
       onSuccess();
       onClose();
@@ -157,50 +186,135 @@ export default function EditPaymentMethodsModal({
                   </Form.Item>
                   <Form.Item
                     {...restField}
-                    name={[name, 'isActive']}
-                    valuePropName="checked"
+                    name={[name, 'status']}
+                    initialValue={PaymentMethodStatus.ACTIVE}
                   >
                     <Popconfirm
-                      title="Отключить метод оплаты?"
-                      description="Вы уверены, что хотите отключить этот метод оплаты?"
+                      title={
+                        form.getFieldValue([
+                          'customPaymentMethods',
+                          name,
+                          'status',
+                        ]) === PaymentMethodStatus.ACTIVE
+                          ? 'Отключить метод оплаты?'
+                          : 'Включить метод оплаты?'
+                      }
+                      description={
+                        form.getFieldValue([
+                          'customPaymentMethods',
+                          name,
+                          'status',
+                        ]) === PaymentMethodStatus.ACTIVE
+                          ? 'Вы уверены, что хотите отключить этот метод оплаты?'
+                          : 'Вы уверены, что хотите включить этот метод оплаты?'
+                      }
                       onConfirm={() => {
-                        const values = form.getFieldValue(
+                        const currentStatus = form.getFieldValue([
+                          'customPaymentMethods',
+                          name,
+                          'status',
+                        ]);
+
+                        // Получаем все текущие методы
+                        const methods = form.getFieldValue(
                           'customPaymentMethods'
                         );
-                        values[name].isActive = !values[name].isActive;
-                        form.setFieldValue('customPaymentMethods', values);
+
+                        // Создаем новый массив с обновленным значением
+                        const updatedMethods = methods.map(
+                          (
+                            method: FormValues['customPaymentMethods'][0],
+                            index: number
+                          ) =>
+                            index === name
+                              ? {
+                                  ...method,
+                                  status:
+                                    currentStatus === PaymentMethodStatus.ACTIVE
+                                      ? PaymentMethodStatus.INACTIVE
+                                      : PaymentMethodStatus.ACTIVE,
+                                }
+                              : method
+                        );
+
+                        // Обновляем значение в форме
+                        form.setFieldsValue({
+                          customPaymentMethods: updatedMethods,
+                        });
+
+                        // Заставляем форму обновиться
+                        form.validateFields(['customPaymentMethods']);
                       }}
                       okText="Да"
                       cancelText="Нет"
+                      okButtonProps={{
+                        className: 'bg-blue-500 hover:bg-blue-500',
+                      }}
+                      cancelButtonProps={{
+                        className: 'bg-blue-500 hover:bg-blue-500',
+                      }}
                     >
                       <Button
-                        type={
+                        type="primary"
+                        className={
                           form.getFieldValue([
                             'customPaymentMethods',
                             name,
-                            'isActive',
-                          ])
-                            ? 'primary'
-                            : 'default'
+                            'status',
+                          ]) === PaymentMethodStatus.ACTIVE
+                            ? 'bg-blue-500 hover:bg-blue-500'
+                            : 'bg-gray-500 hover:bg-gray-500'
                         }
                       >
                         {form.getFieldValue([
                           'customPaymentMethods',
                           name,
-                          'isActive',
-                        ])
+                          'status',
+                        ]) === PaymentMethodStatus.ACTIVE
                           ? 'Активен'
                           : 'Неактивен'}
                       </Button>
                     </Popconfirm>
                   </Form.Item>
-                  <MinusCircleOutlined onClick={() => remove(name)} />
+                  <MinusCircleOutlined
+                    onClick={() => {
+                      // Получаем все текущие методы
+                      const methods = form.getFieldValue(
+                        'customPaymentMethods'
+                      );
+
+                      // Создаем новый массив с обновленным значением
+                      const updatedMethods = methods.map(
+                        (
+                          method: FormValues['customPaymentMethods'][0],
+                          index: number
+                        ) =>
+                          index === name
+                            ? {
+                                ...method,
+                                isActive: false,
+                                status: PaymentMethodStatus.INACTIVE,
+                              }
+                            : method
+                      );
+
+                      // Обновляем значение в форме перед удалением
+                      form.setFieldsValue({
+                        customPaymentMethods: updatedMethods,
+                      });
+
+                      // Удаляем метод из формы
+                      remove(name);
+                    }}
+                  />
                 </Space>
               ))}
               <Form.Item>
                 <Button
                   type="dashed"
-                  onClick={() => add()}
+                  onClick={() => {
+                    add({ status: PaymentMethodStatus.ACTIVE });
+                  }}
                   block
                   icon={<PlusOutlined />}
                 >
@@ -213,7 +327,11 @@ export default function EditPaymentMethodsModal({
 
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Отмена</Button>
-          <Button type="primary" htmlType="submit">
+          <Button
+            type="primary"
+            htmlType="submit"
+            className="bg-blue-500 hover:bg-blue-500"
+          >
             Сохранить
           </Button>
         </div>

@@ -11,6 +11,11 @@ export enum CashRegisterStatus {
   MAINTENANCE = 'maintenance',
 }
 
+export enum PaymentMethodStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+}
+
 export enum PaymentMethodType {
   CASH = 'cash',
   CARD = 'card',
@@ -30,6 +35,7 @@ export interface RegisterPaymentMethod {
   code?: string;
   description?: string;
   isActive: boolean;
+  status: PaymentMethodStatus;
   createdAt: string;
 }
 
@@ -40,10 +46,12 @@ export interface PaymentMethodDto {
   code?: string;
   description?: string;
   isActive?: boolean;
+  status: PaymentMethodStatus;
 }
 
 export interface CashRegister {
   id: string;
+  shopId: string;
   name: string;
   type: CashRegisterType;
   location?: string;

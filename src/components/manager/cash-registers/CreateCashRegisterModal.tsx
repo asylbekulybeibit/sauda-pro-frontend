@@ -4,6 +4,7 @@ import {
   PaymentMethodType,
   PaymentMethodSource,
   PaymentMethodDto,
+  PaymentMethodStatus,
 } from '@/types/cash-register';
 import { cashRegistersApi } from '@/services/cashRegistersApi';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -57,6 +58,7 @@ export default function CreateCashRegisterModal({
           source: PaymentMethodSource.SYSTEM,
           systemType: type,
           isActive: true,
+          status: PaymentMethodStatus.ACTIVE,
         })),
         // Кастомные методы оплаты
         ...(values.customPaymentMethods || []).map((method) => ({
@@ -65,6 +67,7 @@ export default function CreateCashRegisterModal({
           code: method.code,
           description: method.description,
           isActive: true,
+          status: PaymentMethodStatus.ACTIVE,
         })),
       ];
 

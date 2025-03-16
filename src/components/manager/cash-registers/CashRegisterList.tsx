@@ -8,6 +8,7 @@ import {
   PaymentMethodType,
   PaymentMethodSource,
   RegisterPaymentMethod,
+  PaymentMethodStatus,
 } from '@/types/cash-register';
 import { cashRegistersApi } from '@/services/cashRegistersApi';
 import EditPaymentMethodsModal from './EditPaymentMethodsModal';
@@ -77,7 +78,8 @@ export default function CashRegisterList({
   };
 
   const renderPaymentMethod = (method: RegisterPaymentMethod) => {
-    if (!method.isActive) return null;
+    if (method.status !== PaymentMethodStatus.ACTIVE || !method.isActive)
+      return null;
 
     if (method.source === PaymentMethodSource.SYSTEM && method.systemType) {
       return (
@@ -169,6 +171,8 @@ export default function CashRegisterList({
             onConfirm={() => handleDelete(record.id)}
             okText="Да"
             cancelText="Нет"
+            okButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
+            cancelButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
           >
             <Button size="small" danger>
               Удалить
