@@ -1,22 +1,17 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
-import { RoleType, UserRoleDetails } from '@/types/role';
 import {
   HomeIcon,
   ShoppingBagIcon,
   BanknotesIcon as CashIcon,
   UsersIcon,
-  TagIcon,
   ChartPieIcon,
-  ClipboardIcon as ClipboardListIcon,
   Cog6ToothIcon as CogIcon,
   ChartBarIcon,
   ChevronRightIcon,
   UserPlusIcon,
-  CubeIcon,
   ArchiveBoxIcon,
 } from '@heroicons/react/24/outline';
-import clsx from 'clsx';
 import { Disclosure } from '@headlessui/react';
 
 interface NavigationChild {
@@ -59,6 +54,12 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
         { name: 'Товары', href: `/manager/${shopId}/products` },
         { name: 'Категории', href: `/manager/${shopId}/categories` },
       ],
+    },
+    {
+      name: 'Кассы',
+      href: `/manager/${shopId}/cash-registers`,
+      icon: CashIcon,
+      color: 'bg-yellow-100 text-yellow-600',
     },
     {
       name: 'Продажи',

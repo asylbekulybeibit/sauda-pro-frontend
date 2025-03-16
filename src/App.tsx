@@ -84,6 +84,9 @@ const IncomingPage = React.lazy(
 const InventoryPage = React.lazy(
   () => import('./pages/manager/warehouse/InventoryPage')
 );
+const CashRegistersPage = React.lazy(
+  () => import('./pages/manager/cash-registers/cash-registers')
+);
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -152,7 +155,6 @@ const queryClient = new QueryClient({
 
 export default function App() {
   const { isAuthenticated } = useAuthStore();
-  const { currentRole } = useRoleStore();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -227,7 +229,10 @@ export default function App() {
                     element={<ProductDetailsPage />}
                   />
                   <Route path="categories" element={<CategoryPage />} />
-
+                  <Route
+                    path="cash-registers"
+                    element={<CashRegistersPage />}
+                  />
                   <Route path="sales" element={<SalesPage />} />
                   <Route path="sales/returns" element={<ReturnsPage />} />
                   <Route path="staff" element={<StaffPage />} />

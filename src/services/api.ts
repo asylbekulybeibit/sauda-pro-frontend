@@ -4,6 +4,7 @@ import { Shop, CreateShopDto, UpdateShopDto } from '@/types/shop';
 import { Invite, CreateInviteDto } from '@/types/invite';
 import { User, UpdateUserDto } from '@/types/user';
 import { DashboardStats } from '@/types/dashboard';
+import { useAuthStore } from '@/store/authStore';
 
 export const api = axios.create({
   baseURL: 'http://localhost:3000',
@@ -22,6 +23,18 @@ api.interceptors.request.use(
       data: config.data,
       headers: config.headers,
     });
+    const token = localStorage.getItem('accessToken');
+    console.log('🔑 Токен из localStorage:', token);
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log(
+        '🔒 Добавлен заголовок Authorization:',
+        config.headers.Authorization
+      );
+    } else {
+      console.warn('⚠️ Токен не найден в localStorage');
+    }
     return config;
   },
   (error) => {
@@ -46,6 +59,15 @@ api.interceptors.response.use(
       status: error.response?.status,
       data: error.response?.data,
     });
+    if (error.response?.status === 401) {
+      // Очищаем токен и состояние авторизации
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      useAuthStore.getState().logout();
+
+      // Перенаправляем на страницу логина
+      window.location.href = '/login';
+    }
     return Promise.reject(error);
   }
 );
@@ -113,52 +135,6 @@ export const getProfile = async (): Promise<Profile> => {
   const response = await api.get('/profile');
   return response.data;
 };
-
-// Интерцептор для добавления токена к запросам
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  console.log('🔑 Токен из localStorage:', token);
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    console.log(
-      '🔒 Добавлен заголовок Authorization:',
-      config.headers.Authorization
-    );
-  } else {
-    console.warn('⚠️ Токен не найден в localStorage');
-  }
-  return config;
-});
-
-// Интерцептор для обработки ошибок
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // Если токен истек, пытаемся обновить его
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await api.post('/auth/refresh', { refreshToken });
-          localStorage.setItem('accessToken', response.data.accessToken);
-          localStorage.setItem('refreshToken', response.data.refreshToken);
-
-          // Повторяем оригинальный запрос с новым токеном
-          const originalRequest = error.config;
-          originalRequest.headers.Authorization = `Bearer ${response.data.accessToken}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Если не удалось обновить токен, очищаем хранилище
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
 
 // Методы для работы с проектами
 export const getShops = async (): Promise<Shop[]> => {
