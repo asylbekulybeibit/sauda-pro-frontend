@@ -517,6 +517,7 @@ export function PurchaseForm({
                   expiryDate: item.expiryDate,
                 })),
                 updatePrices: values.updatePrices,
+                updatePurchasePrices: values.updatePurchasePrices,
                 createLabels: values.createLabels,
               };
 
@@ -555,6 +556,7 @@ export function PurchaseForm({
           expiryDate: item.expiryDate,
         })),
         updatePrices: values.updatePrices,
+        updatePurchasePrices: values.updatePurchasePrices,
         createLabels: values.createLabels,
       };
 
@@ -593,6 +595,8 @@ export function PurchaseForm({
     expiryDate: 'Укажите срок годности товара, если применимо',
     updatePrices:
       'Автоматически обновить цены продажи на основе новых закупочных цен',
+    updatePurchasePrices:
+      'Автоматически обновить закупочные цены товаров на основе текущего прихода',
     createLabels: 'Автоматически создать этикетки для новых товаров',
     checkDuplicates: 'Проверять наличие накладных с таким же номером',
   };
@@ -1052,6 +1056,21 @@ export function PurchaseForm({
                 </Form.Item>
                 <span className="font-medium text-sm">
                   Обновить цены продажи
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Form.Item
+                  name="updatePurchasePrices"
+                  valuePropName="checked"
+                  noStyle
+                >
+                  <Tooltip title={tooltips.updatePurchasePrices}>
+                    <Switch className="bg-gray-300" />
+                  </Tooltip>
+                </Form.Item>
+                <span className="font-medium text-sm">
+                  Обновить закупочные цены
                 </span>
               </div>
 

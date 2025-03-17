@@ -26,8 +26,10 @@ import {
   PrinterOutlined,
   CopyOutlined,
   DeleteOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { PurchaseForm } from '@/components/manager/warehouse/PurchaseForm';
+import PurchaseDetails from '@/components/manager/warehouse/PurchaseDetails';
 import dayjs from 'dayjs';
 import type { Purchase } from '@/types/purchase';
 import * as XLSX from 'xlsx';
@@ -46,6 +48,10 @@ function IncomingPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [minAmount, setMinAmount] = useState<number | null>(null);
   const [maxAmount, setMaxAmount] = useState<number | null>(null);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
+    null
+  );
+  const [showDetails, setShowDetails] = useState(false);
 
   const {
     data: purchases = [],
@@ -105,13 +111,35 @@ function IncomingPage() {
       Поставщик: purchase.supplier.name,
       Статус: getStatusName(purchase.status),
       Сумма: purchase.totalAmount,
-      'Количество товаров': purchase.items.length,
-      Комментарий: purchase.comment || '',
+      'Количество товаров': purchase.items.reduce(
+        (sum, item) => sum + (item.quantity || 0),
+        0
+      ),
+      Комментарий: purchase.comment || '-',
     }));
 
+    // Добавляем детальную информацию о товарах в отдельный лист
+    const detailedData = filteredPurchases.flatMap((purchase: Purchase) =>
+      purchase.items.map((item) => ({
+        'Номер накладной': purchase.invoiceNumber,
+        Дата: formatDate(purchase.date),
+        Поставщик: purchase.supplier.name,
+        'Название товара': item.product?.name || 'Неизвестный товар',
+        Артикул: item.product?.sku || '-',
+        Количество: item.quantity || 0,
+        Цена: item.price || 0,
+        Сумма: item.total || 0,
+        Комментарий: purchase.comment || '-',
+      }))
+    );
+
     const ws = XLSX.utils.json_to_sheet(exportData);
+    const wsDetailed = XLSX.utils.json_to_sheet(detailedData);
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Приходы');
+    XLSX.utils.book_append_sheet(wb, wsDetailed, 'Детали приходов');
+
     XLSX.writeFile(wb, `Приходы_${formatDate(new Date().toISOString())}.xlsx`);
   };
 
@@ -145,6 +173,11 @@ function IncomingPage() {
         message.success('Приход успешно удален');
       },
     });
+  };
+
+  const handleViewPurchase = (purchase: Purchase) => {
+    setSelectedPurchase(purchase);
+    setShowDetails(true);
   };
 
   const columns: ColumnsType<Purchase> = [
@@ -212,37 +245,44 @@ function IncomingPage() {
       title: 'Действия',
       key: 'actions',
       render: (_: any, record: Purchase) => (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'print',
-                label: 'Печать',
-                icon: <PrinterOutlined />,
-                onClick: () => {
-                  /* TODO: Implement print */
+        <Space>
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => handleViewPurchase(record)}
+            title="Просмотр"
+          />
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'print',
+                  label: 'Печать',
+                  icon: <PrinterOutlined />,
+                  onClick: () => {
+                    /* TODO: Implement print */
+                  },
                 },
-              },
-              {
-                key: 'copy',
-                label: 'Копировать',
-                icon: <CopyOutlined />,
-                onClick: () => {
-                  /* TODO: Implement copy */
+                {
+                  key: 'copy',
+                  label: 'Копировать',
+                  icon: <CopyOutlined />,
+                  onClick: () => {
+                    /* TODO: Implement copy */
+                  },
                 },
-              },
-              {
-                key: 'delete',
-                label: 'Удалить',
-                icon: <DeleteOutlined />,
-                danger: true,
-                onClick: () => handleDeletePurchase(record.id.toString()),
-              },
-            ],
-          }}
-        >
-          <Button type="text" icon={<EllipsisOutlined />} />
-        </Dropdown>
+                {
+                  key: 'delete',
+                  label: 'Удалить',
+                  icon: <DeleteOutlined />,
+                  danger: true,
+                  onClick: () => handleDeletePurchase(record.id.toString()),
+                },
+              ],
+            }}
+          >
+            <Button type="text" icon={<EllipsisOutlined />} />
+          </Dropdown>
+        </Space>
       ),
     },
   ];
@@ -432,6 +472,12 @@ function IncomingPage() {
           />
         </Modal>
       )}
+
+      <PurchaseDetails
+        purchase={selectedPurchase}
+        visible={showDetails}
+        onClose={() => setShowDetails(false)}
+      />
     </div>
   );
 }

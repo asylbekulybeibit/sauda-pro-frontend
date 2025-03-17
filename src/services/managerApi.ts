@@ -657,6 +657,7 @@ export interface CreatePurchaseRequest {
     expiryDate?: string;
   }>;
   updatePrices?: boolean;
+  updatePurchasePrices?: boolean;
   createLabels?: boolean;
 }
 
