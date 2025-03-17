@@ -49,6 +49,7 @@ interface ExcelRow {
   barcode?: string;
   name?: string;
   quantity?: string | number;
+  comment?: string;
 }
 
 interface PreviewData {
@@ -84,6 +85,7 @@ interface PurchaseItem {
   serialNumber?: string;
   expiryDate?: string;
   needsLabels: boolean;
+  comment?: string;
 }
 
 interface FormData {
@@ -268,6 +270,7 @@ export function PurchaseForm({
           price,
           total: price * quantity,
           needsLabels: false,
+          comment: row.comment,
         });
       });
 
@@ -291,6 +294,7 @@ export function PurchaseForm({
             ...mergedItems[existingIndex],
             quantity: existingQuantity + newItem.quantity,
             total: existingTotal + newItem.total,
+            comment: newItem.comment,
           };
         } else {
           mergedItems.push(newItem);
@@ -401,6 +405,7 @@ export function PurchaseForm({
         price: price,
         total: price,
         needsLabels: false,
+        comment: '',
       };
       setItems(addIdsToItems([...items, newItem]));
     }
@@ -418,19 +423,17 @@ export function PurchaseForm({
         throw new Error('Поставщик не найден');
       }
 
-      const previewItems = items.map((item) => {
-        const product = filteredProducts.find(
-          (p) => p.id.toString() === item.productId
-        );
-        if (!product) {
-          throw new Error(`Товар с ID ${item.productId} не найден`);
-        }
+      const productMap: Record<string, Product> = {};
+      allProducts.forEach((product) => {
+        productMap[product.id.toString()] = product;
+      });
 
+      const previewItems = items.map((item) => {
         return {
           productId: item.productId,
           product: {
-            name: product.name,
-            sku: product.sku,
+            name: productMap[item.productId]?.name || 'Неизвестный товар',
+            sku: productMap[item.productId]?.sku || '',
           },
           quantity: item.quantity,
           price: item.price,
@@ -438,14 +441,14 @@ export function PurchaseForm({
         };
       });
 
-      const totalAmount = previewItems.reduce(
-        (sum, item) => sum + item.total,
-        0
-      );
+      const totalAmount =
+        Array.isArray(previewItems) && previewItems.length > 0
+          ? previewItems.reduce((sum, item) => sum + (item.total || 0), 0)
+          : 0;
 
       setPreviewData({
         id: crypto.randomUUID(),
-        date: values.date.format('YYYY-MM-DD'),
+        date: values.date.format('YYYY-MM-DDTHH:mm:ss'),
         invoiceNumber: values.invoiceNumber,
         supplier: {
           name: supplier.name,
@@ -506,7 +509,7 @@ export function PurchaseForm({
                 shopId,
                 supplierId: values.supplierId,
                 invoiceNumber: values.invoiceNumber,
-                date: values.date.format('YYYY-MM-DD'),
+                date: values.date.format('YYYY-MM-DDTHH:mm:ss'),
                 comment: values.comment,
                 items: items.map((item) => ({
                   productId: item.productId,
@@ -515,6 +518,7 @@ export function PurchaseForm({
                   partialQuantity: item.partialQuantity,
                   serialNumber: item.serialNumber,
                   expiryDate: item.expiryDate,
+                  comment: item.comment,
                 })),
                 updatePrices: values.updatePrices,
                 updatePurchasePrices: values.updatePurchasePrices,
@@ -545,7 +549,7 @@ export function PurchaseForm({
         shopId,
         supplierId: values.supplierId,
         invoiceNumber: values.invoiceNumber,
-        date: values.date.format('YYYY-MM-DD'),
+        date: values.date.format('YYYY-MM-DDTHH:mm:ss'),
         comment: values.comment,
         items: items.map((item) => ({
           productId: item.productId,
@@ -554,6 +558,7 @@ export function PurchaseForm({
           partialQuantity: item.partialQuantity,
           serialNumber: item.serialNumber,
           expiryDate: item.expiryDate,
+          comment: item.comment,
         })),
         updatePrices: values.updatePrices,
         updatePurchasePrices: values.updatePurchasePrices,
@@ -794,6 +799,29 @@ export function PurchaseForm({
       ),
     },
     {
+      title: 'Комментарий',
+      dataIndex: 'comment',
+      key: 'comment',
+      width: '15%',
+      render: (value: string, record: PurchaseItem) => (
+        <AntInput
+          value={value}
+          onChange={(e) => {
+            const newItems = [...items];
+            const index = items.findIndex(
+              (item) => item.productId === record.productId
+            );
+            if (index !== -1) {
+              newItems[index].comment = e.target.value;
+              setItems(addIdsToItems(newItems));
+            }
+          }}
+          placeholder="Комментарий"
+          size="small"
+        />
+      ),
+    },
+    {
       title: '',
       key: 'actions',
       width: '5%',
@@ -895,8 +923,9 @@ export function PurchaseForm({
             >
               <DatePicker
                 className="w-full"
-                format="DD.MM.YYYY"
+                format="DD.MM.YYYY HH:mm:ss"
                 placeholder="Выберите дату"
+                showTime
               />
             </Form.Item>
 
@@ -990,12 +1019,15 @@ export function PurchaseForm({
                 </Button>
               </Upload>
 
-              {items.length > 0 && (
+              {Array.isArray(items) && items.length > 0 && (
                 <div className="ml-auto">
                   <span className="text-gray-500 mr-2">
                     Всего товаров:{' '}
                     <strong>
-                      {items.reduce((sum, item) => sum + item.quantity, 0)}
+                      {items.reduce(
+                        (sum, item) => sum + (item.quantity || 0),
+                        0
+                      )}
                     </strong>
                   </span>
                   <span className="text-gray-500">

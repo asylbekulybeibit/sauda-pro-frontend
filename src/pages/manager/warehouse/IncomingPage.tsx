@@ -16,8 +16,13 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
-import { getPurchases } from '@/services/managerApi';
-import { formatDate, formatPrice } from '@/utils/format';
+import {
+  getPurchases,
+  deletePurchase,
+  getPurchaseById,
+} from '@/services/managerApi';
+import { formatPrice } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/date';
 import {
   PlusOutlined,
   DownloadOutlined,
@@ -107,30 +112,41 @@ function IncomingPage() {
   const handleExportToExcel = () => {
     const exportData = filteredPurchases.map((purchase: Purchase) => ({
       'Номер накладной': purchase.invoiceNumber,
-      Дата: formatDate(purchase.date),
+      Дата: formatDateTime(purchase.date),
       Поставщик: purchase.supplier.name,
+      'Адрес поставщика': purchase.supplier.address || '-',
+      'Телефон поставщика': purchase.supplier.phone || '-',
       Статус: getStatusName(purchase.status),
       Сумма: purchase.totalAmount,
-      'Количество товаров': purchase.items.reduce(
-        (sum, item) => sum + (item.quantity || 0),
-        0
-      ),
+      'Количество товаров':
+        typeof purchase.totalItems === 'number'
+          ? purchase.totalItems
+          : Array.isArray(purchase.items)
+          ? purchase.items.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          : 0,
       Комментарий: purchase.comment || '-',
     }));
 
     // Добавляем детальную информацию о товарах в отдельный лист
     const detailedData = filteredPurchases.flatMap((purchase: Purchase) =>
-      purchase.items.map((item) => ({
-        'Номер накладной': purchase.invoiceNumber,
-        Дата: formatDate(purchase.date),
-        Поставщик: purchase.supplier.name,
-        'Название товара': item.product?.name || 'Неизвестный товар',
-        Артикул: item.product?.sku || '-',
-        Количество: item.quantity || 0,
-        Цена: item.price || 0,
-        Сумма: item.total || 0,
-        Комментарий: purchase.comment || '-',
-      }))
+      Array.isArray(purchase.items)
+        ? purchase.items.map((item) => ({
+            'Номер накладной': purchase.invoiceNumber,
+            Дата: formatDateTime(purchase.date),
+            Поставщик: purchase.supplier.name,
+            'Название товара': item.product?.name || 'Неизвестный товар',
+            Артикул: item.product?.sku || '-',
+            Количество: item.quantity || 0,
+            Цена: item.price || 0,
+            Сумма: item.total || 0,
+            'Серийный номер': item.serialNumber || '-',
+            'Срок годности': item.expiryDate
+              ? formatDate(item.expiryDate)
+              : '-',
+            'Комментарий к товару': item.comment || '-',
+            'Общий комментарий': purchase.comment || '-',
+          }))
+        : []
     );
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -140,7 +156,9 @@ function IncomingPage() {
     XLSX.utils.book_append_sheet(wb, ws, 'Приходы');
     XLSX.utils.book_append_sheet(wb, wsDetailed, 'Детали приходов');
 
-    XLSX.writeFile(wb, `Приходы_${formatDate(new Date().toISOString())}.xlsx`);
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('ru-RU').replace(/\./g, '-');
+    XLSX.writeFile(wb, `Приходы_${formattedDate}.xlsx`);
   };
 
   const getStatusName = (status: string) => {
@@ -169,15 +187,32 @@ function IncomingPage() {
       cancelText: 'Отмена',
       okButtonProps: { danger: true },
       onOk: () => {
-        // TODO: Implement delete functionality
-        message.success('Приход успешно удален');
+        deletePurchase(shopId!, id)
+          .then(() => {
+            message.success('Приход успешно удален');
+            refetch();
+          })
+          .catch((error) => {
+            console.error('Error deleting purchase:', error);
+            message.error('Произошла ошибка при удалении прихода');
+          });
       },
     });
   };
 
-  const handleViewPurchase = (purchase: Purchase) => {
-    setSelectedPurchase(purchase);
-    setShowDetails(true);
+  const handleViewPurchase = async (purchase: Purchase) => {
+    try {
+      // Загружаем детальную информацию о приходе
+      const detailedPurchase = await getPurchaseById(
+        purchase.id.toString(),
+        shopId!
+      );
+      setSelectedPurchase(detailedPurchase);
+      setShowDetails(true);
+    } catch (error) {
+      console.error('Error loading purchase details:', error);
+      message.error('Не удалось загрузить детали прихода');
+    }
   };
 
   const columns: ColumnsType<Purchase> = [
@@ -191,7 +226,7 @@ function IncomingPage() {
       title: 'Дата',
       dataIndex: 'date',
       key: 'date',
-      render: (date: string) => formatDate(date),
+      render: (date: string) => formatDateTime(date),
       sorter: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     },
     {
@@ -223,21 +258,39 @@ function IncomingPage() {
     },
     {
       title: 'Товаров',
-      dataIndex: 'items',
-      key: 'items',
-      render: (items: any[]) => {
-        // Суммируем количество всех товаров
-        return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      dataIndex: 'totalItems',
+      key: 'totalItems',
+      render: (totalItems: number, record: Purchase) => {
+        // Если есть поле totalItems, используем его
+        if (typeof totalItems === 'number') return totalItems;
+
+        // Иначе вычисляем из items
+        if (!record.items || !Array.isArray(record.items)) return 0;
+        return record.items.reduce(
+          (sum, item) => sum + (item.quantity || 0),
+          0
+        );
       },
       sorter: (a, b) => {
-        const totalA = a.items.reduce(
-          (sum, item) => sum + (item.quantity || 0),
-          0
-        );
-        const totalB = b.items.reduce(
-          (sum, item) => sum + (item.quantity || 0),
-          0
-        );
+        // Если есть поле totalItems, используем его
+        if (
+          typeof a.totalItems === 'number' &&
+          typeof b.totalItems === 'number'
+        ) {
+          return a.totalItems - b.totalItems;
+        }
+
+        // Иначе вычисляем из items
+        const itemsA = a.items || [];
+        const itemsB = b.items || [];
+
+        const totalA = Array.isArray(itemsA)
+          ? itemsA.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          : 0;
+        const totalB = Array.isArray(itemsB)
+          ? itemsB.reduce((sum, item) => sum + (item.quantity || 0), 0)
+          : 0;
+
         return totalA - totalB;
       },
     },

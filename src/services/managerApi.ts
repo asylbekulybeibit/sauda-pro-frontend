@@ -655,6 +655,7 @@ export interface CreatePurchaseRequest {
     partialQuantity?: number;
     serialNumber?: string;
     expiryDate?: string;
+    comment?: string;
   }>;
   updatePrices?: boolean;
   updatePurchasePrices?: boolean;
@@ -688,8 +689,7 @@ export const createPurchase = async (
   data: CreatePurchaseRequest
 ): Promise<PurchaseResponse> => {
   try {
-    console.log('Creating purchase with data:', data);
-    const response = await api.post('/manager/inventory/purchases', data);
+    const response = await api.post('/manager/purchases', data);
     return response.data;
   } catch (error) {
     console.error('Error creating purchase:', error);
@@ -697,15 +697,33 @@ export const createPurchase = async (
   }
 };
 
-export const getPurchaseById = async (id: string): Promise<Purchase> => {
-  const response = await api.get(`/manager/inventory/purchases/${id}`);
-  return response.data;
+export const getPurchaseById = async (
+  id: string,
+  shopId: string
+): Promise<Purchase> => {
+  try {
+    const response = await api.get(`/manager/purchases/${shopId}/${id}`);
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
   try {
-    const response = await api.get(`/manager/inventory/purchases/${shopId}`);
+    const response = await api.get(`/manager/purchases/${shopId}`);
     return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const deletePurchase = async (
+  shopId: string,
+  purchaseId: string
+): Promise<void> => {
+  try {
+    await api.delete(`/manager/purchases/${shopId}/${purchaseId}`);
   } catch (error) {
     throw ApiErrorHandler.handle(error);
   }

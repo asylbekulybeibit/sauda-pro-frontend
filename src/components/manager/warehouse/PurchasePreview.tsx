@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Descriptions, Table } from 'antd';
 import { formatDate, formatPrice } from '@/utils/format';
+import { formatDateTime } from '@/utils/date';
 
 interface PurchasePreviewProps {
   data: {
@@ -95,7 +96,7 @@ export const PurchasePreview: React.FC<PurchasePreviewProps> = ({
 
         <Descriptions bordered column={2}>
           <Descriptions.Item label="Дата">
-            {formatDate(data.date)}
+            {formatDateTime(data.date)}
           </Descriptions.Item>
           <Descriptions.Item label="Номер накладной">
             {data.invoiceNumber}

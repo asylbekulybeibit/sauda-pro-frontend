@@ -2,7 +2,8 @@ import React from 'react';
 import { Modal, Descriptions, Table, Tag, Button } from 'antd';
 import { PrinterOutlined } from '@ant-design/icons';
 import { Purchase } from '@/types/purchase';
-import { formatDate, formatPrice } from '@/utils/format';
+import { formatPrice } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/date';
 
 interface PurchaseDetailsProps {
   purchase: Purchase | null;
@@ -15,6 +16,9 @@ export default function PurchaseDetails({
   visible,
   onClose,
 }: PurchaseDetailsProps) {
+  console.log('PurchaseDetails - purchase:', purchase);
+  console.log('PurchaseDetails - purchase items:', purchase?.items);
+
   if (!purchase) return null;
 
   const getStatusName = (status: string) => {
@@ -40,28 +44,55 @@ export default function PurchaseDetails({
       title: 'Наименование',
       dataIndex: ['product', 'name'],
       key: 'name',
+      width: '20%',
     },
     {
       title: 'Артикул',
       dataIndex: ['product', 'sku'],
       key: 'sku',
+      width: '10%',
     },
     {
       title: 'Количество',
       dataIndex: 'quantity',
       key: 'quantity',
+      width: '8%',
     },
     {
       title: 'Цена',
       dataIndex: 'price',
       key: 'price',
+      width: '10%',
       render: (price: number) => formatPrice(price),
     },
     {
       title: 'Сумма',
       dataIndex: 'total',
       key: 'total',
+      width: '10%',
       render: (total: number) => formatPrice(total),
+    },
+    {
+      title: 'Серийный номер',
+      dataIndex: 'serialNumber',
+      key: 'serialNumber',
+      width: '12%',
+      render: (serialNumber: string) => serialNumber || '-',
+    },
+    {
+      title: 'Срок годности',
+      dataIndex: 'expiryDate',
+      key: 'expiryDate',
+      width: '12%',
+      render: (expiryDate: string) =>
+        expiryDate ? formatDate(expiryDate) : '-',
+    },
+    {
+      title: 'Комментарий',
+      dataIndex: 'comment',
+      key: 'comment',
+      width: '18%',
+      render: (comment: string) => comment || '-',
     },
   ];
 
@@ -81,7 +112,7 @@ export default function PurchaseDetails({
       title="Детали прихода"
       open={visible}
       onCancel={onClose}
-      width={800}
+      width={1200}
       footer={[
         <Button key="close" onClick={onClose}>
           Закрыть
@@ -102,8 +133,8 @@ export default function PurchaseDetails({
           <Descriptions.Item label="Номер накладной">
             {purchase.invoiceNumber}
           </Descriptions.Item>
-          <Descriptions.Item label="Дата">
-            {formatDate(purchase.date)}
+          <Descriptions.Item label="Дата создания">
+            {formatDateTime(purchase.date)}
           </Descriptions.Item>
           <Descriptions.Item label="Поставщик">
             {purchase.supplier.name}
@@ -117,10 +148,21 @@ export default function PurchaseDetails({
             {formatPrice(purchase.totalAmount)}
           </Descriptions.Item>
           <Descriptions.Item label="Количество товаров">
-            {purchase.items.reduce((sum, item) => sum + item.quantity, 0)}
+            {typeof purchase.totalItems === 'number'
+              ? purchase.totalItems
+              : Array.isArray(purchase.items)
+              ? purchase.items.reduce(
+                  (sum, item) => sum + (item.quantity || 0),
+                  0
+                )
+              : 0}
           </Descriptions.Item>
+          <Descriptions.Item label="Принял">
+            {purchase.createdBy?.name || purchase.createdById || 'Неизвестно'}
+          </Descriptions.Item>
+          
           {purchase.comment && (
-            <Descriptions.Item label="Комментарий" span={2}>
+            <Descriptions.Item label="Комментарий" span={3}>
               {purchase.comment}
             </Descriptions.Item>
           )}
@@ -129,16 +171,17 @@ export default function PurchaseDetails({
         <h3 className="text-lg font-semibold mt-6 mb-3">Товары</h3>
         <Table
           columns={columns}
-          dataSource={purchase.items}
+          dataSource={Array.isArray(purchase.items) ? purchase.items : []}
           rowKey="productId"
           pagination={false}
+          size="small"
           summary={(pageData) => {
             const totalQuantity = pageData.reduce(
-              (sum, item) => sum + item.quantity,
+              (sum, item) => sum + (item.quantity || 0),
               0
             );
             const totalAmount = pageData.reduce(
-              (sum, item) => sum + item.total,
+              (sum, item) => sum + (item.total || 0),
               0
             );
 
@@ -154,6 +197,9 @@ export default function PurchaseDetails({
                 <Table.Summary.Cell index={4}>
                   <strong>{formatPrice(totalAmount)}</strong>
                 </Table.Summary.Cell>
+                <Table.Summary.Cell index={5}></Table.Summary.Cell>
+                <Table.Summary.Cell index={6}></Table.Summary.Cell>
+                <Table.Summary.Cell index={7}></Table.Summary.Cell>
               </Table.Summary.Row>
             );
           }}
