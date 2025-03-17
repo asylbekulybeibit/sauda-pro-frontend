@@ -20,8 +20,8 @@ export function LabelPreview({
 
   const previewMutation = useMutation({
     mutationFn: (params: {
-      templateId: number;
-      productId: number | undefined;
+      templateId: string | number;
+      productId: string | number | undefined;
     }) =>
       previewLabel(
         params.templateId.toString(),

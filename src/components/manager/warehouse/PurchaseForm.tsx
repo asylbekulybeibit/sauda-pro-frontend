@@ -22,15 +22,18 @@ import {
   PrinterOutlined,
   CopyOutlined,
   ExclamationCircleOutlined,
+  DeleteOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  fetchProducts,
-  fetchSuppliers,
+  getProducts,
   generateLabels,
   createPurchase,
   CreatePurchaseRequest,
   getPurchaseById,
+  getSuppliers,
+  getSupplierProducts,
 } from '@/services/managerApi';
 import { formatDate } from '@/utils/format';
 import * as XLSX from 'xlsx';
@@ -72,6 +75,7 @@ interface PreviewData {
 }
 
 interface PurchaseItem {
+  id: string;
   productId: string;
   quantity: number;
   price: number;
@@ -107,24 +111,60 @@ export function PurchaseForm({
   initialData,
 }: PurchaseFormProps) {
   const [form] = Form.useForm();
-  const [items, setItems] = useState<PurchaseItem[]>(initialData?.items || []);
+  const [items, setItems] = useState<PurchaseItem[]>(() => {
+    // Добавляем уникальные идентификаторы при инициализации
+    if (initialData?.items) {
+      return initialData.items.map((item: any) => ({
+        ...item,
+        id: item.id || crypto.randomUUID(),
+      }));
+    }
+    return [];
+  });
   const [searchValue, setSearchValue] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const barcodeInputRef = useRef<InputRef>(null);
   const queryClient = useQueryClient();
   const [showPreview, setShowPreview] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
+    initialData?.supplierId || null
+  );
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Queries
-  const { data: products = [] } = useQuery({
+  const { data: allProducts = [] } = useQuery({
     queryKey: ['products', shopId],
-    queryFn: () => fetchProducts(shopId),
+    queryFn: () => getProducts(shopId),
   });
 
   const { data: suppliers = [] } = useQuery({
-    queryKey: ['suppliers'],
-    queryFn: fetchSuppliers,
+    queryKey: ['suppliers', shopId],
+    queryFn: () => getSuppliers(shopId),
   });
+
+  // Загружаем товары поставщика при его выборе
+  const { data: supplierProducts = [] } = useQuery({
+    queryKey: ['supplierProducts', selectedSupplierId, shopId],
+    queryFn: () =>
+      selectedSupplierId
+        ? getSupplierProducts(selectedSupplierId, shopId)
+        : Promise.resolve([]),
+    enabled: !!selectedSupplierId,
+  });
+
+  // Обновляем отфильтрованные товары при изменении поставщика или всех товаров
+  useEffect(() => {
+    // Всегда показываем все товары, независимо от выбранного поставщика
+    setFilteredProducts(allProducts);
+  }, [allProducts]);
+
+  // Обработчик изменения поставщика
+  const handleSupplierChange = (supplierId: string) => {
+    setSelectedSupplierId(supplierId);
+    form.setFieldsValue({ supplierId });
+  };
 
   // Mutations
   const createPurchaseMutation = useMutation({
@@ -166,7 +206,7 @@ export function PurchaseForm({
       setItems(
         initialData.items.map((item: any) => ({
           ...item,
-          id: undefined, // Очищаем ID при копировании
+          id: crypto.randomUUID(), // Генерируем новый ID для каждого элемента
         }))
       );
     }
@@ -174,21 +214,18 @@ export function PurchaseForm({
 
   // Обработчики
   const handleBarcodeScan = (barcode: string) => {
-    const product = products?.find(
-      (p) => p.barcode === barcode || p.barcodes?.includes(barcode)
+    if (!barcode) return null;
+
+    // Поиск товара по штрих-коду
+    const foundItem = allProducts?.find(
+      (product) => product.barcode === barcode
     );
 
-    if (product) {
-      return {
-        productId: product.id.toString(),
-        quantity: 1,
-        price: product.purchasePrice,
-        total: product.purchasePrice,
-        needsLabels: false,
-      };
+    if (foundItem) {
+      return { productId: foundItem.id.toString(), quantity: 1 };
+    } else {
+      return null;
     }
-
-    return null;
   };
 
   const handleExcelUpload = (file: File) => {
@@ -199,33 +236,40 @@ export function PurchaseForm({
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<ExcelRow>(firstSheet);
 
-      const newItems = rows
-        .map((row) => {
-          const product = products?.find(
-            (p) =>
-              p.sku === row.sku ||
-              p.barcode === row.barcode ||
-              p.name === row.name
+      const newItems: PurchaseItem[] = [];
+
+      rows.forEach((row) => {
+        const product = filteredProducts?.find(
+          (p) =>
+            p.sku === row.sku ||
+            p.barcode === row.barcode ||
+            p.name === row.name
+        );
+
+        if (!product) {
+          message.warning(
+            `Товар не найден: ${row.sku || row.barcode || row.name}`
           );
+          return;
+        }
 
-          if (!product) {
-            message.warning(
-              `Товар не найден: ${row.sku || row.barcode || row.name}`
-            );
-            return undefined;
-          }
+        // Убедимся, что количество и цена являются числами
+        const quantity = Number(row.quantity) || 1;
+        const price =
+          typeof product.purchasePrice === 'number' &&
+          !isNaN(product.purchasePrice)
+            ? product.purchasePrice
+            : 0;
 
-          const quantity = Number(row.quantity) || 1;
-
-          return {
-            productId: product.id.toString(),
-            quantity,
-            price: product.purchasePrice,
-            total: product.purchasePrice * quantity,
-            needsLabels: false,
-          };
-        })
-        .filter((item): item is PurchaseItem => item !== undefined);
+        newItems.push({
+          id: crypto.randomUUID(),
+          productId: product.id.toString(),
+          quantity,
+          price,
+          total: price * quantity,
+          needsLabels: false,
+        });
+      });
 
       // Merge with existing items
       const mergedItems = [...items];
@@ -234,96 +278,133 @@ export function PurchaseForm({
           (item) => item.productId === newItem.productId
         );
         if (existingIndex >= 0) {
+          const existingQuantity =
+            typeof mergedItems[existingIndex].quantity === 'number'
+              ? mergedItems[existingIndex].quantity
+              : 0;
+          const existingTotal =
+            typeof mergedItems[existingIndex].total === 'number'
+              ? mergedItems[existingIndex].total
+              : 0;
+
           mergedItems[existingIndex] = {
             ...mergedItems[existingIndex],
-            quantity:
-              (mergedItems[existingIndex].quantity || 0) + newItem.quantity,
-            total: (mergedItems[existingIndex].total || 0) + newItem.total,
+            quantity: existingQuantity + newItem.quantity,
+            total: existingTotal + newItem.total,
           };
         } else {
           mergedItems.push(newItem);
         }
       });
 
-      setItems(mergedItems);
+      setItems(addIdsToItems(mergedItems));
       message.success(`Добавлено ${newItems.length} товаров`);
     };
     reader.readAsArrayBuffer(file);
     return false;
   };
 
+  // Функция для добавления уникальных идентификаторов к элементам
+  const addIdsToItems = (itemsArray: PurchaseItem[]): PurchaseItem[] => {
+    return itemsArray.map((item) => {
+      // Если id отсутствует или пустой, генерируем новый
+      if (!item.id || item.id.trim() === '') {
+        return { ...item, id: crypto.randomUUID() };
+      }
+      return item;
+    });
+  };
+
   const handleQuantityChange = (productId: string, value: number | null) => {
     if (value === null) return;
 
-    setItems(
-      items.map((item) =>
-        item.productId === productId ? { ...item, quantity: value } : item
-      )
+    const updatedItems = items.map((item) =>
+      item.productId === productId
+        ? {
+            ...item,
+            quantity: value,
+            total:
+              value *
+              (typeof item.price === 'number' && !isNaN(item.price)
+                ? item.price
+                : 0),
+          }
+        : item
     );
+
+    setItems(addIdsToItems(updatedItems));
   };
 
   const handleExpiryDateChange = (
     productId: string,
     date: dayjs.Dayjs | null
   ) => {
-    setItems(
-      items.map((item) =>
-        item.productId === productId
-          ? {
-              ...item,
-              expiryDate: date ? date.format('YYYY-MM-DD') : undefined,
-            }
-          : item
-      )
+    const updatedItems = items.map((item) =>
+      item.productId === productId
+        ? {
+            ...item,
+            expiryDate: date ? date.format('YYYY-MM-DD') : undefined,
+          }
+        : item
     );
+
+    setItems(addIdsToItems(updatedItems));
   };
 
   const handlePartialQuantityChange = (index: number, value: number) => {
     const newItems = [...items];
     newItems[index].partialQuantity = value;
-    setItems(newItems);
+    setItems(addIdsToItems(newItems));
   };
 
-  const handlePriceChange = (index: number, value: number | null) => {
-    if (value === null) return;
-
-    const newItems = [...items];
-    const item = items[index];
-    const product = products?.find((p) => p.id.toString() === item.productId);
-
-    if (!product) {
-      message.error('Товар не найден');
-      return;
-    }
-
-    if (value < product.purchasePrice) {
-      Modal.confirm({
-        title: 'Внимание',
-        icon: <ExclamationCircleOutlined />,
-        content: 'Цена ниже текущей закупочной. Продолжить?',
-        onOk: () => {
-          newItems[index].price = value;
-          newItems[index].total = value * newItems[index].quantity;
-          setItems(newItems);
-        },
-      });
-    } else {
-      newItems[index].price = value;
-      newItems[index].total = value * newItems[index].quantity;
-      setItems(newItems);
-    }
+  // Обработчик удаления товара
+  const handleRemoveProduct = (productId: string) => {
+    const filteredItems = items.filter((item) => item.productId !== productId);
+    setItems(addIdsToItems(filteredItems));
+    message.success('Товар удален из прихода');
   };
 
   const handleAddProduct = (product: Product) => {
     const productId = product.id.toString();
-    const newItem: PurchaseItem = {
-      productId,
-      quantity: 1,
-      price: product.purchasePrice,
-      total: product.purchasePrice,
-      needsLabels: false,
-    };
-    setItems([...items, newItem]);
+
+    // Убедимся, что цена является числом
+    const price =
+      typeof product.purchasePrice === 'number' && !isNaN(product.purchasePrice)
+        ? product.purchasePrice
+        : 0;
+
+    // Проверяем, не добавлен ли уже этот товар
+    const existingItem = items.find((item) => item.productId === productId);
+    if (existingItem) {
+      // Если товар уже добавлен, увеличиваем его количество на 1
+      const newItems = items.map((item) =>
+        item.productId === productId
+          ? {
+              ...item,
+              quantity: item.quantity + 1,
+              total:
+                (item.quantity + 1) *
+                (typeof item.price === 'number' ? item.price : 0),
+            }
+          : item
+      );
+      setItems(addIdsToItems(newItems));
+      message.info(
+        `Товар "${product.name}" уже добавлен. Количество увеличено.`
+      );
+    } else {
+      // Если товар еще не добавлен, создаем новый элемент
+      const newItem: PurchaseItem = {
+        id: crypto.randomUUID(),
+        productId,
+        quantity: 1,
+        price: price,
+        total: price,
+        needsLabels: false,
+      };
+      setItems(addIdsToItems([...items, newItem]));
+    }
+
     setSearchValue('');
   };
 
@@ -338,7 +419,7 @@ export function PurchaseForm({
       }
 
       const previewItems = items.map((item) => {
-        const product = products.find(
+        const product = filteredProducts.find(
           (p) => p.id.toString() === item.productId
         );
         if (!product) {
@@ -377,10 +458,12 @@ export function PurchaseForm({
       });
 
       setShowPreview(true);
+      return previewData;
     } catch (error) {
       if (error instanceof Error) {
         message.error(error.message);
       }
+      return null;
     }
   };
 
@@ -393,6 +476,70 @@ export function PurchaseForm({
         throw new Error('Добавьте хотя бы один товар');
       }
 
+      // Проверяем, есть ли товары с ценой ниже закупочной
+      const itemsWithLowPrice = items.filter((item) => {
+        const product = filteredProducts?.find(
+          (p) => p.id.toString() === item.productId
+        );
+        return (
+          product &&
+          typeof item.price === 'number' &&
+          typeof product.purchasePrice === 'number' &&
+          item.price < product.purchasePrice
+        );
+      });
+
+      // Если есть товары с ценой ниже закупочной, показываем предупреждение
+      if (itemsWithLowPrice.length > 0) {
+        return new Promise((resolve) => {
+          Modal.confirm({
+            title: 'Внимание',
+            icon: <ExclamationCircleOutlined />,
+            content: `${itemsWithLowPrice.length} ${
+              itemsWithLowPrice.length === 1 ? 'товар имеет' : 'товаров имеют'
+            } цену ниже текущей закупочной. Продолжить?`,
+            okText: 'Продолжить',
+            cancelText: 'Отмена',
+            onOk: async () => {
+              // Если пользователь подтверждает, продолжаем сохранение
+              const purchaseData: CreatePurchaseRequest = {
+                shopId,
+                supplierId: values.supplierId,
+                invoiceNumber: values.invoiceNumber,
+                date: values.date.format('YYYY-MM-DD'),
+                comment: values.comment,
+                items: items.map((item) => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  price: item.price,
+                  partialQuantity: item.partialQuantity,
+                  serialNumber: item.serialNumber,
+                  expiryDate: item.expiryDate,
+                })),
+                updatePrices: values.updatePrices,
+                createLabels: values.createLabels,
+              };
+
+              try {
+                await createPurchaseMutation.mutateAsync(purchaseData);
+                onClose();
+                resolve(true);
+              } catch (error) {
+                console.error('Error submitting purchase:', error);
+                if (error instanceof Error) {
+                  message.error(error.message);
+                }
+                resolve(false);
+              }
+            },
+            onCancel: () => {
+              resolve(false);
+            },
+          });
+        });
+      }
+
+      // Если нет товаров с ценой ниже закупочной, сразу сохраняем
       const purchaseData: CreatePurchaseRequest = {
         shopId,
         supplierId: values.supplierId,
@@ -455,8 +602,11 @@ export function PurchaseForm({
       title: 'Название',
       dataIndex: 'productId',
       key: 'name',
+      width: '20%',
       render: (productId: string) => {
-        const product = products.find((p) => p.id.toString() === productId);
+        const product = filteredProducts.find(
+          (p) => p.id.toString() === productId
+        );
         return product?.name || 'Неизвестный товар';
       },
     },
@@ -464,20 +614,26 @@ export function PurchaseForm({
       title: 'Артикул',
       dataIndex: 'productId',
       key: 'sku',
+      width: '10%',
       render: (productId: string) => {
-        const product = products.find((p) => p.id.toString() === productId);
+        const product = filteredProducts.find(
+          (p) => p.id.toString() === productId
+        );
         return product?.sku || 'Н/Д';
       },
     },
     {
-      title: 'Количество',
+      title: 'Кол-во',
       dataIndex: 'quantity',
       key: 'quantity',
+      width: '10%',
       render: (value: number, record: PurchaseItem) => (
         <InputNumber
           min={0}
           value={value}
           onChange={(val) => handleQuantityChange(record.productId, val)}
+          style={{ width: '100%' }}
+          size="small"
         />
       ),
     },
@@ -485,7 +641,8 @@ export function PurchaseForm({
       title: 'Цена',
       dataIndex: 'price',
       key: 'price',
-      render: (value: number, record: PurchaseItem) => (
+      width: '10%',
+      render: (value: number, record: PurchaseItem, index: number) => (
         <InputNumber
           min={0}
           value={value}
@@ -494,50 +651,103 @@ export function PurchaseForm({
           }
           parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, ''))}
           onChange={(val) => {
-            if (val === null) return;
+            // Просто обновляем значение без проверки при вводе
             const newItems = [...items];
-            const index = items.findIndex(
-              (item) => item.productId === record.productId
-            );
-            if (index === -1) return;
+            if (val !== null) {
+              newItems[index].price = val;
 
-            const product = products?.find((p) => p.id === record.productId);
-            if (product && val < product.purchasePrice) {
+              // Убедимся, что количество является числом
+              const quantity =
+                typeof newItems[index].quantity === 'number' &&
+                !isNaN(newItems[index].quantity)
+                  ? newItems[index].quantity
+                  : 0;
+
+              newItems[index].total = val * quantity;
+              setItems(addIdsToItems(newItems));
+            }
+          }}
+          onBlur={() => {
+            // Проверяем цену только при потере фокуса
+            const item = items[index];
+            const product = filteredProducts?.find(
+              (p) => p.id.toString() === item.productId
+            );
+
+            if (
+              product &&
+              typeof item.price === 'number' &&
+              typeof product.purchasePrice === 'number' &&
+              item.price < product.purchasePrice
+            ) {
               Modal.confirm({
                 title: 'Внимание',
                 icon: <ExclamationCircleOutlined />,
-                content: 'Цена ниже текущей закупочной. Продолжить?',
-                onOk: () => {
-                  newItems[index].price = val;
-                  newItems[index].total = val * newItems[index].quantity;
-                  setItems(newItems);
+                content: (
+                  <div>
+                    <p>Цена ниже текущей закупочной.</p>
+                    <p>
+                      Текущая закупочная цена:{' '}
+                      <strong>{product.purchasePrice.toFixed(2)} KZT</strong>
+                    </p>
+                    <p>
+                      Введенная цена:{' '}
+                      <strong>{item.price.toFixed(2)} KZT</strong>
+                    </p>
+                    <p>
+                      Разница:{' '}
+                      <strong>
+                        {(product.purchasePrice - item.price).toFixed(2)} KZT
+                      </strong>
+                    </p>
+                    <p>Продолжить с новой ценой?</p>
+                  </div>
+                ),
+                okText: 'Продолжить с новой ценой',
+                cancelText: 'Вернуть старую цену',
+                onCancel: () => {
+                  // Возвращаем предыдущую цену при отмене
+                  const newItems = [...items];
+                  newItems[index].price = product.purchasePrice;
+
+                  // Убедимся, что количество является числом
+                  const quantity =
+                    typeof newItems[index].quantity === 'number' &&
+                    !isNaN(newItems[index].quantity)
+                      ? newItems[index].quantity
+                      : 0;
+
+                  newItems[index].total = product.purchasePrice * quantity;
+                  setItems(addIdsToItems(newItems));
                 },
               });
-            } else {
-              newItems[index].price = val;
-              newItems[index].total = val * newItems[index].quantity;
-              setItems(newItems);
             }
           }}
+          style={{ width: '100%' }}
+          size="small"
         />
       ),
     },
     {
-      title: 'Серийный номер',
+      title: 'Серийный №',
       dataIndex: 'serialNumber',
       key: 'serialNumber',
-      render: (value: string | undefined, record: PurchaseItem) => (
+      width: '15%',
+      render: (value: string, record: PurchaseItem) => (
         <AntInput
           value={value}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setItems(
-              items.map((item) =>
-                item.productId === record.productId
-                  ? { ...item, serialNumber: e.target.value }
-                  : item
-              )
+          onChange={(e) => {
+            const newItems = [...items];
+            const index = items.findIndex(
+              (item) => item.productId === record.productId
             );
+            if (index !== -1) {
+              newItems[index].serialNumber = e.target.value;
+              setItems(addIdsToItems(newItems));
+            }
           }}
+          placeholder="Серийный №"
+          size="small"
         />
       ),
     },
@@ -545,10 +755,15 @@ export function PurchaseForm({
       title: 'Срок годности',
       dataIndex: 'expiryDate',
       key: 'expiryDate',
-      render: (value: string | undefined, record: PurchaseItem) => (
+      width: '15%',
+      render: (value: string, record: PurchaseItem) => (
         <DatePicker
-          value={value ? dayjs(value) : undefined}
+          value={value ? dayjs(value) : null}
           onChange={(date) => handleExpiryDateChange(record.productId, date)}
+          format="DD.MM.YYYY"
+          placeholder="Срок годности"
+          style={{ width: '100%' }}
+          size="small"
         />
       ),
     },
@@ -556,67 +771,94 @@ export function PurchaseForm({
       title: 'Этикетки',
       dataIndex: 'needsLabels',
       key: 'needsLabels',
-      render: (value: boolean | undefined, record: PurchaseItem) => (
+      width: '10%',
+      render: (value: boolean, record: PurchaseItem) => (
         <Switch
           checked={value}
           onChange={(checked) => {
-            setItems(
-              items.map((item) =>
-                item.productId === record.productId
-                  ? { ...item, needsLabels: checked }
-                  : item
-              )
+            const newItems = [...items];
+            const index = items.findIndex(
+              (item) => item.productId === record.productId
             );
+            if (index !== -1) {
+              newItems[index].needsLabels = checked;
+              setItems(addIdsToItems(newItems));
+            }
           }}
+          size="small"
         />
       ),
     },
     {
-      title: 'Действия',
+      title: '',
       key: 'actions',
+      width: '5%',
       render: (_: any, record: PurchaseItem) => (
         <Button
-          type="link"
           danger
-          onClick={() => {
-            setItems(
-              items.filter((item) => item.productId !== record.productId)
-            );
-          }}
-        >
-          Удалить
-        </Button>
+          onClick={() => handleRemoveProduct(record.productId)}
+          icon={<DeleteOutlined />}
+          size="small"
+        />
       ),
     },
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-7xl shadow-xl">
-        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-blue-600">Приход товара</h2>
-          <Space>
-            <Tooltip title="Сканировать штрих-код">
-              <Button
-                icon={<BarcodeOutlined />}
-                onClick={() => setIsScanning(!isScanning)}
-                type={isScanning ? 'primary' : 'default'}
-                className={isScanning ? 'bg-blue-500' : ''}
-              />
-            </Tooltip>
-            <Tooltip title="Предпросмотр и печать">
-              <Button icon={<PrinterOutlined />} onClick={handlePrint} />
-            </Tooltip>
-          </Space>
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Новый приход</h2>
+          <div className="flex items-center gap-2">
+            <Button
+              icon={<BarcodeOutlined />}
+              onClick={() => {
+                setIsScanning(!isScanning);
+                if (!isScanning) {
+                  setTimeout(() => {
+                    barcodeInputRef.current?.focus();
+                  }, 100);
+                }
+              }}
+              type={isScanning ? 'primary' : 'default'}
+              className={isScanning ? 'bg-blue-500' : ''}
+            >
+              {isScanning ? 'Отключить сканер' : 'Включить сканер'}
+            </Button>
+            <Button
+              icon={<PrinterOutlined />}
+              onClick={async () => {
+                try {
+                  const data = await preparePreviewData();
+                  if (data) {
+                    setPreviewData(data);
+                    setShowPreview(true);
+                  }
+                } catch (error) {
+                  if (error instanceof Error) {
+                    message.error(error.message);
+                  }
+                }
+              }}
+              disabled={items.length === 0}
+            >
+              Предпросмотр
+            </Button>
+          </div>
         </div>
 
         <Form form={form} layout="vertical">
-          <div className="grid grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
+          <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-lg">
             <Form.Item
               name="supplierId"
               label={<span className="font-medium">Поставщик</span>}
               rules={[{ required: true, message: 'Выберите поставщика' }]}
               tooltip={tooltips.supplier}
+              help={
+                selectedSupplierId && supplierProducts.length === 0
+                  ? 'У этого поставщика нет связанных товаров. Отображаются все товары магазина.'
+                  : null
+              }
             >
               <Select
                 placeholder="Выберите поставщика"
@@ -627,6 +869,7 @@ export function PurchaseForm({
                 className="w-full"
                 showSearch
                 optionFilterProp="label"
+                onChange={handleSupplierChange}
               />
             </Form.Item>
 
@@ -665,12 +908,25 @@ export function PurchaseForm({
           </div>
 
           {isScanning && (
-            <div className="mb-4 bg-blue-50 p-3 rounded-lg">
+            <div className="mb-3 bg-blue-50 p-2 rounded-lg">
               <AntInput
                 ref={barcodeInputRef}
                 placeholder="Отсканируйте штрих-код"
                 onPressEnter={(e) => {
-                  handleBarcodeScan(e.currentTarget.value);
+                  const scannedItem = handleBarcodeScan(e.currentTarget.value);
+                  if (scannedItem) {
+                    const product = filteredProducts.find(
+                      (p) => p.id.toString() === scannedItem.productId
+                    );
+                    if (product) {
+                      handleAddProduct(product);
+                      message.success(
+                        `Товар "${product.name}" добавлен по штрих-коду`
+                      );
+                    }
+                  } else {
+                    message.error('Товар не найден по штрих-коду');
+                  }
                   e.currentTarget.value = '';
                 }}
                 prefix={<BarcodeOutlined className="text-blue-500" />}
@@ -679,40 +935,48 @@ export function PurchaseForm({
             </div>
           )}
 
-          <div className="mb-4 bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium mb-3 text-blue-600">
+          <div className="mb-3 bg-gray-50 p-3 rounded-lg">
+            <h3 className="text-base font-medium mb-2 text-blue-600">
               Добавление товаров
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               <Form.Item name="productId" noStyle>
                 <Select
                   placeholder="Поиск товара по названию или артикулу"
-                  style={{ width: 350 }}
+                  style={{ width: 300 }}
                   showSearch
                   onSearch={setSearchValue}
                   filterOption={false}
-                  options={products?.map((product) => ({
+                  options={filteredProducts?.map((product) => ({
                     label: `${product.name} (${
                       product.sku || product.barcode || 'Нет кода'
                     })`,
                     value: product.id,
                   }))}
+                  onChange={(value) => setSearchValue(value)}
                 />
               </Form.Item>
-              {searchValue && (
-                <Button
-                  onClick={() =>
-                    handleAddProduct(
-                      products.find((p) => p.id === searchValue) as Product
-                    )
+              <Button
+                onClick={() => {
+                  const selectedProduct = filteredProducts.find(
+                    (p) => p.id === searchValue
+                  );
+                  if (selectedProduct) {
+                    handleAddProduct(selectedProduct);
+                    message.success(
+                      `Товар "${selectedProduct.name}" добавлен в приход`
+                    );
+                  } else {
+                    message.error('Выберите товар из списка');
                   }
-                  type="primary"
-                  className="bg-blue-500"
-                  icon={<PlusOutlined />}
-                >
-                  Добавить
-                </Button>
-              )}
+                }}
+                type="primary"
+                className="bg-blue-500"
+                icon={<PlusOutlined />}
+                disabled={!searchValue}
+              >
+                Добавить
+              </Button>
               <Upload beforeUpload={handleExcelUpload} showUploadList={false}>
                 <Button
                   icon={<UploadOutlined />}
@@ -721,30 +985,74 @@ export function PurchaseForm({
                   Загрузить из Excel
                 </Button>
               </Upload>
+
+              {items.length > 0 && (
+                <div className="ml-auto">
+                  <span className="text-gray-500 mr-2">
+                    Всего товаров:{' '}
+                    <strong>
+                      {items.reduce((sum, item) => sum + item.quantity, 0)}
+                    </strong>
+                  </span>
+                  <span className="text-gray-500">
+                    На сумму:{' '}
+                    <strong>
+                      {(() => {
+                        const total = items.reduce((sum, item) => {
+                          // Проверяем, что item.total является числом
+                          const itemTotal =
+                            typeof item.total === 'number' ? item.total : 0;
+                          return sum + itemTotal;
+                        }, 0);
+                        return typeof total === 'number'
+                          ? total.toFixed(2)
+                          : '0.00';
+                      })()}{' '}
+                      KZT
+                    </strong>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg mb-4">
+          <div className="bg-white border border-gray-200 rounded-lg mb-3">
             <Table
               columns={columns}
               dataSource={items}
-              rowKey="productId"
+              rowKey={(record) => record.id || record.productId}
               pagination={false}
               size="small"
               scroll={{ y: 300 }}
-              locale={{ emptyText: 'Добавьте товары для прихода' }}
+              locale={{
+                emptyText: (
+                  <div className="py-6 text-center">
+                    <InboxOutlined
+                      style={{ fontSize: 40 }}
+                      className="text-gray-300 mb-2"
+                    />
+                    <p className="text-gray-500 mb-1">Товары не добавлены</p>
+                    <p className="text-gray-400 text-sm">
+                      Используйте поле поиска выше для добавления товаров или
+                      загрузите из Excel
+                    </p>
+                  </div>
+                ),
+              }}
             />
           </div>
 
-          <div className="mt-4 flex justify-between items-center bg-gray-50 p-4 rounded-lg">
-            <Space size="large">
+          <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+            <Space size="middle">
               <div className="flex items-center gap-2">
                 <Form.Item name="updatePrices" valuePropName="checked" noStyle>
                   <Tooltip title={tooltips.updatePrices}>
                     <Switch className="bg-gray-300" />
                   </Tooltip>
                 </Form.Item>
-                <span className="font-medium">Обновить цены продажи</span>
+                <span className="font-medium text-sm">
+                  Обновить цены продажи
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -753,7 +1061,7 @@ export function PurchaseForm({
                     <Switch className="bg-gray-300" />
                   </Tooltip>
                 </Form.Item>
-                <span className="font-medium">Создать этикетки</span>
+                <span className="font-medium text-sm">Создать этикетки</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -766,7 +1074,7 @@ export function PurchaseForm({
                     <Switch className="bg-gray-300" />
                   </Tooltip>
                 </Form.Item>
-                <span className="font-medium">Проверять дубли</span>
+                <span className="font-medium text-sm">Проверять дубли</span>
               </div>
             </Space>
 

@@ -17,9 +17,10 @@ import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
 
 interface GenerateLabelsRequest {
-  templateId: number;
+  shopId: string;
+  templateId: string;
   products: Array<{
-    productId: number;
+    productId: string;
     quantity: number;
   }>;
 }
@@ -332,102 +333,265 @@ export const deletePromotion = async (id: string): Promise<void> => {
 
 // Методы для работы с поставщиками
 export const getSuppliers = async (shopId: string): Promise<Supplier[]> => {
-  const response = await api.get(`/manager/suppliers/shop/${shopId}`);
-  return response.data;
+  try {
+    console.log(`Fetching suppliers for shop ${shopId}`);
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers/shop/${shopId}`;
+    console.log(`Request URL: ${url}`);
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
-export const createSupplier = async (data: any): Promise<Supplier> => {
-  const response = await api.post('/manager/suppliers', data);
-  return response.data;
+export const createSupplier = async (
+  data: any,
+  shopId?: string
+): Promise<Supplier> => {
+  try {
+    console.log(`Creating supplier in shop ${shopId}`);
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers`;
+    console.log(`Request URL: ${url}`);
+    const response = await api.post(url, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const updateSupplier = async (
   id: string,
-  data: Partial<Supplier>
+  data: Partial<Supplier>,
+  shopId?: string
 ): Promise<Supplier> => {
-  const response = await api.patch(`/manager/suppliers/${id}`, data);
-  return response.data;
+  try {
+    console.log(`Updating supplier ${id} in shop ${shopId}`);
+    // Используем формат URL, соответствующий бэкенду
+    const url = shopId
+      ? `/manager/suppliers/shop/${shopId}/supplier/${id}`
+      : `/manager/suppliers/${id}`;
+    console.log(`Request URL: ${url}`);
+    const response = await api.patch(url, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
-export const deleteSupplier = async (id: string): Promise<void> => {
-  await api.delete(`/manager/suppliers/${id}`);
+export const deleteSupplier = async (
+  id: string,
+  shopId: string
+): Promise<void> => {
+  try {
+    console.log(`Deleting supplier ${id} from shop ${shopId}`);
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers/shop/${shopId}/supplier/${id}`;
+    console.log(`Request URL: ${url}`);
+    await api.delete(url);
+  } catch (error) {
+    console.error('Error deleting supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
-export const getSupplierById = async (id: string): Promise<Supplier> => {
-  const response = await api.get(`/manager/suppliers/${id}`);
-  return response.data;
+export const getSupplierById = async (
+  id: string,
+  shopId: string
+): Promise<Supplier> => {
+  try {
+    console.log(`Fetching supplier with id ${id} for shop ${shopId}`);
+    // Используем формат URL, соответствующий бэкенду
+    const response = await api.get(
+      `/manager/suppliers/shop/${shopId}/supplier/${id}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getSupplierProducts = async (
-  supplierId: string
+  supplierId: string,
+  shopId?: string
 ): Promise<Product[]> => {
-  const response = await api.get(`/manager/suppliers/${supplierId}/products`);
-  return response.data;
+  try {
+    console.log(
+      `Fetching products for supplier ${supplierId} in shop ${shopId}`
+    );
+
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers/${supplierId}/products?shopId=${shopId}`;
+
+    console.log(`Request URL: ${url}`);
+    const response = await api.get(url);
+
+    // Обрабатываем данные, чтобы убедиться, что цены - это числа
+    const products = response.data.map((product: any) => {
+      if (product.price !== undefined) {
+        // Преобразуем цену в число, если она не является числом
+        const price =
+          typeof product.price === 'string'
+            ? parseFloat(product.price)
+            : typeof product.price === 'number'
+            ? product.price
+            : 0;
+
+        return {
+          ...product,
+          price,
+        };
+      }
+      return product;
+    });
+
+    console.log('Processed products:', products);
+
+    return products;
+  } catch (error) {
+    console.error('Error fetching supplier products:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const addProductToSupplier = async (
   supplierId: string,
   productId: string,
-  data: { price: number; minimumOrder?: number }
+  data: { price: number; minimumOrder?: number },
+  shopId?: string
 ): Promise<void> => {
-  await api.post(
-    `/manager/suppliers/${supplierId}/products/${productId}`,
-    data
-  );
+  try {
+    console.log(
+      `Adding product ${productId} to supplier ${supplierId} in shop ${shopId}`
+    );
+
+    // Убедимся, что цена - это число
+    const processedData = {
+      ...data,
+      price:
+        typeof data.price === 'string' ? parseFloat(data.price) : data.price,
+    };
+
+    console.log('Processed data:', processedData);
+    console.log('Price type:', typeof processedData.price);
+
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers/${supplierId}/products/${productId}?shopId=${shopId}`;
+
+    console.log(`Request URL: ${url}`);
+    await api.post(url, processedData);
+  } catch (error) {
+    console.error('Error adding product to supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const removeProductFromSupplier = async (
   supplierId: string,
-  productId: string
+  productId: string,
+  shopId?: string
 ): Promise<void> => {
-  await api.delete(`/manager/suppliers/${supplierId}/products/${productId}`);
+  try {
+    console.log(
+      `Removing product ${productId} from supplier ${supplierId} in shop ${shopId}`
+    );
+
+    // Используем формат URL, соответствующий бэкенду
+    const url = `/manager/suppliers/${supplierId}/products/${productId}?shopId=${shopId}`;
+
+    console.log(`Request URL: ${url}`);
+    await api.delete(url);
+  } catch (error) {
+    console.error('Error removing product from supplier:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 // Методы для работы с этикетками
 export const getLabelTemplates = async (
   shopId: string
 ): Promise<LabelTemplate[]> => {
-  const response = await api.get(`/manager/labels/templates?shopId=${shopId}`);
-  return response.data;
+  try {
+    const response = await api.get(
+      `/manager/labels/templates?shopId=${shopId}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error getting label templates:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const createLabelTemplate = async (
   data: Omit<LabelTemplate, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<LabelTemplate> => {
-  const response = await api.post('/manager/labels/templates', data);
-  return response.data;
+  try {
+    const response = await api.post('/manager/labels/templates', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating label template:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const updateLabelTemplate = async (
   id: string,
   data: Partial<LabelTemplate>
 ): Promise<LabelTemplate> => {
-  const response = await api.patch(`/manager/labels/templates/${id}`, data);
-  return response.data;
+  try {
+    const response = await api.patch(`/manager/labels/templates/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating label template:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const deleteLabelTemplate = async (id: string): Promise<void> => {
-  await api.delete(`/manager/labels/templates/${id}`);
+  try {
+    await api.delete(`/manager/labels/templates/${id}`);
+  } catch (error) {
+    console.error('Error deleting label template:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const generateLabels = async (
   data: GenerateLabelsRequest
 ): Promise<Blob> => {
-  const response = await api.post('/manager/labels/generate', data, {
-    responseType: 'blob',
-  });
-  return response.data;
+  try {
+    const response = await api.post('/manager/labels/generate', data, {
+      responseType: 'blob',
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error generating labels:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const previewLabel = async (
   templateId: string,
   productId: string
 ): Promise<Blob> => {
-  const response = await api.get(
-    `/manager/labels/preview/${templateId}/${productId}`,
-    { responseType: 'blob' }
-  );
-  return response.data;
+  try {
+    // Получаем shopId из URL
+    const shopId = window.location.pathname.split('/')[2];
+
+    const response = await api.get(
+      `/manager/labels/preview?shopId=${shopId}&templateId=${templateId}&productId=${productId}`,
+      { responseType: 'blob' }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error previewing label:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 // Методы для работы с историей цен
@@ -519,38 +683,17 @@ export interface PurchaseResponse {
   comment?: string;
 }
 
-export const fetchProducts = async (shopId: string): Promise<Product[]> => {
-  const response = await fetch(`/api/shops/${shopId}/products`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch products');
-  }
-  return response.json();
-};
-
-export const fetchSuppliers = async (): Promise<Supplier[]> => {
-  const response = await fetch('/api/suppliers');
-  if (!response.ok) {
-    throw new Error('Failed to fetch suppliers');
-  }
-  return response.json();
-};
-
 export const createPurchase = async (
   data: CreatePurchaseRequest
 ): Promise<PurchaseResponse> => {
-  const response = await fetch('/api/purchases', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to create purchase');
+  try {
+    console.log('Creating purchase with data:', data);
+    const response = await api.post('/manager/inventory/purchases', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating purchase:', error);
+    throw ApiErrorHandler.handle(error);
   }
-
-  return response.json();
 };
 
 export const getPurchaseById = async (id: string): Promise<Purchase> => {
@@ -560,7 +703,7 @@ export const getPurchaseById = async (id: string): Promise<Purchase> => {
 
 export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
   try {
-    const response = await axios.get(`/manager/shops/${shopId}/purchases`);
+    const response = await api.get(`/manager/inventory/purchases/${shopId}`);
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);

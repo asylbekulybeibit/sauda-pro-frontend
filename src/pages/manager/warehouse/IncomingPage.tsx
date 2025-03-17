@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Button,
@@ -47,15 +47,43 @@ function IncomingPage() {
   const [minAmount, setMinAmount] = useState<number | null>(null);
   const [maxAmount, setMaxAmount] = useState<number | null>(null);
 
-  const { data: purchases = [], isLoading } = useQuery<Purchase[]>({
+  const {
+    data: purchases = [],
+    isLoading,
+    refetch,
+  } = useQuery<Purchase[]>({
     queryKey: ['purchases', shopId],
     queryFn: async () => {
-      const response = await getPurchases(shopId!);
-      console.log('API Response:', response);
-      return Array.isArray(response) ? response : [];
+      console.log('Fetching purchases for shopId:', shopId);
+      try {
+        const response = await getPurchases(shopId!);
+        console.log('API Response:', response);
+        console.log('API Response type:', typeof response);
+        console.log('API Response is array:', Array.isArray(response));
+        if (Array.isArray(response)) {
+          console.log('API Response length:', response.length);
+          if (response.length > 0) {
+            console.log('First item:', response[0]);
+          }
+        }
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error('Error fetching purchases:', error);
+        return [];
+      }
     },
     enabled: !!shopId,
   });
+
+  // Логируем состояние purchases после загрузки
+  useEffect(() => {
+    console.log('Purchases state:', purchases);
+    console.log('Purchases state type:', typeof purchases);
+    console.log('Purchases state is array:', Array.isArray(purchases));
+    if (Array.isArray(purchases)) {
+      console.log('Purchases state length:', purchases.length);
+    }
+  }, [purchases]);
 
   // Получаем уникальный список поставщиков
   const suppliers = useMemo(() => {
@@ -164,8 +192,21 @@ function IncomingPage() {
       title: 'Товаров',
       dataIndex: 'items',
       key: 'items',
-      render: (items: any[]) => items.length,
-      sorter: (a, b) => a.items.length - b.items.length,
+      render: (items: any[]) => {
+        // Суммируем количество всех товаров
+        return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      },
+      sorter: (a, b) => {
+        const totalA = a.items.reduce(
+          (sum, item) => sum + (item.quantity || 0),
+          0
+        );
+        const totalB = b.items.reduce(
+          (sum, item) => sum + (item.quantity || 0),
+          0
+        );
+        return totalA - totalB;
+      },
     },
     {
       title: 'Действия',
@@ -272,10 +313,12 @@ function IncomingPage() {
           >
             Новый приход
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={handleExportToExcel}
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExportToExcel}
             className="bg-blue-500"
             type="primary"
-            >
+          >
             Экспорт в Excel
           </Button>
           <Button
@@ -369,14 +412,25 @@ function IncomingPage() {
       />
 
       {showForm && (
-        <PurchaseForm
-          shopId={shopId!}
-          onClose={() => setShowForm(false)}
-          onSuccess={() => {
-            setShowForm(false);
-            message.success('Приход успешно создан');
-          }}
-        />
+        <Modal
+          open={showForm}
+          onCancel={() => setShowForm(false)}
+          footer={null}
+          width="90%"
+          style={{ top: 20 }}
+          bodyStyle={{ padding: 0 }}
+          destroyOnClose
+        >
+          <PurchaseForm
+            shopId={shopId!}
+            onClose={() => setShowForm(false)}
+            onSuccess={() => {
+              setShowForm(false);
+              message.success('Приход успешно создан');
+              refetch();
+            }}
+          />
+        </Modal>
       )}
     </div>
   );

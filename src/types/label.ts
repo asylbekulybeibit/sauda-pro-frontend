@@ -28,23 +28,26 @@ export interface LabelElement {
 }
 
 export interface LabelTemplate {
-  id: number;
+  id: string;
   name: string;
   type: LabelType;
   size: LabelSize;
-  width: number;
-  height: number;
-  elements: LabelElement[];
+  template: {
+    width: number;
+    height: number;
+    elements: LabelElement[];
+  };
   isActive: boolean;
-  shopId: number;
+  shopId: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface GenerateLabelsRequest {
-  templateId: number;
+  shopId: string;
+  templateId: string;
   products: {
-    productId: number;
+    productId: string;
     quantity: number;
   }[];
 }

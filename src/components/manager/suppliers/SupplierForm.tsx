@@ -21,17 +21,24 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
   const onFinish = async (values: any) => {
     try {
       if (isEdit && initialData) {
-        await updateSupplier(initialData.id, {
-          ...values,
-          shopId,
-        });
+        await updateSupplier(
+          initialData.id,
+          {
+            ...values,
+            shopId,
+          },
+          shopId
+        );
         message.success('Поставщик успешно обновлен');
       } else {
-        await createSupplier({
-          ...values,
-          shopId,
-          isActive: true,
-        });
+        await createSupplier(
+          {
+            ...values,
+            shopId,
+            isActive: true,
+          },
+          shopId
+        );
         message.success('Поставщик успешно создан');
       }
       onSuccess();
@@ -56,21 +63,14 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
         <Input />
       </Form.Item>
 
-      <Form.Item
-        name="contactPerson"
-        label="Контактное лицо"
-        rules={[{ required: true, message: 'Введите контактное лицо' }]}
-      >
+      <Form.Item name="contactPerson" label="Контактное лицо">
         <Input />
       </Form.Item>
 
       <Form.Item
         name="email"
         label="Email"
-        rules={[
-          { required: true, message: 'Введите email' },
-          { type: 'email', message: 'Введите корректный email' },
-        ]}
+        rules={[{ type: 'email', message: 'Введите корректный email' }]}
       >
         <Input />
       </Form.Item>
@@ -94,7 +94,7 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
       )}
 
       <Form.Item>
-        <Button type="primary" htmlType="submit">
+        <Button type="primary" htmlType="submit" className="bg-blue-500">
           {isEdit ? 'Сохранить' : 'Создать'}
         </Button>
       </Form.Item>

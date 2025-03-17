@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getSuppliers, deleteSupplier } from '@/services/managerApi';
 import { Supplier } from '@/types/supplier';
 import { Button, Table, Modal, message } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ApiErrorHandler } from '@/utils/error-handler';
 
 interface SupplierListProps {
@@ -19,7 +19,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   );
   const navigate = useNavigate();
 
-  const fetchSuppliers = async () => {
+  const fetchSuppliers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getSuppliers(shopId);
@@ -30,11 +30,11 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [shopId]);
 
   useEffect(() => {
     fetchSuppliers();
-  }, [shopId]);
+  }, [fetchSuppliers]);
 
   const handleDelete = async (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -45,7 +45,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
     if (!selectedSupplier) return;
 
     try {
-      await deleteSupplier(selectedSupplier.id);
+      await deleteSupplier(selectedSupplier.id, shopId);
       message.success('Поставщик успешно удален');
       fetchSuppliers();
     } catch (error) {
@@ -95,11 +95,15 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button
             icon={<EyeOutlined />}
-            onClick={() => navigate(`/manager/suppliers/${supplier.id}`)}
+            onClick={() =>
+              navigate(`/manager/${shopId}/suppliers/${supplier.id}`)
+            }
           />
           <Button
             icon={<EditOutlined />}
-            onClick={() => navigate(`/manager/suppliers/${supplier.id}/edit`)}
+            onClick={() =>
+              navigate(`/manager/${shopId}/suppliers/${supplier.id}/edit`)
+            }
           />
           <Button
             icon={<DeleteOutlined />}
@@ -120,10 +124,10 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
           justifyContent: 'space-between',
         }}
       >
-        <h2>Поставщики</h2>
         <Button
           type="primary"
-          onClick={() => navigate('/manager/suppliers/new')}
+          onClick={() => navigate(`/manager/${shopId}/suppliers/new`)}
+          className="bg-blue-500"
         >
           Добавить поставщика
         </Button>
@@ -146,6 +150,8 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
         }}
         okText="Удалить"
         cancelText="Отмена"
+        okButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
+        cancelButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
       >
         <p>
           Вы уверены, что хотите удалить поставщика{' '}

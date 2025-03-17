@@ -11,6 +11,7 @@ import {
   ChevronRightIcon,
   UserPlusIcon,
   ArchiveBoxIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 import { Disclosure } from '@headlessui/react';
 
@@ -100,6 +101,12 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
           href: `/manager/${shopId}/warehouse/reports`,
         },
       ],
+    },
+    {
+      name: 'Поставщики',
+      href: `/manager/${shopId}/suppliers`,
+      icon: TruckIcon,
+      color: 'bg-teal-100 text-teal-600',
     },
     {
       name: 'Сотрудники',

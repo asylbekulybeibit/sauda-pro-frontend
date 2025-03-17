@@ -87,6 +87,15 @@ const InventoryPage = React.lazy(
 const CashRegistersPage = React.lazy(
   () => import('./pages/manager/cash-registers/cash-registers')
 );
+const SuppliersPage = React.lazy(
+  () => import('./pages/manager/suppliers/SuppliersPage')
+);
+const SupplierDetailsPage = React.lazy(
+  () => import('./pages/manager/suppliers/SupplierDetailsPage')
+);
+const SupplierFormPage = React.lazy(
+  () => import('./pages/manager/suppliers/SupplierFormPage')
+);
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -267,6 +276,12 @@ export default function App() {
                       element={<ProductDetailsPage />}
                     />
                     <Route path="reports" element={<WarehouseReportsPage />} />
+                  </Route>
+                  <Route path="suppliers">
+                    <Route index element={<SuppliersPage />} />
+                    <Route path=":id" element={<SupplierDetailsPage />} />
+                    <Route path=":id/edit" element={<SupplierFormPage />} />
+                    <Route path="new" element={<SupplierFormPage />} />
                   </Route>
                 </Route>
               </Route>

@@ -28,9 +28,9 @@ export function LabelTemplateForm({
     name: template?.name || '',
     type: template?.type || LabelType.PRICE_TAG,
     size: template?.size || LabelSize.SMALL,
-    width: template?.width || 58,
-    height: template?.height || 40,
-    elements: template?.elements || [],
+    width: template?.template?.width || 58,
+    height: template?.template?.height || 40,
+    elements: template?.template?.elements || [],
     isActive: template?.isActive ?? true,
   });
 
@@ -53,18 +53,50 @@ export function LabelTemplateForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      ...formData,
-      shopId: parseInt(shopId!),
-    };
+    try {
+      // Проверяем, что все поля заполнены корректно
+      if (!formData.name.trim()) {
+        throw new Error('Название шаблона не может быть пустым');
+      }
 
-    if (template) {
-      await updateMutation.mutateAsync({
-        id: template.id.toString(),
-        data,
-      });
-    } else {
-      await createMutation.mutateAsync(data);
+      // Создаем структуру данных для отправки на сервер
+      const data = {
+        name: formData.name,
+        type: formData.type,
+        size: formData.size,
+        template: {
+          width: formData.width,
+          height: formData.height,
+          elements: formData.elements.map((element) => ({
+            type: element.type,
+            x: Number(element.x) || 0,
+            y: Number(element.y) || 0,
+            value: element.value || '',
+            style: element.style || {},
+          })),
+        },
+        isActive: formData.isActive,
+        shopId: shopId!,
+      };
+
+      console.log('Отправляемые данные:', data);
+
+      if (template) {
+        await updateMutation.mutateAsync({
+          id: template.id.toString(),
+          data,
+        });
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+    } catch (error) {
+      console.error('Error submitting template:', error);
+      // Показываем ошибку пользователю
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Произошла ошибка при сохранении шаблона'
+      );
     }
   };
 

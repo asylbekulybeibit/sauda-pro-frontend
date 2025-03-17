@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Card, Descriptions, Button, Spin, message, Tabs } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Supplier } from '@/types/supplier';
 import { getSupplierById } from '@/services/managerApi';
 import { ApiErrorHandler } from '@/utils/error-handler';
@@ -17,27 +17,35 @@ export const SupplierDetails: React.FC<SupplierDetailsProps> = ({
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { shopId } = useParams<{ shopId: string }>();
 
-  const fetchSupplier = async () => {
+  const fetchSupplier = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getSupplierById(supplierId);
+      const data = await getSupplierById(supplierId, shopId || '');
       setSupplier(data);
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
-      message.error(apiError.message);
+      if (ApiErrorHandler.isNotFoundError(apiError)) {
+        message.error('Поставщик не найден');
+        navigate(`/manager/${shopId}/suppliers`);
+      } else {
+        message.error(apiError.message);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [supplierId, shopId, navigate]);
 
   useEffect(() => {
-    fetchSupplier();
-  }, [supplierId]);
+    if (shopId) {
+      fetchSupplier();
+    }
+  }, [shopId, fetchSupplier]);
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
+      <div className="flex justify-center items-center h-64">
         <Spin size="large" />
       </div>
     );
@@ -57,7 +65,9 @@ export const SupplierDetails: React.FC<SupplierDetailsProps> = ({
           extra={
             <Button
               icon={<EditOutlined />}
-              onClick={() => navigate(`/manager/suppliers/${supplierId}/edit`)}
+              onClick={() =>
+                navigate(`/manager/${shopId}/suppliers/${supplierId}/edit`)
+              }
             >
               Редактировать
             </Button>

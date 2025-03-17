@@ -33,14 +33,34 @@ export function LabelGenerator({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data = {
-      templateId: template.id,
-      products: selectedProducts.map((productId) => ({
-        productId: parseInt(productId),
-        quantity: copies[productId] || 1,
-      })),
-    };
-    await generateMutation.mutateAsync(data);
+    try {
+      // Проверяем, что выбран хотя бы один товар
+      if (selectedProducts.length === 0) {
+        throw new Error('Выберите хотя бы один товар');
+      }
+
+      // Получаем shopId из URL или из контекста
+      const shopId = window.location.pathname.split('/')[2];
+
+      const data = {
+        shopId,
+        templateId: template.id.toString(),
+        products: selectedProducts.map((productId) => ({
+          productId,
+          quantity: Math.max(1, copies[productId] || 1),
+        })),
+      };
+
+      console.log('Sending data:', data);
+      await generateMutation.mutateAsync(data);
+    } catch (error) {
+      console.error('Error generating labels:', error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Произошла ошибка при генерации этикеток'
+      );
+    }
   };
 
   const toggleProduct = (productId: string) => {
