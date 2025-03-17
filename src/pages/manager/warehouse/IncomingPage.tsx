@@ -272,20 +272,24 @@ function IncomingPage() {
           >
             Новый приход
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={handleExportToExcel}>
+          <Button icon={<DownloadOutlined />} onClick={handleExportToExcel}
+            className="bg-blue-500"
+            type="primary"
+            >
             Экспорт в Excel
           </Button>
           <Button
             icon={<FilterOutlined />}
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            type={showAdvancedFilters ? 'primary' : 'default'}
+            className="bg-blue-500"
+            type="primary"
           >
             Фильтры
           </Button>
         </Space>
       </div>
 
-      <Card className="mb-6">
+      <Card>
         <Space direction="vertical" className="w-full">
           <Input.Search
             placeholder="Поиск по номеру накладной или поставщику"

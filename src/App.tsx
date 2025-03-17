@@ -159,8 +159,16 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ShopProvider>
-        <Router>
-          <Suspense fallback={<LoadingFallback />}>
+        <Router
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
+          <Suspense
+            fallback={
+              <div className="flex justify-center items-center h-screen">
+                <Spin size="large" />
+              </div>
+            }
+          >
             <Routes>
               {/* Публичные маршруты */}
               <Route

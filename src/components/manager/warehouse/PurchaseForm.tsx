@@ -126,14 +126,6 @@ export function PurchaseForm({
     queryFn: fetchSuppliers,
   });
 
-  const { data: purchases = [] } = useQuery<Purchase[]>({
-    queryKey: ['purchases', shopId],
-    queryFn: async () => {
-      const response = await getPurchaseById(shopId);
-      return Array.isArray(response) ? response : [response];
-    },
-  });
-
   // Mutations
   const createPurchaseMutation = useMutation({
     mutationFn: createPurchase,
@@ -442,33 +434,6 @@ export function PurchaseForm({
     }
   };
 
-  const handleCopy = async (purchaseId: string) => {
-    try {
-      const purchase = await getPurchaseById(purchaseId);
-      if (!purchase) return;
-
-      setItems(
-        purchase.items.map((item) => ({
-          productId: item.productId.toString(),
-          quantity: item.quantity,
-          price: item.price,
-          total: item.total,
-          needsLabels: false,
-        }))
-      );
-
-      form.setFieldsValue({
-        supplierId: purchase.supplier.id.toString(),
-        invoiceNumber: '',
-        date: dayjs(),
-        comment: purchase.comment,
-      });
-    } catch (error) {
-      console.error('Error copying purchase:', error);
-      message.error('Ошибка при копировании закупки');
-    }
-  };
-
   // Подсказки для полей
   const tooltips = {
     invoiceNumber: 'Введите номер накладной поставщика',
@@ -626,53 +591,30 @@ export function PurchaseForm({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Приход товара</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-7xl shadow-xl">
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-blue-600">Приход товара</h2>
           <Space>
             <Tooltip title="Сканировать штрих-код">
               <Button
                 icon={<BarcodeOutlined />}
                 onClick={() => setIsScanning(!isScanning)}
                 type={isScanning ? 'primary' : 'default'}
+                className={isScanning ? 'bg-blue-500' : ''}
               />
             </Tooltip>
             <Tooltip title="Предпросмотр и печать">
               <Button icon={<PrinterOutlined />} onClick={handlePrint} />
             </Tooltip>
-            <Tooltip title="Копировать существующий приход">
-              <Button
-                icon={<CopyOutlined />}
-                onClick={() => {
-                  Modal.confirm({
-                    title: 'Копировать существующий приход',
-                    content: (
-                      <Select
-                        placeholder="Выберите приход для копирования"
-                        style={{ width: '100%' }}
-                        onChange={(value) => handleCopy(value)}
-                        options={purchases?.map((p) => ({
-                          label: `${p.invoiceNumber} (${formatDate(p.date)})`,
-                          value: p.id,
-                        }))}
-                      />
-                    ),
-                    okText: 'Копировать',
-                    cancelText: 'Отмена',
-                    onOk: () => {},
-                  });
-                }}
-              />
-            </Tooltip>
           </Space>
         </div>
 
         <Form form={form} layout="vertical">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
             <Form.Item
               name="supplierId"
-              label="Поставщик"
+              label={<span className="font-medium">Поставщик</span>}
               rules={[{ required: true, message: 'Выберите поставщика' }]}
               tooltip={tooltips.supplier}
             >
@@ -682,35 +624,48 @@ export function PurchaseForm({
                   label: s.name,
                   value: s.id,
                 }))}
+                className="w-full"
+                showSearch
+                optionFilterProp="label"
               />
             </Form.Item>
 
             <Form.Item
               name="invoiceNumber"
-              label="Номер накладной"
+              label={<span className="font-medium">Номер накладной</span>}
               rules={[{ required: true, message: 'Введите номер накладной' }]}
               tooltip={tooltips.invoiceNumber}
             >
-              <AntInput />
+              <AntInput placeholder="Введите номер накладной" />
             </Form.Item>
 
             <Form.Item
               name="date"
-              label="Дата"
+              label={<span className="font-medium">Дата</span>}
               initialValue={dayjs()}
               rules={[{ required: true, message: 'Укажите дату' }]}
               tooltip={tooltips.date}
             >
-              <DatePicker className="w-full" />
+              <DatePicker
+                className="w-full"
+                format="DD.MM.YYYY"
+                placeholder="Выберите дату"
+              />
             </Form.Item>
 
-            <Form.Item name="comment" label="Комментарий">
-              <AntInput.TextArea rows={1} />
+            <Form.Item
+              name="comment"
+              label={<span className="font-medium">Комментарий</span>}
+            >
+              <AntInput.TextArea
+                rows={1}
+                placeholder="Введите комментарий (необязательно)"
+              />
             </Form.Item>
           </div>
 
           {isScanning && (
-            <div className="mb-4">
+            <div className="mb-4 bg-blue-50 p-3 rounded-lg">
               <AntInput
                 ref={barcodeInputRef}
                 placeholder="Отсканируйте штрих-код"
@@ -718,16 +673,21 @@ export function PurchaseForm({
                   handleBarcodeScan(e.currentTarget.value);
                   e.currentTarget.value = '';
                 }}
+                prefix={<BarcodeOutlined className="text-blue-500" />}
+                className="text-lg"
               />
             </div>
           )}
 
-          <div className="mb-4">
-            <Space>
+          <div className="mb-4 bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-3 text-blue-600">
+              Добавление товаров
+            </h3>
+            <div className="flex flex-wrap gap-2">
               <Form.Item name="productId" noStyle>
                 <Select
-                  placeholder="Поиск товара"
-                  style={{ width: 300 }}
+                  placeholder="Поиск товара по названию или артикулу"
+                  style={{ width: 350 }}
                   showSearch
                   onSearch={setSearchValue}
                   filterOption={false}
@@ -746,45 +706,68 @@ export function PurchaseForm({
                       products.find((p) => p.id === searchValue) as Product
                     )
                   }
+                  type="primary"
+                  className="bg-blue-500"
+                  icon={<PlusOutlined />}
                 >
                   Добавить
                 </Button>
               )}
               <Upload beforeUpload={handleExcelUpload} showUploadList={false}>
-                <Button icon={<UploadOutlined />}>Загрузить из Excel</Button>
+                <Button
+                  icon={<UploadOutlined />}
+                  className="bg-green-50 text-green-700 border-green-500"
+                >
+                  Загрузить из Excel
+                </Button>
               </Upload>
-            </Space>
+            </div>
           </div>
 
-          <Table
-            columns={columns}
-            dataSource={items}
-            rowKey="productId"
-            pagination={false}
-          />
+          <div className="bg-white border border-gray-200 rounded-lg mb-4">
+            <Table
+              columns={columns}
+              dataSource={items}
+              rowKey="productId"
+              pagination={false}
+              size="small"
+              scroll={{ y: 300 }}
+              locale={{ emptyText: 'Добавьте товары для прихода' }}
+            />
+          </div>
 
-          <div className="mt-4 flex justify-between items-center">
-            <Space>
-              <Form.Item name="updatePrices" valuePropName="checked" noStyle>
-                <Tooltip title={tooltips.updatePrices}>
-                  <Switch />
-                </Tooltip>
-              </Form.Item>
-              <span>Обновить цены продажи</span>
+          <div className="mt-4 flex justify-between items-center bg-gray-50 p-4 rounded-lg">
+            <Space size="large">
+              <div className="flex items-center gap-2">
+                <Form.Item name="updatePrices" valuePropName="checked" noStyle>
+                  <Tooltip title={tooltips.updatePrices}>
+                    <Switch className="bg-gray-300" />
+                  </Tooltip>
+                </Form.Item>
+                <span className="font-medium">Обновить цены продажи</span>
+              </div>
 
-              <Form.Item name="createLabels" valuePropName="checked" noStyle>
-                <Tooltip title={tooltips.createLabels}>
-                  <Switch />
-                </Tooltip>
-              </Form.Item>
-              <span>Создать этикетки</span>
+              <div className="flex items-center gap-2">
+                <Form.Item name="createLabels" valuePropName="checked" noStyle>
+                  <Tooltip title={tooltips.createLabels}>
+                    <Switch className="bg-gray-300" />
+                  </Tooltip>
+                </Form.Item>
+                <span className="font-medium">Создать этикетки</span>
+              </div>
 
-              <Form.Item name="checkDuplicates" valuePropName="checked" noStyle>
-                <Tooltip title={tooltips.checkDuplicates}>
-                  <Switch />
-                </Tooltip>
-              </Form.Item>
-              <span>Проверять дубли</span>
+              <div className="flex items-center gap-2">
+                <Form.Item
+                  name="checkDuplicates"
+                  valuePropName="checked"
+                  noStyle
+                >
+                  <Tooltip title={tooltips.checkDuplicates}>
+                    <Switch className="bg-gray-300" />
+                  </Tooltip>
+                </Form.Item>
+                <span className="font-medium">Проверять дубли</span>
+              </div>
             </Space>
 
             <Space>
@@ -793,8 +776,7 @@ export function PurchaseForm({
                 type="primary"
                 onClick={handleSubmit}
                 loading={createPurchaseMutation.isPending}
-            className="bg-blue-500"
-
+                className="bg-blue-500"
               >
                 Сохранить
               </Button>
