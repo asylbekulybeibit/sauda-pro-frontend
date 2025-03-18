@@ -798,6 +798,16 @@ export const previewLabel = async (
   }
 };
 
+export const getDefaultLabelTemplates = async (): Promise<LabelTemplate[]> => {
+  try {
+    const response = await api.get('/manager/labels/default-templates');
+    return response.data;
+  } catch (error) {
+    console.error('Error getting default label templates:', error);
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
 // Методы для работы с историей цен
 export const getPriceHistory = async (
   productId: string,
