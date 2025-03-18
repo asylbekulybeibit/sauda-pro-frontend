@@ -509,8 +509,30 @@ export const updatePromotion = async (
   }
 };
 
-export const deletePromotion = async (id: string): Promise<void> => {
-  await api.delete(`/manager/promotions/${id}`);
+export const deletePromotion = async (
+  id: string,
+  shopId?: string
+): Promise<void> => {
+  try {
+    if (!shopId) {
+      // Получаем shopId из URL
+      const urlParams = new URLSearchParams(window.location.pathname);
+      const match = window.location.pathname.match(
+        /\/manager\/([^\/]+)\/promotions/
+      );
+      if (match && match[1]) {
+        shopId = match[1];
+      } else {
+        throw new Error('ShopId is required for deleting a promotion');
+      }
+    }
+
+    console.log(`Deleting promotion: id=${id}, shopId=${shopId}`);
+    await api.delete(`/manager/promotions/shop/${shopId}/promotion/${id}`);
+  } catch (error) {
+    console.error('Error deleting promotion:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 // Методы для работы с поставщиками

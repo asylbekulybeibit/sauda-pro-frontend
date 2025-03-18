@@ -1,4 +1,5 @@
 import { Product } from './product';
+import { Category } from './category';
 
 export enum PromotionType {
   PERCENTAGE = 'percentage',
@@ -13,14 +14,15 @@ export enum PromotionTarget {
 }
 
 export interface Promotion {
-  id: number;
+  id: string;
   name: string;
   description?: string;
   discount: number;
   startDate: string;
   endDate: string;
   products: Product[];
-  shopId: number;
+  categories?: Category[];
+  shopId: string;
 
   // Новые поля согласно требованиям API
   type: PromotionType;

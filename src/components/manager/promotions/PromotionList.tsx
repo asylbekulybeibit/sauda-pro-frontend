@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { Promotion, PromotionType, PromotionTarget } from '@/types/promotion';
 import { PromotionForm } from './PromotionForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +14,7 @@ interface PromotionListProps {
 }
 
 export function PromotionList({ promotions }: PromotionListProps) {
+  const { shopId } = useParams<{ shopId: string }>();
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(
     null
   );
@@ -22,17 +24,22 @@ export function PromotionList({ promotions }: PromotionListProps) {
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deletePromotion(id),
+    mutationFn: (id: string) => deletePromotion(id, shopId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['promotions'] });
       message.success('Акция успешно удалена');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Error in delete mutation:', error);
       message.error('Ошибка при удалении акции');
     },
   });
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
+    console.log(
+      `Attempting to delete promotion with id: ${id}, type: ${typeof id}`
+    );
+
     Modal.confirm({
       title: 'Подтверждение удаления',
       content: 'Вы уверены, что хотите удалить эту акцию?',
@@ -40,7 +47,15 @@ export function PromotionList({ promotions }: PromotionListProps) {
       okType: 'danger',
       cancelText: 'Отмена',
       onOk: async () => {
-        await deleteMutation.mutateAsync(id.toString());
+        try {
+          console.log(
+            `Confirmed deletion of promotion: ${id}, shopId: ${shopId}`
+          );
+          await deleteMutation.mutateAsync(id);
+          console.log('Deletion successful');
+        } catch (error) {
+          console.error('Error during deletion process:', error);
+        }
       },
     });
   };
@@ -94,6 +109,8 @@ export function PromotionList({ promotions }: PromotionListProps) {
   };
 
   const renderProductsPreview = (products: any[]) => {
+    console.log('Products for preview:', products);
+
     if (!products || products.length === 0) return '—';
 
     const displayCount = 2;
@@ -103,6 +120,23 @@ export function PromotionList({ promotions }: PromotionListProps) {
     return (
       <>
         {displayProducts.map((product) => product.name).join(', ')}
+        {remaining > 0 && ` и еще ${remaining}`}
+      </>
+    );
+  };
+
+  const renderCategoriesPreview = (categories: any[]) => {
+    console.log('Categories for preview:', categories);
+
+    if (!categories || categories.length === 0) return '—';
+
+    const displayCount = 2;
+    const displayCategories = categories.slice(0, displayCount);
+    const remaining = categories.length - displayCount;
+
+    return (
+      <>
+        {displayCategories.map((category) => category.name).join(', ')}
         {remaining > 0 && ` и еще ${remaining}`}
       </>
     );
@@ -162,6 +196,11 @@ export function PromotionList({ promotions }: PromotionListProps) {
       render: (_, record) => renderProductsPreview(record.products),
     },
     {
+      title: 'Категории',
+      key: 'categories',
+      render: (_, record) => renderCategoriesPreview(record.categories),
+    },
+    {
       title: 'Статус',
       key: 'status',
       render: (_, record) => {
@@ -199,7 +238,7 @@ export function PromotionList({ promotions }: PromotionListProps) {
               icon={<DeleteOutlined />}
               size="small"
               danger
-              onClick={() => handleDelete(record.id)}
+              onClick={() => handleDelete(String(record.id))}
             />
           </Tooltip>
         </Space>
@@ -308,6 +347,25 @@ export function PromotionList({ promotions }: PromotionListProps) {
                   </ul>
                 ) : (
                   <p className="text-gray-500 text-sm">Нет товаров</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm text-gray-500">
+                Категории ({viewingPromotion.categories?.length || 0})
+              </h4>
+              <div className="mt-2 max-h-40 overflow-y-auto border rounded p-2">
+                {viewingPromotion.categories?.length > 0 ? (
+                  <ul className="space-y-1">
+                    {viewingPromotion.categories.map((category) => (
+                      <li key={category.id} className="text-sm">
+                        {category.name}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 text-sm">Нет категорий</p>
                 )}
               </div>
             </div>

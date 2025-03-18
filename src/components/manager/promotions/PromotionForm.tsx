@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Promotion, PromotionType, PromotionTarget } from '@/types/promotion';
-import { getProducts } from '@/services/managerApi';
+import { getProducts, getCategories } from '@/services/managerApi';
 import { createPromotion, updatePromotion } from '@/services/managerApi';
 import { Product } from '@/types/product';
 import { api } from '@/services/api';
@@ -33,6 +33,9 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
   const [promotionType, setPromotionType] = useState<PromotionType>(
     PromotionType.PERCENTAGE
   );
+  const [promotionTarget, setPromotionTarget] = useState<PromotionTarget>(
+    PromotionTarget.PRODUCT
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const queryClient = useQueryClient();
@@ -43,8 +46,21 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
     enabled: !!shopId,
   });
 
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categories', shopId],
+    queryFn: () => getCategories(shopId!),
+    enabled: !!shopId,
+  });
+
   useEffect(() => {
     if (promotion) {
+      console.log('Editing promotion:', promotion);
+      console.log('Promotion categories:', promotion.categories);
+
+      const categoryIds =
+        promotion.categories?.map((c) => c.id.toString()) || [];
+      console.log('Mapped categoryIds:', categoryIds);
+
       form.setFieldsValue({
         name: promotion.name,
         description: promotion.description,
@@ -56,8 +72,10 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
           promotion.endDate ? dayjs(promotion.endDate) : null,
         ],
         productIds: promotion.products?.map((p) => p.id.toString()) || [],
+        categoryIds: categoryIds,
       });
       setPromotionType(promotion.type);
+      setPromotionTarget(promotion.target);
     }
   }, [promotion, form]);
 
@@ -97,8 +115,15 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
     setPromotionType(type);
   };
 
+  const handleTargetChange = (target: PromotionTarget) => {
+    setPromotionTarget(target);
+  };
+
   const handleSubmit = (values) => {
     console.log('Form values:', values);
+    console.log('Selected target:', values.target);
+    console.log('Selected categoryIds:', values.categoryIds);
+
     setIsSubmitting(true);
 
     // Calculate discount value
@@ -122,17 +147,23 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
     // Add product or category IDs based on target
     if (values.target === 'product' && values.productIds) {
       payload.productIds = values.productIds;
+      console.log('Adding productIds to payload:', values.productIds);
     } else if (values.target === 'category' && values.categoryIds) {
       payload.categoryIds = values.categoryIds;
+      console.log('Adding categoryIds to payload:', values.categoryIds);
     }
 
-    console.log('Sending payload:', payload);
+    console.log('Sending payload:', JSON.stringify(payload, null, 2));
 
     if (promotion) {
       // Update existing promotion
       api
-        .put(`/manager/promotions/${promotion.id}`, payload)
-        .then(() => {
+        .patch(
+          `/manager/promotions/shop/${shopId}/promotion/${promotion.id}`,
+          payload
+        )
+        .then((response) => {
+          console.log('Update response:', response.data);
           message.success('Акция успешно обновлена');
           queryClient.invalidateQueries(['promotions', shopId]);
           onClose();
@@ -152,7 +183,8 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
       // Create new promotion using the new endpoint
       api
         .post('/manager/promotions/create-with-discount', payload)
-        .then(() => {
+        .then((response) => {
+          console.log('Create response:', response.data);
           message.success('Акция успешно создана');
           queryClient.invalidateQueries(['promotions', shopId]);
           onClose();
@@ -175,6 +207,12 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
     products?.map((product) => ({
       label: `${product.name} (${product.sku})`,
       value: product.id.toString(),
+    })) || [];
+
+  const categoryOptions =
+    categories?.map((category) => ({
+      label: category.name,
+      value: category.id.toString(),
     })) || [];
 
   return (
@@ -209,6 +247,7 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
           value: 0,
           dateRange: [dayjs(), dayjs().add(7, 'day')],
           productIds: [],
+          categoryIds: [],
         }}
         onFinish={handleSubmit}
       >
@@ -279,7 +318,7 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
               { required: true, message: 'Выберите к чему применить скидку' },
             ]}
           >
-            <Select>
+            <Select onChange={(value) => handleTargetChange(value)}>
               <Option value={PromotionTarget.PRODUCT}>Товарам</Option>
               <Option value={PromotionTarget.CATEGORY}>Категориям</Option>
               <Option value={PromotionTarget.CART}>Корзине</Option>
@@ -304,24 +343,61 @@ export function PromotionForm({ promotion, onClose }: PromotionFormProps) {
           <TextArea rows={3} placeholder="Дополнительная информация об акции" />
         </Form.Item>
 
-        <Form.Item
-          name="productIds"
-          label="Товары"
-          rules={[{ required: true, message: 'Выберите хотя бы один товар' }]}
-        >
-          <Select
-            mode="multiple"
-            placeholder="Выберите товары для акции"
-            optionFilterProp="label"
-            loading={isLoadingProducts}
-            showSearch
-            style={{ width: '100%' }}
-            options={productOptions}
-            filterOption={(input, option) =>
-              (option?.label || '').toLowerCase().includes(input.toLowerCase())
-            }
-          />
-        </Form.Item>
+        {promotionTarget === PromotionTarget.PRODUCT && (
+          <Form.Item
+            name="productIds"
+            label="Товары"
+            rules={[
+              {
+                required: promotionTarget === PromotionTarget.PRODUCT,
+                message: 'Выберите хотя бы один товар',
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="Выберите товары для акции"
+              optionFilterProp="label"
+              loading={isLoadingProducts}
+              showSearch
+              style={{ width: '100%' }}
+              options={productOptions}
+              filterOption={(input, option) =>
+                (option?.label || '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+        )}
+
+        {promotionTarget === PromotionTarget.CATEGORY && (
+          <Form.Item
+            name="categoryIds"
+            label="Категории"
+            rules={[
+              {
+                required: promotionTarget === PromotionTarget.CATEGORY,
+                message: 'Выберите хотя бы одну категорию',
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              placeholder="Выберите категории для акции"
+              optionFilterProp="label"
+              loading={isLoadingCategories}
+              showSearch
+              style={{ width: '100%' }}
+              options={categoryOptions}
+              filterOption={(input, option) =>
+                (option?.label || '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
+              }
+            />
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   );
