@@ -367,9 +367,30 @@ export async function resendInvite(
 }
 
 // Методы для работы с отчетами
-export const createReport = async (data: any): Promise<Report> => {
-  const response = await api.post('/manager/reports', data);
-  return response.data;
+export const createReport = async (data: {
+  shopId: string;
+  name: string;
+  type: ReportType;
+  format: ReportFormat;
+  period: ReportPeriod;
+  startDate: string;
+  endDate: string;
+  filters: {
+    categories?: string[];
+    products?: string[];
+    staff?: string[];
+    promotions?: string[];
+    minAmount?: number;
+    maxAmount?: number;
+  };
+}): Promise<Report> => {
+  try {
+    const response = await api.post('/manager/reports', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating report:', error);
+    throw error;
+  }
 };
 
 export const getReports = async (shopId: string): Promise<Report[]> => {
@@ -379,16 +400,30 @@ export const getReports = async (shopId: string): Promise<Report[]> => {
 
 export const updateReport = async (data: {
   id: string;
-  shopId: number;
+  shopId: string;
   name: string;
-  type: string;
-  format: string;
+  type: ReportType;
+  format: ReportFormat;
+  period: ReportPeriod;
   startDate: string;
   endDate: string;
+  filters: {
+    categories?: string[];
+    products?: string[];
+    staff?: string[];
+    promotions?: string[];
+    minAmount?: number;
+    maxAmount?: number;
+  };
 }): Promise<Report> => {
-  const { id, ...updateData } = data;
-  const response = await api.patch(`/manager/reports/${id}`, updateData);
-  return response.data;
+  try {
+    const { id, ...reportData } = data;
+    const response = await api.patch(`/manager/reports/${id}`, reportData);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating report:', error);
+    throw error;
+  }
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
@@ -415,6 +450,22 @@ export const downloadReport = async (
     type: contentType,
     filename,
   };
+};
+
+export const getReportDetails = async (
+  reportId: string
+): Promise<{
+  summary: Record<string, any>;
+  details: Array<Record<string, any>>;
+  [key: string]: any;
+}> => {
+  try {
+    const response = await api.get(`/manager/reports/${reportId}/details`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching report details:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 // Методы для работы с акциями

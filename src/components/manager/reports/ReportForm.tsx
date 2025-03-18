@@ -1,212 +1,401 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Report, ReportType, ReportFormat } from '@/types/report';
+import { Report, ReportType, ReportFormat, ReportPeriod } from '@/types/report';
 import { createReport, updateReport } from '@/services/managerApi';
-import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
+import {
+  Modal,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  Space,
+  message,
+  Alert,
+} from 'antd';
+import dayjs, { OpUnitType } from 'dayjs';
+
+const { RangePicker } = DatePicker;
+const { Option } = Select;
 
 interface ReportFormProps {
   report?: Report;
   onClose: () => void;
+  open: boolean;
 }
 
-export function ReportForm({ report, onClose }: ReportFormProps) {
-  const { shopId } = useParams<{ shopId: string }>();
-  const [formData, setFormData] = useState({
-    name: report?.name || '',
-    type: report?.type || 'SALES',
-    format: report?.format || 'PDF',
-    startDate: report?.startDate?.split('T')[0] || '',
-    endDate: report?.endDate?.split('T')[0] || '',
-  });
+interface ReportFormData {
+  name: string;
+  type: ReportType;
+  format: ReportFormat;
+  period: ReportPeriod;
+  dateRange: [dayjs.Dayjs, dayjs.Dayjs];
+}
 
+interface ReportMutationData {
+  shopId: string;
+  name: string;
+  type: ReportType;
+  format: ReportFormat;
+  period: ReportPeriod;
+  startDate: string;
+  endDate: string;
+  filters: {
+    categories?: string[];
+    products?: string[];
+    staff?: string[];
+    promotions?: string[];
+    minAmount?: number;
+    maxAmount?: number;
+  };
+}
+
+// Функция для преобразования строки даты в формат для бэкенда
+const formatDateForBackend = (date: dayjs.Dayjs): string => {
+  return date.toISOString();
+};
+
+export function ReportForm({ report, onClose, open }: ReportFormProps) {
+  const { shopId } = useParams<{ shopId: string }>();
+  const [form] = Form.useForm<ReportFormData>();
   const queryClient = useQueryClient();
+  const [period, setPeriod] = useState<string>('month');
+  const [selectedType, setSelectedType] = useState<ReportType>(
+    report?.type || 'SALES'
+  );
+
+  // Устанавливаем начальные значения формы при открытии модального окна
+  useEffect(() => {
+    if (open) {
+      if (report) {
+        const initialValues = {
+          ...report,
+          period: report.period,
+          dateRange:
+            report.startDate && report.endDate
+              ? [dayjs(report.startDate), dayjs(report.endDate)]
+              : undefined,
+        };
+        form.setFieldsValue(initialValues);
+        setPeriod(report.period);
+      } else {
+        // Устанавливаем значения по умолчанию
+        const today = dayjs();
+        const startOfMonth = today.startOf('month');
+        const endOfMonth = today.endOf('month');
+
+        form.setFieldsValue({
+          type: 'SALES',
+          period: 'month',
+          format: 'pdf',
+          dateRange: [startOfMonth, endOfMonth],
+        });
+        setPeriod('month');
+      }
+    }
+  }, [open, report, form]);
 
   const createMutation = useMutation({
-    mutationFn: (data: {
-      shopId: number;
-      name: string;
-      type: ReportType;
-      format: ReportFormat;
-      startDate: string;
-      endDate: string;
-    }) => createReport(data),
+    mutationFn: (data: ReportMutationData) => createReport(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
+      message.success('Отчет успешно создан');
+      form.resetFields();
       onClose();
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message || 'Ошибка при создании отчета';
+
+      // Проверяем ошибку на null свойства (обычно проблема с товарами/категориями)
+      if (
+        error?.response?.data?.error?.includes(
+          'Cannot read properties of null'
+        ) &&
+        selectedType === 'INVENTORY'
+      ) {
+        message.error(
+          'Ошибка в данных инвентаря. Возможно, есть товары без категорий или с неверными ссылками.'
+        );
+      } else {
+        message.error(errorMessage);
+      }
+
+      console.error('Error creating report:', error);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: {
-      id: string;
-      shopId: number;
-      name: string;
-      type: ReportType;
-      format: ReportFormat;
-      startDate: string;
-      endDate: string;
-    }) => updateReport(data),
+    mutationFn: (data: ReportMutationData & { id: string }) =>
+      updateReport(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
+      message.success('Отчет успешно обновлен');
+      form.resetFields();
       onClose();
+    },
+    onError: (error: any) => {
+      const errorMessage =
+        error?.response?.data?.message || 'Ошибка при обновлении отчета';
+
+      // Проверяем ошибку на null свойства (обычно проблема с товарами/категориями)
+      if (
+        error?.response?.data?.error?.includes(
+          'Cannot read properties of null'
+        ) &&
+        selectedType === 'INVENTORY'
+      ) {
+        message.error(
+          'Ошибка в данных инвентаря. Возможно, есть товары без категорий или с неверными ссылками.'
+        );
+      } else {
+        message.error(errorMessage);
+      }
+
+      console.error('Error updating report:', error);
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = {
-      ...formData,
-      shopId: parseInt(shopId!),
-    };
+  const handlePeriodChange = (value: string) => {
+    setPeriod(value);
+    let startDate, endDate;
+    const today = dayjs();
 
-    if (report) {
-      await updateMutation.mutateAsync({
-        ...payload,
-        id: report.id.toString(),
-      });
+    // Настраиваем даты в зависимости от выбранного периода
+    if (value === 'day') {
+      startDate = today.startOf('day');
+      endDate = today.endOf('day');
+    } else if (value === 'week') {
+      startDate = today.startOf('week');
+      endDate = today.endOf('week');
+    } else if (value === 'month') {
+      startDate = today.startOf('month');
+      endDate = today.endOf('month');
+    } else if (value === 'quarter') {
+      const currentQuarter = Math.floor(today.month() / 3);
+      startDate = today.month(currentQuarter * 3).startOf('month');
+      endDate = today.month(currentQuarter * 3 + 2).endOf('month');
+    } else if (value === 'year') {
+      startDate = today.startOf('year');
+      endDate = today.endOf('year');
+    } else if (value === 'custom') {
+      const currentRange = form.getFieldValue('dateRange');
+      if (
+        currentRange &&
+        Array.isArray(currentRange) &&
+        currentRange.length === 2
+      ) {
+        return; // Сохраняем текущий выбор
+      }
+      startDate = today.subtract(30, 'days');
+      endDate = today;
     } else {
-      await createMutation.mutateAsync(payload);
+      return;
+    }
+
+    if (startDate && endDate) {
+      form.setFieldsValue({ dateRange: [startDate, endDate] });
     }
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleTypeChange = (value: ReportType) => {
+    setSelectedType(value);
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      if (!shopId) {
+        message.error('ID магазина не указан');
+        return;
+      }
+
+      // Проверка корректности формата ID магазина (UUID)
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(shopId)) {
+        console.warn('ID магазина не является корректным UUID:', shopId);
+        // Продолжаем, так как ID магазина может быть получен из параметров URL
+      }
+
+      // Проверяем, есть ли выбранный диапазон дат
+      if (
+        !values.dateRange ||
+        !Array.isArray(values.dateRange) ||
+        values.dateRange.length !== 2
+      ) {
+        message.error('Выберите диапазон дат');
+        return;
+      }
+
+      // Убедимся, что даты являются корректными объектами dayjs
+      const startDate = values.dateRange[0];
+      const endDate = values.dateRange[1];
+
+      if (
+        !startDate ||
+        !endDate ||
+        !dayjs.isDayjs(startDate) ||
+        !dayjs.isDayjs(endDate)
+      ) {
+        message.error('Неверный формат дат. Пожалуйста, выберите даты снова.');
+        return;
+      }
+
+      // Prepare the data to be sent to the backend
+      const formattedData = {
+        shopId,
+        name: values.name,
+        type: values.type,
+        format: values.format,
+        period: values.period,
+        // Используем форматирование дат в строки в формате ISO
+        startDate: formatDateForBackend(startDate),
+        endDate: formatDateForBackend(endDate),
+        filters: {
+          categories: [],
+          products: [],
+          staff: [],
+          promotions: [],
+        },
+      };
+
+      console.log('Отправляемые данные на сервер:', formattedData);
+
+      if (report) {
+        await updateMutation.mutateAsync({
+          id: report.id.toString(),
+          ...formattedData,
+        });
+      } else {
+        await createMutation.mutateAsync(formattedData);
+      }
+    } catch (error) {
+      console.error('Error creating/updating report:', error);
+      // Выведем подробное сообщение об ошибке, если она пришла от сервера
+      if (
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        error.response &&
+        typeof error.response === 'object' &&
+        'data' in error.response &&
+        error.response.data &&
+        typeof error.response.data === 'object' &&
+        'message' in error.response.data
+      ) {
+        const errorMessage = Array.isArray(error.response.data.message)
+          ? error.response.data.message.join(', ')
+          : error.response.data.message;
+        message.error(`Ошибка: ${errorMessage}`);
+      } else {
+        message.error('Ошибка при создании/обновлении отчета');
+      }
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">
-            {report ? 'Редактировать отчет' : 'Создать отчет'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <XIcon className="h-6 w-6" />
-          </button>
-        </div>
+    <Modal
+      title={report ? 'Редактировать отчет' : 'Создать отчет'}
+      open={open}
+      onCancel={() => {
+        form.resetFields();
+        onClose();
+      }}
+      onOk={() => form.submit()}
+      okText={report ? 'Сохранить' : 'Создать'}
+      cancelText="Отмена"
+      width={520}
+      maskClosable={false}
+      destroyOnClose
+    >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        {selectedType === 'INVENTORY' && (
+          <Alert
+            message="Внимание - отчеты по инвентарю временно недоступны"
+            description="В текущей версии отчеты по инвентарю временно недоступны из-за ошибки в обработке данных. Пожалуйста, выберите другой тип отчета."
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Название
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-          </div>
+        <Form.Item
+          name="name"
+          label="Название"
+          rules={[
+            { required: true, message: 'Пожалуйста, введите название отчета' },
+          ]}
+        >
+          <Input placeholder="Введите название отчета" />
+        </Form.Item>
 
-          <div>
-            <label
-              htmlFor="type"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Тип отчета
-            </label>
-            <select
-              id="type"
-              name="type"
-              value={formData.type}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            >
-              <option value="SALES">Продажи</option>
-              <option value="INVENTORY">Инвентарь</option>
-              <option value="STAFF">Персонал</option>
-              <option value="FINANCIAL">Финансы</option>
-            </select>
-          </div>
+        <Form.Item
+          name="type"
+          label="Тип отчета"
+          rules={[
+            { required: true, message: 'Пожалуйста, выберите тип отчета' },
+          ]}
+        >
+          <Select>
+            <Option value="SALES">Продажи</Option>
+            <Option value="INVENTORY">Инвентарь</Option>
+            <Option value="STAFF">Персонал</Option>
+            <Option value="FINANCIAL">Финансы</Option>
+            <Option value="CATEGORIES">Категории</Option>
+            <Option value="PROMOTIONS">Акции</Option>
+          </Select>
+        </Form.Item>
 
-          <div>
-            <label
-              htmlFor="format"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Формат
-            </label>
-            <select
-              id="format"
-              name="format"
-              value={formData.format}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            >
-              <option value="PDF">PDF</option>
-              <option value="EXCEL">Excel</option>
-              <option value="CSV">CSV</option>
-            </select>
-          </div>
+        <Form.Item
+          name="format"
+          label="Формат"
+          rules={[
+            { required: true, message: 'Пожалуйста, выберите формат отчета' },
+          ]}
+        >
+          <Select>
+            <Option value="pdf">PDF</Option>
+            <Option value="excel">Excel</Option>
+            <Option value="csv">CSV</Option>
+          </Select>
+        </Form.Item>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="startDate"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Дата начала
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
+        <Form.Item
+          name="period"
+          label="Период"
+          rules={[{ required: true, message: 'Пожалуйста, выберите период' }]}
+        >
+          <Select onChange={handlePeriodChange}>
+            <Option value="day">День</Option>
+            <Option value="week">Неделя</Option>
+            <Option value="month">Месяц</Option>
+            <Option value="quarter">Квартал</Option>
+            <Option value="year">Год</Option>
+            <Option value="custom">Произвольный период</Option>
+          </Select>
+        </Form.Item>
 
-            <div>
-              <label
-                htmlFor="endDate"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Дата окончания
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              {report ? 'Сохранить' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Form.Item
+          name="dateRange"
+          label="Выберите даты"
+          rules={[{ required: true, message: 'Пожалуйста, выберите даты' }]}
+        >
+          <RangePicker
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+            allowClear={false}
+            disabled={period !== 'custom'}
+            onChange={(dates) => {
+              if (dates && dates.length === 2) {
+                console.log(
+                  'Выбраны даты:',
+                  dates.map((d) => d?.format('YYYY-MM-DD'))
+                );
+              }
+            }}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 }
