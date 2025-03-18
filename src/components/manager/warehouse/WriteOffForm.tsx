@@ -66,10 +66,11 @@ export default function WriteOffForm({
         shopId,
         type: 'WRITE_OFF',
         productId: items[0].productId,
-        quantity: -items[0].quantity,
-        price: items[0].price,
+        quantity: items[0].quantity,
+        price: Number(items[0].price),
         description: values.description,
-        comment: values.comment,
+        comment: items[0].comment || values.comment || '',
+        note: `Списание товара. Причина: ${values.description}`,
       });
 
       if (items.length > 1) {
@@ -78,10 +79,11 @@ export default function WriteOffForm({
             shopId,
             type: 'WRITE_OFF',
             productId: items[i].productId,
-            quantity: -items[i].quantity,
-            price: items[i].price,
+            quantity: items[i].quantity,
+            price: Number(items[i].price),
             description: values.description,
-            comment: values.comment,
+            comment: items[i].comment || values.comment || '',
+            note: `Списание товара. Причина: ${values.description}`,
           });
         }
       }
@@ -142,15 +144,34 @@ export default function WriteOffForm({
       title: 'Цена списания',
       key: 'price',
       render: (_: unknown, record: WriteOffItem) => (
-        <InputNumber
-          min={0}
-          value={record.price}
-          onChange={(value) => {
-            if (value === null) return;
+        <div>
+          <InputNumber
+            min={0}
+            value={record.price * record.quantity}
+            disabled={true}
+            formatter={(value) =>
+              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+            }
+            style={{ width: '100%' }}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            Списание по учетной стоимости: {record.price} × {record.quantity}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Комментарий к товару',
+      key: 'itemComment',
+      render: (_: unknown, record: WriteOffItem) => (
+        <Input
+          placeholder="Комментарий к позиции"
+          value={record.comment}
+          onChange={(e) => {
             setItems(
               items.map((item) =>
                 item.productId === record.productId
-                  ? { ...item, price: value }
+                  ? { ...item, comment: e.target.value }
                   : item
               )
             );
@@ -179,8 +200,8 @@ export default function WriteOffForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        <div className="p-6">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 flex-1 overflow-auto">
           <h2 className="text-xl font-semibold mb-4">Создание списания</h2>
 
           <Form form={form} layout="vertical">
@@ -220,26 +241,31 @@ export default function WriteOffForm({
               />
             </div>
 
-            <Table
-              columns={columns}
-              dataSource={items}
-              rowKey="productId"
-              pagination={false}
-            />
-
-            <div className="mt-6 flex justify-end space-x-4">
-              <Button onClick={onClose}>Отмена</Button>
-              <Button
-                type="primary"
-                onClick={handleSubmit}
-                disabled={items.length === 0}
-                loading={createMutation.isPending}
-                className="bg-blue-500"
-              >
-                Создать
-              </Button>
+            <div className="overflow-auto max-h-[300px]">
+              <Table
+                columns={columns}
+                dataSource={items}
+                rowKey="productId"
+                pagination={false}
+                scroll={{ y: true }}
+              />
             </div>
           </Form>
+        </div>
+
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-end space-x-4">
+            <Button onClick={onClose}>Отмена</Button>
+            <Button
+              type="primary"
+              onClick={handleSubmit}
+              disabled={items.length === 0}
+              loading={createMutation.isPending}
+              className="bg-blue-500"
+            >
+              Создать
+            </Button>
+          </div>
         </div>
       </div>
     </div>

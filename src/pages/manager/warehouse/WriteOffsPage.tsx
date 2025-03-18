@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Table, Spin, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, Table, Spin, message, Modal, Descriptions, Tag } from 'antd';
+import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import { getWriteOffs } from '@/services/managerApi';
 import { formatDate, formatPrice } from '@/utils/format';
 import WriteOffForm from '@/components/manager/warehouse/WriteOffForm';
@@ -9,12 +9,72 @@ import { InventoryTransaction } from '@/types/inventory';
 import { ShopContext } from '@/contexts/ShopContext';
 import { useParams } from 'react-router-dom';
 
+// Компонент для просмотра подробной информации о списании
+function WriteOffDetails({
+  writeOff,
+  visible,
+  onClose,
+}: {
+  writeOff: InventoryTransaction | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  if (!writeOff) return null;
+
+  return (
+    <Modal
+      open={visible}
+      title="Информация о списании"
+      onCancel={onClose}
+      footer={[
+        <Button key="close" onClick={onClose}>
+          Закрыть
+        </Button>,
+      ]}
+      width={800}
+    >
+      <Descriptions bordered column={2} className="mb-4">
+        <Descriptions.Item label="Дата" span={2}>
+          {formatDate(writeOff.createdAt)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Товар" span={2}>
+          <div>
+            <div className="font-medium">{writeOff.product?.name}</div>
+            <div className="text-gray-500">SKU: {writeOff.product?.sku}</div>
+          </div>
+        </Descriptions.Item>
+        <Descriptions.Item label="Количество">
+          {writeOff.quantity}
+        </Descriptions.Item>
+        <Descriptions.Item label="Сумма списания">
+          {formatPrice(writeOff.price * writeOff.quantity)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Цена за единицу">
+          {formatPrice(writeOff.price)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Проведено">
+          {writeOff.createdBy?.firstName} {writeOff.createdBy?.lastName}
+        </Descriptions.Item>
+        <Descriptions.Item label="Причина списания" span={2}>
+          {writeOff.description || 'Не указана'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Комментарий" span={2}>
+          {writeOff.comment || '-'}
+        </Descriptions.Item>
+      </Descriptions>
+    </Modal>
+  );
+}
+
 function WriteOffsPage() {
   console.log('WriteOffsPage component rendering');
   const { shopId: urlShopId } = useParams<{ shopId: string }>();
   const { currentShop, loading } = useContext(ShopContext)!;
   const shopId = urlShopId || currentShop?.id;
   const [showForm, setShowForm] = useState(false);
+  const [selectedWriteOff, setSelectedWriteOff] =
+    useState<InventoryTransaction | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   console.log('URL Shop ID:', urlShopId);
   console.log('Current shop:', currentShop);
@@ -56,6 +116,11 @@ function WriteOffsPage() {
   });
 
   console.log('Query state:', { isLoadingWriteOffs, error, writeOffs });
+
+  const handleViewWriteOff = (writeOff: InventoryTransaction) => {
+    setSelectedWriteOff(writeOff);
+    setShowDetailsModal(true);
+  };
 
   // Показываем загрузку, пока ShopContext инициализируется
   if (loading) {
@@ -118,21 +183,38 @@ function WriteOffsPage() {
     },
     {
       title: 'Сумма списания',
-      dataIndex: 'price',
-      key: 'price',
-      render: (price: number) => formatPrice(price),
+      key: 'totalPrice',
+      render: (_, record: InventoryTransaction) => {
+        // Умножаем цену на количество для получения общей суммы
+        const totalPrice = record.price * record.quantity;
+        return formatPrice(totalPrice);
+      },
     },
     {
       title: 'Причина',
-      dataIndex: 'note',
-      key: 'note',
-      render: (note: string) => note || 'Не указана',
+      dataIndex: 'description',
+      key: 'description',
+      render: (description: string) => description || 'Не указана',
     },
     {
       title: 'Комментарий',
       dataIndex: 'comment',
       key: 'comment',
       render: (comment: string) => comment || '-',
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      render: (_: unknown, record: InventoryTransaction) => (
+        <Button
+          type="primary"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewWriteOff(record)}
+          className="bg-blue-500"
+        >
+          Просмотр
+        </Button>
+      ),
     },
   ];
 
@@ -169,6 +251,12 @@ function WriteOffsPage() {
           }}
         />
       )}
+
+      <WriteOffDetails
+        writeOff={selectedWriteOff}
+        visible={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+      />
     </div>
   );
 }
