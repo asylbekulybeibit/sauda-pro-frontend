@@ -424,16 +424,89 @@ export const getPromotions = async (shopId: string): Promise<Promotion[]> => {
 };
 
 export const createPromotion = async (data: any): Promise<Promotion> => {
-  const response = await api.post('/manager/promotions', data);
-  return response.data;
+  try {
+    // Убедимся, что поле discount существует и имеет числовое значение
+    const isPercentage = data.type === 'percentage';
+    const discountValue = isPercentage ? Number(data.value) : 0;
+
+    // Формируем правильный payload
+    const payload = {
+      name: data.name,
+      description: data.description || '',
+      value: Number(data.value),
+      type: data.type,
+      target: data.target,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      productIds: data.productIds || [],
+      shopId: data.shopId,
+      // Явно передаем discount отдельно
+      discount: discountValue,
+    };
+
+    console.log(
+      'API createPromotion payload:',
+      JSON.stringify(payload, null, 2)
+    );
+
+    // Пробуем альтернативный эндпоинт (с /shop/{shopId})
+    const url = `/manager/promotions`;
+    const response = await api.post(url, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error in createPromotion:', error);
+
+    if (error.response?.status === 500) {
+      // Попытаемся отправить запрос специальным образом через query-параметры
+      try {
+        const payload = {
+          ...data,
+          value: Number(data.value),
+          discount: Number(data.value), // Для совместимости устанавливаем discount = value
+        };
+
+        // Формируем специальный URL с параметрами
+        const url = `/manager/promotions/create-with-discount`;
+        console.log('Trying alternative endpoint:', url);
+
+        const response = await api.post(url, payload);
+        return response.data;
+      } catch (fallbackError) {
+        console.error('Alternative endpoint also failed:', fallbackError);
+        throw fallbackError;
+      }
+    }
+
+    throw error;
+  }
 };
 
 export const updatePromotion = async (
   id: string,
   data: Partial<Promotion>
 ): Promise<Promotion> => {
-  const response = await api.patch(`/manager/promotions/${id}`, data);
-  return response.data;
+  // Убедимся, что поле discount существует и имеет числовое значение
+  const isPercentage = data.type === 'percentage';
+
+  // Явно задаем значение discount, чтобы не было NULL
+  const discountValue = isPercentage ? Number(data.value || 0) : 0;
+
+  const payload = {
+    ...data,
+    value: data.value !== undefined ? Number(data.value) : undefined, // Преобразуем в число если есть
+    discount: discountValue, // Явно установим значение discount
+  };
+
+  console.log('API updatePromotion payload:', JSON.stringify(payload, null, 2));
+
+  try {
+    const response = await api.patch(`/manager/promotions/${id}`, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error in updatePromotion:', error);
+    console.error('Request payload was:', JSON.stringify(payload, null, 2));
+    throw error;
+  }
 };
 
 export const deletePromotion = async (id: string): Promise<void> => {

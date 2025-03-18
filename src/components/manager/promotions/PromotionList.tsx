@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Promotion } from '@/types/promotion';
+import { Promotion, PromotionType, PromotionTarget } from '@/types/promotion';
 import { PromotionForm } from './PromotionForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deletePromotion } from '@/services/managerApi';
@@ -59,6 +59,40 @@ export function PromotionList({ promotions }: PromotionListProps) {
     }
   };
 
+  const getPromotionTypeText = (type: PromotionType) => {
+    switch (type) {
+      case PromotionType.PERCENTAGE:
+        return 'Процент';
+      case PromotionType.FIXED:
+        return 'Фиксированная сумма';
+      case PromotionType.SPECIAL_PRICE:
+        return 'Специальная цена';
+      default:
+        return type;
+    }
+  };
+
+  const getPromotionTargetText = (target: PromotionTarget) => {
+    switch (target) {
+      case PromotionTarget.PRODUCT:
+        return 'Товар';
+      case PromotionTarget.CATEGORY:
+        return 'Категория';
+      case PromotionTarget.CART:
+        return 'Корзина';
+      default:
+        return target;
+    }
+  };
+
+  const renderPromotionValue = (promotion: Promotion) => {
+    if (promotion.type === PromotionType.PERCENTAGE) {
+      return `${promotion.value}%`;
+    } else {
+      return `${promotion.value} ₸`;
+    }
+  };
+
   const renderProductsPreview = (products: any[]) => {
     if (!products || products.length === 0) return '—';
 
@@ -86,11 +120,30 @@ export function PromotionList({ promotions }: PromotionListProps) {
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Скидка',
-      dataIndex: 'discount',
-      key: 'discount',
-      render: (discount) => `${discount}%`,
-      sorter: (a, b) => a.discount - b.discount,
+      title: 'Тип',
+      key: 'type',
+      render: (_, record) => getPromotionTypeText(record.type),
+      filters: Object.values(PromotionType).map((type) => ({
+        text: getPromotionTypeText(type),
+        value: type,
+      })),
+      onFilter: (value, record) => record.type === value,
+    },
+    {
+      title: 'Значение',
+      key: 'value',
+      render: (_, record) => renderPromotionValue(record),
+      sorter: (a, b) => a.value - b.value,
+    },
+    {
+      title: 'Применяется к',
+      key: 'target',
+      render: (_, record) => getPromotionTargetText(record.target),
+      filters: Object.values(PromotionTarget).map((target) => ({
+        text: getPromotionTargetText(target),
+        value: target,
+      })),
+      onFilter: (value, record) => record.target === value,
     },
     {
       title: 'Период',
@@ -196,13 +249,28 @@ export function PromotionList({ promotions }: PromotionListProps) {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <h4 className="text-sm text-gray-500">Скидка</h4>
+                <h4 className="text-sm text-gray-500">Тип скидки</h4>
                 <p className="text-lg font-medium">
-                  {viewingPromotion.discount}%
+                  {getPromotionTypeText(viewingPromotion.type)}
                 </p>
               </div>
+              <div>
+                <h4 className="text-sm text-gray-500">Значение</h4>
+                <p className="text-lg font-medium">
+                  {renderPromotionValue(viewingPromotion)}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm text-gray-500">Применяется к</h4>
+                <p className="text-lg font-medium">
+                  {getPromotionTargetText(viewingPromotion.target)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <h4 className="text-sm text-gray-500">Статус</h4>
                 <Tag
@@ -212,9 +280,6 @@ export function PromotionList({ promotions }: PromotionListProps) {
                   {getPromotionStatus(viewingPromotion).text}
                 </Tag>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div>
                 <h4 className="text-sm text-gray-500">Дата начала</h4>
                 <p>{formatDate(viewingPromotion.startDate)}</p>
