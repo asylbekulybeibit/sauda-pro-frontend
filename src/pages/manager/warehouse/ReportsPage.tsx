@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,6 +11,8 @@ import {
   Table,
   Spin,
   message,
+  Input,
+  Tag,
 } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { getInventory, getProducts } from '@/services/managerApi';
@@ -19,6 +21,26 @@ import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 
 const { RangePicker } = DatePicker;
+const { Search } = Input;
+
+// Словарь для перевода типов операций
+const operationTypes: Record<string, string> = {
+  WRITE_OFF: 'Списание',
+  TRANSFER: 'Перемещение',
+  ADJUSTMENT: 'Корректировка',
+  PURCHASE: 'Приход',
+  SALE: 'Продажа',
+};
+
+// Типы отчетов
+const reportTypes = [
+  { label: 'Все операции', value: 'all' },
+  { label: 'Списания', value: 'WRITE_OFF' },
+  { label: 'Приходы', value: 'PURCHASE' },
+  { label: 'Перемещения', value: 'TRANSFER' },
+  { label: 'Корректировки', value: 'ADJUSTMENT' },
+  { label: 'Продажи', value: 'SALE' },
+];
 
 function ReportsPage() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -26,7 +48,8 @@ function ReportsPage() {
     dayjs().subtract(30, 'days'),
     dayjs(),
   ]);
-  const [reportType, setReportType] = useState<string>('stock_movement');
+  const [reportType, setReportType] = useState<string>('all');
+  const [productSearch, setProductSearch] = useState<string>('');
 
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery({
     queryKey: ['inventory-transactions', shopId],
@@ -42,14 +65,35 @@ function ReportsPage() {
 
   const isLoading = isLoadingTransactions || isLoadingProducts;
 
-  // Filter transactions by date range
-  const filteredTransactions = transactions?.filter((transaction) => {
-    const transactionDate = dayjs(transaction.createdAt);
-    return (
-      transactionDate.isAfter(dateRange[0]) &&
-      transactionDate.isBefore(dateRange[1])
-    );
-  });
+  // Фильтрация транзакций с учетом всех фильтров
+  const filteredTransactions = useMemo(() => {
+    if (!transactions) return [];
+
+    return transactions.filter((transaction) => {
+      const transactionDate = dayjs(transaction.createdAt);
+
+      // Фильтр по дате
+      const dateMatches =
+        transactionDate.isAfter(dateRange[0]) &&
+        transactionDate.isBefore(dateRange[1]);
+
+      // Фильтр по типу отчета
+      const reportTypeMatches =
+        reportType === 'all' || transaction.type === reportType;
+
+      // Фильтр по товару (поиск по имени или артикулу)
+      const productMatches =
+        !productSearch ||
+        transaction.product?.name
+          .toLowerCase()
+          .includes(productSearch.toLowerCase()) ||
+        transaction.product?.sku
+          .toLowerCase()
+          .includes(productSearch.toLowerCase());
+
+      return dateMatches && reportTypeMatches && productMatches;
+    });
+  }, [transactions, dateRange, reportType, productSearch]);
 
   // Calculate statistics
   const stats = {
@@ -77,14 +121,9 @@ function ReportsPage() {
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => {
-        const types: Record<string, string> = {
-          WRITE_OFF: 'Списание',
-          TRANSFER: 'Перемещение',
-          ADJUSTMENT: 'Корректировка',
-          PURCHASE: 'Приход',
-          SALE: 'Продажа',
-        };
-        return types[type] || type;
+        return (
+          <Tag color={getTypeColor(type)}>{operationTypes[type] || type}</Tag>
+        );
       },
     },
     {
@@ -123,45 +162,58 @@ function ReportsPage() {
     },
   ];
 
+  // Функция для определения цвета метки типа операции
+  const getTypeColor = (type: string): string => {
+    switch (type) {
+      case 'WRITE_OFF':
+        return 'red';
+      case 'ADJUSTMENT':
+        return 'blue';
+      case 'PURCHASE':
+        return 'green';
+      case 'TRANSFER':
+        return 'orange';
+      case 'SALE':
+        return 'purple';
+      default:
+        return 'default';
+    }
+  };
+
   const handleExport = () => {
     let exportData;
     let fileName;
 
-    switch (reportType) {
-      case 'stock_movement':
-        exportData = filteredTransactions?.map((t) => ({
-          Дата: formatDate(t.createdAt),
-          Тип: t.type,
-          'Название товара': t.product?.name,
-          Артикул: t.product?.sku,
-          Количество: t.quantity,
-          Сумма: (t.price || 0) * Math.abs(t.quantity),
-          Описание: t.description || '',
-        }));
-        fileName = 'Движение_товаров';
-        break;
+    // Prepare data for export
+    const data =
+      reportType === 'all'
+        ? filteredTransactions
+        : filteredTransactions.filter(
+            (t) => reportType === 'all' || t.type === reportType
+          );
 
-      case 'write_offs':
-        exportData = filteredTransactions
-          ?.filter((t) => t.type === 'WRITE_OFF')
-          .map((t) => ({
-            Дата: formatDate(t.createdAt),
-            'Название товара': t.product?.name,
-            Артикул: t.product?.sku,
-            Количество: Math.abs(t.quantity),
-            'Сумма списания': (t.price || 0) * Math.abs(t.quantity),
-            Причина: t.description || '',
-            Комментарий: t.comment || '',
-          }));
-        fileName = 'Списания';
-        break;
+    exportData = data?.map((t) => ({
+      Дата: formatDate(t.createdAt),
+      Тип: operationTypes[t.type] || t.type, // Переводим тип операции
+      'Название товара': t.product?.name,
+      Артикул: t.product?.sku,
+      Количество: t.quantity,
+      Сумма: (t.price || 0) * Math.abs(t.quantity),
+      Причина: t.description || '',
+      Комментарий: t.comment || '',
+    }));
 
-      default:
-        message.error('Неизвестный тип отчета');
-        return;
+    // Set filename based on report type
+    if (reportType === 'all') {
+      fileName = 'Все_операции';
+    } else {
+      fileName = operationTypes[reportType] || reportType;
     }
 
-    if (!exportData) return;
+    if (!exportData || exportData.length === 0) {
+      message.info('Нет данных для экспорта');
+      return;
+    }
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
@@ -191,32 +243,52 @@ function ReportsPage() {
           icon={<DownloadOutlined />}
           onClick={handleExport}
           className="bg-blue-500"
-
         >
           Экспорт
         </Button>
       </div>
 
-      <div className="flex space-x-4 mb-6">
-        <RangePicker
-          value={dateRange}
-          onChange={(dates) => {
-            if (dates) {
-              setDateRange([dates[0]!, dates[1]!]);
-            }
-          }}
-          className="w-64"
-        />
-        <Select
-          value={reportType}
-          onChange={setReportType}
-          className="w-48"
-          options={[
-            { label: 'Движение товаров', value: 'stock_movement' },
-            { label: 'Списания', value: 'write_offs' },
-          ]}
-        />
-      </div>
+      <Card className="mb-6">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Период</label>
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                if (dates) {
+                  setDateRange([dates[0]!, dates[1]!]);
+                }
+              }}
+              className="w-64"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">
+              Тип отчета
+            </label>
+            <Select
+              value={reportType}
+              onChange={setReportType}
+              className="w-64"
+              options={reportTypes}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">
+              Поиск по товару
+            </label>
+            <Search
+              placeholder="Название или SKU"
+              allowClear
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              style={{ width: 250 }}
+            />
+          </div>
+        </div>
+      </Card>
 
       <Row gutter={16} className="mb-6">
         <Col span={6}>
