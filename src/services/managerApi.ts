@@ -40,9 +40,56 @@ interface CreateTransferDto {
 // Методы для работы с товарами
 export const getProducts = async (shopId: string): Promise<Product[]> => {
   try {
+    const startTime = performance.now();
+    console.log(
+      `[${new Date().toISOString()}] Fetching products for shop ${shopId}`
+    );
+
+    // Добавляем уникальный идентификатор для отслеживания запроса
+    const requestId = `prod-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 9)}`;
+    console.log(`Request ID: ${requestId}`);
+
     const response = await api.get(`/manager/products/shop/${shopId}`);
+
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+    const count = response.data?.length || 0;
+
+    console.log(
+      `[${new Date().toISOString()}] Products fetched in ${duration}ms, count: ${count}, requestId: ${requestId}`
+    );
+
+    if (!response.data) {
+      console.warn(
+        `[${new Date().toISOString()}] No data received from products API, shopId: ${shopId}`
+      );
+      return [];
+    }
+
+    // Проверяем структуру полученных данных
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      // Проверяем наличие ключевых полей в первом элементе для диагностики
+      const sampleProduct = response.data[0];
+      console.log(
+        `Sample product fields: id=${sampleProduct.id}, name=${sampleProduct.name}, quantity=${sampleProduct.quantity}`
+      );
+    }
+
     return response.data;
   } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error fetching products for shop ${shopId}:`,
+      error
+    );
+    // Расширенная диагностика для axios ошибок
+    if (axios.isAxiosError(error)) {
+      console.error(`Axios error: ${error.message}`);
+      console.error(`Status: ${error.response?.status}`);
+      console.error(`Status text: ${error.response?.statusText}`);
+      console.error(`Data:`, error.response?.data);
+    }
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -132,8 +179,69 @@ export const getCategoryById = async (id: string): Promise<Category> => {
 export const getInventory = async (
   shopId: string
 ): Promise<InventoryTransaction[]> => {
-  const response = await api.get(`/manager/inventory/transactions/${shopId}`);
-  return response.data;
+  try {
+    const startTime = performance.now();
+    console.log(
+      `[${new Date().toISOString()}] Fetching inventory transactions for shop ${shopId}`
+    );
+
+    // Добавляем уникальный идентификатор для отслеживания запроса
+    const requestId = `inv-${Date.now()}-${Math.random()
+      .toString(36)
+      .substring(2, 9)}`;
+    console.log(`Request ID: ${requestId}`);
+
+    const response = await api.get(`/manager/inventory/transactions/${shopId}`);
+
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+    const count = response.data?.length || 0;
+
+    console.log(
+      `[${new Date().toISOString()}] Inventory transactions fetched in ${duration}ms, count: ${count}, requestId: ${requestId}`
+    );
+
+    if (!response.data) {
+      console.warn(
+        `[${new Date().toISOString()}] No data received from inventory transactions API, shopId: ${shopId}`
+      );
+      return [];
+    }
+
+    // Проверяем структуру полученных данных для диагностики
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      // Если есть данные, проверяем наличие транзакций инвентаризации
+      const adjustments = response.data.filter((t) => t.type === 'ADJUSTMENT');
+      console.log(
+        `Found ${adjustments.length} ADJUSTMENT transactions out of ${count} total`
+      );
+
+      // Выводим последние 3 транзакции для диагностики
+      if (response.data.length > 0) {
+        const recentTransactions = response.data.slice(0, 3);
+        console.log(
+          `Last 3 transactions types: ${recentTransactions
+            .map((t) => t.type)
+            .join(', ')}`
+        );
+      }
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      `[${new Date().toISOString()}] Error fetching inventory for shop ${shopId}:`,
+      error
+    );
+    // Расширенная диагностика для axios ошибок
+    if (axios.isAxiosError(error)) {
+      console.error(`Axios error: ${error.message}`);
+      console.error(`Status: ${error.response?.status}`);
+      console.error(`Status text: ${error.response?.statusText}`);
+      console.error(`Data:`, error.response?.data);
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const createInventoryTransaction = async (data: {
@@ -145,6 +253,7 @@ export const createInventoryTransaction = async (data: {
   note?: string;
   description?: string;
   comment?: string;
+  metadata?: Record<string, any>;
 }): Promise<InventoryTransaction> => {
   const response = await api.post('/manager/inventory/transactions', data);
   return response.data;

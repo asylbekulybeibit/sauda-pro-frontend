@@ -9,9 +9,10 @@ import {
   Space,
   Select,
   message,
+  Modal,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createInventoryTransaction } from '@/services/managerApi';
 import dayjs from 'dayjs';
 
@@ -22,7 +23,7 @@ interface InventoryFormProps {
 }
 
 interface InventoryItem {
-  productId: number;
+  productId: string;
   currentQuantity: number;
   actualQuantity: number;
   difference: number;
@@ -38,20 +39,13 @@ export function InventoryForm({
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Загрузка списка товаров
   const { data: products } = useQuery({
     queryKey: ['products', shopId],
     queryFn: () => getProducts(shopId),
-  });
-
-  // Мутация для создания инвентаризации
-  const createInventoryMutation = useMutation({
-    mutationFn: createInventoryTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      onSuccess();
-    },
   });
 
   // Колонки для таблицы товаров
@@ -164,26 +158,174 @@ export function InventoryForm({
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async () => {
+  const startSubmitProcess = async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
 
       if (items.length === 0) {
         message.error('Добавьте хотя бы один товар');
         return;
       }
 
-      const inventoryData = {
-        ...values,
-        date: values.date.format('YYYY-MM-DD'),
-        items,
-        shopId,
-        type: 'INVENTORY',
+      // Посчитаем общие изменения для отображения в модальном окне
+      const totalItems = items.length;
+      const totalQuantityBefore = items.reduce(
+        (sum, item) => sum + item.currentQuantity,
+        0
+      );
+      const totalQuantityAfter = items.reduce(
+        (sum, item) => sum + item.actualQuantity,
+        0
+      );
+      const totalDifference = totalQuantityAfter - totalQuantityBefore;
+
+      // Проверяем, есть ли значительные изменения
+      const hasSeriousDifference = items.some(
+        (item) =>
+          Math.abs(item.difference) > item.currentQuantity * 0.2 &&
+          Math.abs(item.difference) > 2
+      );
+
+      if (hasSeriousDifference) {
+        Modal.confirm({
+          title: 'Обнаружены значительные расхождения',
+          content: (
+            <div>
+              <p>
+                В некоторых товарах обнаружены значительные расхождения
+                фактического количества с учётным.
+              </p>
+              <p>
+                Общее количество товаров до инвентаризации:{' '}
+                {totalQuantityBefore}
+              </p>
+              <p>
+                Общее количество товаров после инвентаризации:{' '}
+                {totalQuantityAfter}
+              </p>
+              <p>
+                Общая разница: {totalDifference > 0 ? '+' : ''}
+                {totalDifference} единиц
+              </p>
+              <p>Вы уверены, что хотите продолжить?</p>
+            </div>
+          ),
+          okText: 'Да, сохранить',
+          cancelText: 'Нет, проверить еще раз',
+          onOk: () => {
+            setShowConfirmModal(true);
+          },
+          okButtonProps: { className: 'bg-blue-500 hover:bg-blue-500' },
+          cancelButtonProps: { className: 'bg-blue-500 hover:bg-blue-500' },
+        });
+      } else {
+        setShowConfirmModal(true);
+      }
+    } catch (error) {
+      console.error('Ошибка при валидации формы:', error);
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Закрываем модальное окно подтверждения
+    setShowConfirmModal(false);
+
+    try {
+      setIsSubmitting(true);
+      const values = await form.validateFields();
+
+      console.log('Starting inventory submission for items:', items);
+
+      // Сохраняем текущую дату для логирования
+      const submissionStartTime = new Date().toISOString();
+
+      // Информация об устройстве и браузере
+      const deviceInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        timestamp: submissionStartTime,
+        submissionId: `inv-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
       };
 
-      await createInventoryMutation.mutateAsync(inventoryData);
+      // Создаем транзакции для каждого товара
+      const promises = items.map((item, index) => {
+        // Создаем простой объект с только нужными данными, избегая циклических ссылок
+        const transactionData = {
+          shopId: shopId,
+          type: 'ADJUSTMENT' as const, // Корректировка (инвентаризация)
+          productId: item.productId, // productId уже строка
+          quantity: item.actualQuantity,
+          comment: item.comment, // Комментарий конкретно для этого товара
+          description: `Инвентаризация от ${values.date.format('YYYY-MM-DD')}`,
+          note: values.comment, // Общий комментарий для всей инвентаризации
+          // Передаем только простые данные в metadata
+          metadata: {
+            currentQuantity: Number(item.currentQuantity),
+            difference: Number(item.difference),
+            date: values.date.format('YYYY-MM-DD'),
+            deviceInfo,
+            itemIndex: index, // Добавляем индекс элемента в массиве для отладки
+            inventory: {
+              id: deviceInfo.submissionId,
+              date: values.date.format('YYYY-MM-DD'),
+              comment: values.comment,
+              itemCount: items.length,
+            },
+          },
+        };
+
+        console.log(
+          `Sending inventory transaction ${index + 1}/${items.length}:`,
+          transactionData
+        );
+        return createInventoryTransaction(transactionData).catch((error) => {
+          console.error(`Error creating transaction for item ${index}:`, error);
+          throw error;
+        });
+      });
+
+      // Ждем завершения всех запросов с обработкой ошибок
+      try {
+        const results = await Promise.all(promises);
+        console.log('All inventory transactions completed:', results);
+
+        // Очищаем все связанные кэши данных для гарантированного обновления
+        await queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        await queryClient.invalidateQueries({ queryKey: ['products'] });
+
+        // Явно инвалидируем кэш с конкретным shopId
+        await queryClient.invalidateQueries({ queryKey: ['products', shopId] });
+        await queryClient.invalidateQueries({
+          queryKey: ['inventory', shopId],
+        });
+
+        const completionTime = new Date();
+        const elapsedMs =
+          completionTime.getTime() - new Date(submissionStartTime).getTime();
+        console.log(
+          `Inventory submission completed successfully in ${elapsedMs}ms`
+        );
+
+        // Принудительно ждем небольшую задержку для обновления данных
+        setTimeout(() => {
+          message.success('Инвентаризация успешно завершена');
+          setIsSubmitting(false);
+          onSuccess();
+        }, 500);
+      } catch (error) {
+        console.error('Error during inventory transaction creation:', error);
+        message.error(
+          'Ошибка при создании инвентаризации. Некоторые позиции могли не сохраниться.'
+        );
+        setIsSubmitting(false);
+      }
     } catch (error) {
       console.error('Ошибка при создании инвентаризации:', error);
+      message.error('Ошибка при создании инвентаризации');
+      setIsSubmitting(false);
     }
   };
 
@@ -237,6 +379,7 @@ export function InventoryForm({
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleAddItem}
+                className="bg-blue-500"
               >
                 Добавить товар
               </Button>
@@ -250,20 +393,59 @@ export function InventoryForm({
             pagination={false}
           />
 
-          <div className="mt-4 flex justify-end space-x-4">
-            <Button onClick={onClose}>Отмена</Button>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button onClick={onClose} disabled={isSubmitting}>
+              Отмена
+            </Button>
             <Button
               type="primary"
-              onClick={handleSubmit}
-              loading={createInventoryMutation.isPending}
-          className="bg-blue-500"
-
+              onClick={startSubmitProcess}
+              loading={isSubmitting}
+              className="bg-blue-500"
             >
-              Завершить инвентаризацию
+              Сохранить
             </Button>
           </div>
         </Form>
       </div>
+
+      <Modal
+        title="Подтверждение инвентаризации"
+        open={showConfirmModal}
+        onCancel={() => setShowConfirmModal(false)}
+        footer={[
+          <Button key="back" onClick={() => setShowConfirmModal(false)}>
+            Отмена
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={isSubmitting}
+            onClick={handleSubmit}
+            className="bg-blue-500"
+          >
+            Подтвердить
+          </Button>,
+        ]}
+      >
+        <p>Вы уверены, что хотите сохранить результаты инвентаризации?</p>
+        <p>
+          После сохранения данные о количестве товаров будут обновлены в
+          системе.
+        </p>
+        {items.length > 0 && (
+          <div className="mt-4">
+            <p>Краткая сводка:</p>
+            <ul>
+              <li>Количество товаров: {items.length}</li>
+              <li>
+                Товары с расхождениями:{' '}
+                {items.filter((item) => item.difference !== 0).length}
+              </li>
+            </ul>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
