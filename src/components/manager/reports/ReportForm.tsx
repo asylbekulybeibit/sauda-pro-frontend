@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Report, ReportType, ReportFormat, ReportPeriod } from '@/types/report';
 import { createReport, updateReport } from '@/services/managerApi';
-import { Modal, Form, Select, DatePicker, message, Alert } from 'antd';
+import { Modal, Form, Select, DatePicker, message } from 'antd';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -322,16 +322,6 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
       }}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
-        {selectedType === 'INVENTORY' && (
-          <Alert
-            message="Внимание - отчеты по инвентарю временно недоступны"
-            description="В текущей версии отчеты по инвентарю временно недоступны из-за ошибки в обработке данных. Пожалуйста, выберите другой тип отчета."
-            type="error"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-        )}
-
         <Form.Item
           name="type"
           label="Тип отчета"
