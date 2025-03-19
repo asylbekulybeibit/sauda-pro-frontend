@@ -16,24 +16,7 @@ export interface Shop {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  settings?: {
-    taxRate?: number;
-    printerSettings?: {
-      defaultPrinter?: string;
-      labelWidth?: number;
-      labelHeight?: number;
-    };
-    notificationSettings?: {
-      lowStockThreshold?: number;
-      emailNotifications?: boolean;
-      pushNotifications?: boolean;
-    };
-    currencySettings?: {
-      currency: string;
-      decimalPlaces: number;
-      showCurrencySymbol: 'before' | 'after' | 'code';
-    };
-  };
+ 
   userRoles: {
     id: string;
     type: 'owner' | 'manager' | 'cashier';
