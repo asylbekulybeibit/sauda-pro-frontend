@@ -5,7 +5,7 @@ export type ReportType =
   | 'FINANCIAL'
   | 'CATEGORIES'
   | 'PROMOTIONS';
-export type ReportFormat = 'pdf' | 'excel' | 'csv';
+export type ReportFormat = 'pdf' | 'excel';
 export type ReportPeriod =
   | 'day'
   | 'week'

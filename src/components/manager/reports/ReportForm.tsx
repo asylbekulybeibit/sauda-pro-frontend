@@ -3,15 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Report, ReportType, ReportFormat, ReportPeriod } from '@/types/report';
 import { createReport, updateReport } from '@/services/managerApi';
-import {
-  Modal,
-  Form,
-  Select,
-  DatePicker,
-  message,
-  Alert,
-} from 'antd';
-import dayjs  from 'dayjs';
+import { Modal, Form, Select, DatePicker, message, Alert } from 'antd';
+import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -196,8 +189,6 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
     }
   };
 
-
-
   const handleSubmit = async (values: any) => {
     try {
       if (!shopId) {
@@ -358,7 +349,6 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
           <Select>
             <Option value="pdf">PDF</Option>
             <Option value="excel">Excel</Option>
-            <Option value="csv">CSV</Option>
           </Select>
         </Form.Item>
 
