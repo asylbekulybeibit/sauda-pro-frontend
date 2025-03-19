@@ -138,12 +138,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
         { name: 'Отчеты', href: `/manager/${shopId}/analytics/reports` },
       ],
     },
-    {
-      name: 'Настройки',
-      href: `/manager/${shopId}/settings`,
-      icon: CogIcon,
-      color: 'bg-gray-100 text-gray-600',
-    },
+   
   ];
 
   return (

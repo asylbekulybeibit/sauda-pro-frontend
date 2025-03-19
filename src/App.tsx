@@ -60,9 +60,7 @@ const PromotionsPage = React.lazy(
 const LabelsPage = React.lazy(
   () => import('./pages/manager/labels/LabelsPage')
 );
-const SettingsPage = React.lazy(
-  () => import('./pages/manager/settings/SettingsPage')
-);
+
 const ManagerInvitesPage = React.lazy(
   () => import('./pages/manager/invites/ManagerInvitesPage')
 );
@@ -256,7 +254,6 @@ export default function App() {
                   <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
                   <Route path="analytics">
                     <Route index element={<AnalyticsPage />} />
                     <Route path="reports" element={<ReportsPage />} />
