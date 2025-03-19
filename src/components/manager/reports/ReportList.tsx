@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Report } from '@/types/report';
-import { ReportForm } from './ReportForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   deleteReport,
@@ -8,64 +7,64 @@ import {
   getReportDetails,
 } from '@/services/managerApi';
 import {
-  PencilIcon,
   TrashIcon,
   ArrowDownTrayIcon as DownloadIcon,
   EyeIcon,
-  ArrowPathIcon as RefreshIcon,
 } from '@heroicons/react/24/outline';
-import { formatDate } from '@/utils/format';
 import {
   Modal,
   Button,
-  Descriptions,
   Spin,
   Typography,
   Tag,
-  message,
-  Table,
   Input,
+  message,
+ 
 } from 'antd';
 import {
   FileTextOutlined,
-  ReloadOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Title,  } = Typography;
 
 interface ReportListProps {
   reports: Report[];
 }
 
 export function ReportList({ reports }: ReportListProps) {
-  const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [viewingReport, setViewingReport] = useState<Report | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [reportDetails, setReportDetails] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
   const queryClient = useQueryClient();
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteReport(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
-    },
-  });
+  
 
   const downloadMutation = useMutation({
-    mutationFn: (id: string) => downloadReport(id),
+    mutationFn: (params: { id: string; shopId: string }) =>
+      downloadReport(params.id, params.shopId),
   });
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот отчет?')) {
-      await deleteMutation.mutateAsync(id.toString());
+  const handleDelete = async (report: Report) => {
+    try {
+      await deleteReport(report.id.toString(), report.shopId);
+      message.success('Отчет успешно удален');
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+      setReportToDelete(null);
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      message.error('Ошибка при удалении отчета');
     }
   };
 
-  const handleDownload = async (id: number) => {
+  const handleDownload = async (report: Report) => {
     try {
-      const response = await downloadMutation.mutateAsync(id.toString());
+      const response = await downloadMutation.mutateAsync({
+        id: report.id.toString(),
+        shopId: report.shopId,
+      });
       if (response && response.data instanceof Blob) {
         const blob = response.data;
         const url = window.URL.createObjectURL(blob);
@@ -81,6 +80,7 @@ export function ReportList({ reports }: ReportListProps) {
       }
     } catch (error) {
       console.error('Ошибка при скачивании отчета:', error);
+      message.error('Ошибка при скачивании отчета');
     }
   };
 
@@ -121,22 +121,7 @@ export function ReportList({ reports }: ReportListProps) {
     }
   };
 
-  const refreshReportDetails = async () => {
-    if (!viewingReport) return;
-
-    setLoadingDetails(true);
-    try {
-      // Всегда получаем свежие данные с сервера при обновлении
-      const reportData = await getReportDetails(viewingReport.id.toString());
-      setReportDetails(reportData);
-      message.success('Данные отчета обновлены');
-    } catch (error) {
-      console.error('Ошибка при обновлении данных отчета:', error);
-      message.error('Не удалось обновить данные отчета');
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
+  
 
   const handleCloseDetails = () => {
     setViewingReport(null);
@@ -185,11 +170,57 @@ export function ReportList({ reports }: ReportListProps) {
 
     return date.toLocaleString('ru-RU', options);
   };
-
   // Функция для локализации ключей сводки отчета
   const getLocalizedSummaryKey = (key: string, reportType: string): string => {
-    // Приводим ключ к нижнему регистру для регистронезависимого сравнения
+    // Нормализуем ключ для более надежного сравнения
     const normalizedKey = key.toLowerCase();
+
+    // Специальные маппинги для финансового отчета
+    if (reportType === 'FINANCIAL') {
+      // Маппинг ключей финансового отчета
+      if (normalizedKey === 'revenue') return 'Выручка';
+      if (normalizedKey === 'costs') return 'Затраты';
+      if (normalizedKey === 'profit') return 'Прибыль';
+      if (normalizedKey === 'profitmargin') return 'Маржа прибыли';
+    }
+
+    // Специальные ключи для отчета по акциям
+    if (reportType === 'PROMOTIONS') {
+      // Специальные маппинги для разных вариантов ключей
+      if (
+        normalizedKey === 'totalpromotions' ||
+        normalizedKey === 'всего акций'
+      ) {
+        return 'Всего акций';
+      }
+      if (
+        normalizedKey === 'activepromotions' ||
+        normalizedKey === 'активные акции'
+      ) {
+        return 'Активные акции';
+      }
+      if (
+        normalizedKey === 'totaldiscountedsales' ||
+        normalizedKey.includes('discount')
+      ) {
+        return 'Общая сумма продаж со скидкой';
+      }
+      // Частичное соответствие
+      if (normalizedKey.includes('promotion')) {
+        return 'Акции';
+      }
+      if (normalizedKey.includes('sales')) {
+        return 'Продажи';
+      }
+      if (normalizedKey.includes('revenue')) {
+        return 'Выручка';
+      }
+      if (normalizedKey.includes('discount')) {
+        return 'Скидка';
+      }
+    }
+
+    // Остальной код без изменений
 
     // Специальные маппинги для полей отчета, которые могут прийти с backend
     const specialMappings: Record<string, string> = {
@@ -205,6 +236,19 @@ export function ReportList({ reports }: ReportListProps) {
       общая: 'Общая',
       общий: 'Общий',
       всего: 'Всего',
+      // Дополнительные маппинги для отчета по продажам
+      totalsales: 'Общие продажи',
+      totalorders: 'Всего заказов',
+      averageordervalue: 'Средний чек',
+      uniqueproducts: 'Уникальных товаров',
+      totalquantity: 'Общее количество',
+      totalrevenue: 'Общая выручка',
+      averageprice: 'Средняя цена',
+      salesbyproduct: 'Продажи по товарам',
+      salesbydate: 'Продажи по датам',
+      averagecheck: 'Средний чек',
+      totalcustomers: 'Всего покупателей',
+      salesgrowth: 'Рост продаж',
     };
 
     // Частичное соответствие для ключей
@@ -244,6 +288,14 @@ export function ReportList({ reports }: ReportListProps) {
         topCategory: 'Лучшая категория',
         totalCustomers: 'Всего покупателей',
         salesGrowth: 'Рост продаж',
+        totalItems: 'Всего товаров',
+        uniqueProducts: 'Уникальных товаров',
+        averageCheck: 'Средний чек',
+        totalQuantity: 'Общее количество',
+        totalRevenue: 'Общая выручка',
+        averagePrice: 'Средняя цена',
+        salesByProduct: 'Продажи по товарам',
+        salesByDate: 'Продажи по датам',
       },
       INVENTORY: {
         totalItems: 'Всего товаров',
@@ -268,6 +320,9 @@ export function ReportList({ reports }: ReportListProps) {
         profitMargin: 'Маржа прибыли',
         costOfGoodsSold: 'Себестоимость проданных товаров',
         operatingExpenses: 'Операционные расходы',
+        revenue: 'Выручка',
+        costs: 'Затраты',
+        profit: 'Прибыль',
       },
       CATEGORIES: {
         totalCategories: 'Всего категорий',
@@ -339,64 +394,62 @@ export function ReportList({ reports }: ReportListProps) {
   const getReportTableHeaders = (
     reportType: string
   ): Record<string, string> => {
+    // Заголовки специфичные для каждого типа отчета
     const headerMappings: Record<string, Record<string, string>> = {
       SALES: {
+        date: 'Дата',
         product: 'Товар',
         quantity: 'Количество',
         price: 'Цена',
         total: 'Сумма',
-        date: 'Дата',
-        category: 'Категория',
-        name: 'Наименование',
-        id: 'ID',
-        description: 'Описание',
-        count: 'Количество',
-        amount: 'Сумма',
+        cashier: 'Кассир',
+        customer: 'Клиент',
+        method: 'Способ оплаты',
+        orderNumber: 'Номер заказа',
+        status: 'Статус',
+        discount: 'Скидка',
+        paymentStatus: 'Статус оплаты',
+        deliveryStatus: 'Статус доставки',
+        comment: 'Комментарий',
       },
       INVENTORY: {
-        sku: 'Артикул',
         name: 'Наименование',
+        category: 'Категория',
         quantity: 'Количество',
         price: 'Цена',
         value: 'Стоимость',
-        category: 'Категория',
         status: 'Статус',
-        minQuantity: 'Мин. количество',
-        maxQuantity: 'Макс. количество',
-        id: 'ID',
-        description: 'Описание',
-        barcode: 'Штрих-код',
+        minQuantity: 'Мин. остаток',
+        sku: 'Артикул',
+        barcode: 'Штрихкод',
       },
       STAFF: {
         name: 'Сотрудник',
-        role: 'Должность',
-        sales: 'Продажи',
-        transactions: 'Транзакции',
-        hours: 'Часы работы',
+        position: 'Должность',
+        totalSales: 'Продажи',
+        totalTransactions: 'Транзакции',
+        averageTransactionValue: 'Средний чек',
         performance: 'Эффективность',
-        id: 'ID',
-        email: 'Email',
-        phone: 'Телефон',
-        position: 'Позиция',
-        department: 'Отдел',
       },
       FINANCIAL: {
         date: 'Дата',
+        type: 'Тип операции',
+        product: 'Товар',
         category: 'Категория',
-        income: 'Доход',
-        expense: 'Расход',
-        balance: 'Баланс',
-        description: 'Описание',
-        id: 'ID',
-        type: 'Тип',
+        quantity: 'Количество',
+        price: 'Цена',
+        total: 'Сумма',
         amount: 'Сумма',
-        transaction: 'Транзакция',
+        description: 'Описание',
+        comment: 'Комментарий',
+        balance: 'Баланс',
+        method: 'Способ платежа',
       },
       CATEGORIES: {
         name: 'Категория',
-        products: 'Товаров',
-        sales: 'Продажи',
-        revenue: 'Выручка',
+        productCount: 'Кол-во товаров',
+        totalSales: 'Продажи',
+        totalQuantity: 'Количество',
         profit: 'Прибыль',
         id: 'ID',
         description: 'Описание',
@@ -414,6 +467,9 @@ export function ReportList({ reports }: ReportListProps) {
         description: 'Описание',
         discount: 'Скидка',
         type: 'Тип',
+        productCount: 'Кол-во товаров',
+        totalSales: 'Общие продажи',
+        totalQuantity: 'Кол-во проданных товаров',
       },
     };
 
@@ -468,7 +524,6 @@ export function ReportList({ reports }: ReportListProps) {
       MIN: 'Мин. количество',
       MAX: 'Макс. количество',
       TOTAL: 'Итого',
-      TOTALSALES: 'Общие продажи',
       TOTALITEMS: 'Всего товаров',
       TOTALVALUE: 'Общая стоимость',
       МЕНОВАНИЕ: 'Наименование', // Для русских заголовков, которые могут быть искажены
@@ -476,7 +531,34 @@ export function ReportList({ reports }: ReportListProps) {
       КОЛИЧЕСТВО: 'Количество',
       СТАТУС: 'Статус',
       КАТЕГОРИЯ: 'Категория',
+      // Новые маппинги для отчета по акциям
+      STARTDATE: 'Начало',
+      ENDDATE: 'Завершение',
+      DISCOUNT: 'Скидка',
+      PRODUCTCOUNT: 'Кол-во товаров',
+      TOTALSALES: 'Общие продажи',
+      TOTALQUANTITY: 'Кол-во проданных товаров',
+      // Для заголовков отчета по акциям с camelCase написанием
+      totalsales: 'Общие продажи',
+      totalSales: 'Общие продажи',
+      productcount: 'Кол-во товаров',
+      productCount: 'Кол-во товаров',
+      totalquantity: 'Кол-во проданных товаров',
+      totalQuantity: 'Кол-во проданных товаров',
     };
+
+    // Специальное преобразование для отчета по акциям
+    if (reportType === 'PROMOTIONS') {
+      if (key === 'name' || key === 'Name') return 'Акция';
+      if (key === 'startdate' || key === 'startDate') return 'Начало';
+      if (key === 'enddate' || key === 'endDate') return 'Завершение';
+      if (key === 'discount' || key === 'Discount') return 'Скидка (%)';
+      if (key === 'productcount' || key === 'productCount')
+        return 'Кол-во товаров';
+      if (key === 'totalsales' || key === 'totalSales') return 'Общие продажи';
+      if (key === 'totalquantity' || key === 'totalQuantity')
+        return 'Кол-во проданных товаров';
+    }
 
     // Проверяем, есть ли ключ в маппинге для верхнего регистра
     if (key === key.toUpperCase() && upperCaseMapping[key]) {
@@ -484,7 +566,35 @@ export function ReportList({ reports }: ReportListProps) {
     }
 
     const tableHeaders = getReportTableHeaders(reportType);
-    return tableHeaders[lowerKey] || tableHeaders[key] || key;
+    return (
+      tableHeaders[lowerKey] ||
+      tableHeaders[key] ||
+      upperCaseMapping[key] ||
+      key
+    );
+  };
+
+  // Проверка, является ли акция активной в данный момент
+  const isPromotionActive = (
+    startDateStr: string,
+    endDateStr: string
+  ): boolean => {
+    if (!startDateStr || !endDateStr) return false;
+
+    try {
+      const startDate = new Date(startDateStr);
+      const endDate = new Date(endDateStr);
+      const now = new Date();
+
+      // Проверка на валидность дат
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
+
+      // Активна, если текущая дата между датой начала и окончания акции
+      return now >= startDate && now <= endDate;
+    } catch (error) {
+      console.error('Error checking promotion activity:', error);
+      return false;
+    }
   };
 
   // Функция для форматирования значений в зависимости от типа колонки
@@ -501,6 +611,237 @@ export function ReportList({ reports }: ReportListProps) {
     // Обрабатываем ключ в разных регистрах
     const normalizedKey = key.toLowerCase();
 
+    // Обработка типов операций для финансовых отчетов
+    if (reportType === 'FINANCIAL' && normalizedKey === 'type') {
+      const operationTypes: Record<string, string> = {
+        PURCHASE: 'Приход',
+        SALE: 'Продажа',
+        WRITE_OFF: 'Списание',
+        ADJUSTMENT: 'Корректировка',
+        TRANSFER: 'Перемещение',
+      };
+
+      return operationTypes[value] || value;
+    }
+
+    // Специальная обработка для отчета по акциям
+    if (reportType === 'PROMOTIONS') {
+      // Форматирование дат начала и завершения для отчета по акциям
+      if (
+        normalizedKey === 'startdate' ||
+        normalizedKey === 'enddate' ||
+        key === 'startDate' ||
+        key === 'endDate'
+      ) {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return String(value);
+
+        const now = new Date();
+
+        // Определение статуса даты
+        let statusClass = '';
+        let statusIcon = null;
+
+        if (normalizedKey === 'startdate' || key === 'startDate') {
+          if (date > now) {
+            // Если дата начала в будущем - акция еще не началась
+            statusClass = 'text-orange-600 font-medium';
+            statusIcon = (
+              <span className="inline-block w-2 h-2 bg-orange-500 rounded-full mr-1"></span>
+            );
+          } else {
+            statusClass = 'text-gray-600';
+          }
+        } else if (normalizedKey === 'enddate' || key === 'endDate') {
+          if (date < now) {
+            // Если дата завершения в прошлом - акция завершена
+            statusClass = 'text-gray-500';
+          } else {
+            statusClass = 'text-green-600 font-medium';
+          }
+        }
+
+        // Форматируем дату в удобный для чтения вид
+        const options: Intl.DateTimeFormatOptions = {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        };
+
+        const formattedDate = date.toLocaleDateString('ru-RU', options);
+
+        return (
+          <span className={`flex items-center ${statusClass}`}>
+            {statusIcon}
+            {formattedDate}
+          </span>
+        );
+      }
+
+      // Индикатор активности акции (сравниваем даты начала и окончания с текущей датой)
+      if (normalizedKey === 'name' && value) {
+        // Ищем в той же строке даты начала и окончания для определения активности акции
+        const row = reportDetails.details.find(
+          (item: Record<string, any>) =>
+            item.name === value || item.NAME === value
+        );
+
+        if (row) {
+          const startDate = row.startDate || row.startdate || row.STARTDATE;
+          const endDate = row.endDate || row.enddate || row.ENDDATE;
+
+          // Используем функцию для определения активности
+          const isActive = isPromotionActive(startDate, endDate);
+
+          return (
+            <span className="flex items-center">
+              {isActive && (
+                <span
+                  className="w-2 h-2 bg-green-500 rounded-full mr-2"
+                  title="Активная акция"
+                ></span>
+              )}
+              {String(value)}
+            </span>
+          );
+        }
+      }
+
+      // Форматирование скидки как процент
+      if (normalizedKey === 'discount') {
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            -{value}%
+          </span>
+        );
+      }
+
+      // Форматирование количества товаров с визуальным индикатором
+      if (
+        normalizedKey === 'productcount' ||
+        (normalizedKey.includes('product') && normalizedKey.includes('count'))
+      ) {
+        const count = Number(value);
+        let barClass = 'bg-blue-200';
+        let width = 'w-4'; // Минимальная ширина
+
+        if (count > 20) {
+          barClass = 'bg-blue-500';
+          width = 'w-24';
+        } else if (count > 10) {
+          barClass = 'bg-blue-400';
+          width = 'w-16';
+        } else if (count > 5) {
+          barClass = 'bg-blue-300';
+          width = 'w-8';
+        }
+
+        return (
+          <span className="flex items-center">
+            <span
+              className={`inline-block ${width} h-1.5 ${barClass} rounded-full mr-2`}
+            ></span>
+            {count}
+          </span>
+        );
+      }
+
+      // Улучшенное отображение продаж
+      if (normalizedKey === 'totalsales' || normalizedKey === 'totalquantity') {
+        const numValue = Number(value);
+        if (isNaN(numValue)) return String(value);
+
+        let textColor = 'text-gray-700';
+
+        if (normalizedKey === 'totalsales') {
+          if (numValue > 100000) textColor = 'text-green-700 font-medium';
+          else if (numValue > 50000) textColor = 'text-green-600';
+          else if (numValue > 0) textColor = 'text-green-500';
+
+          return (
+            <span className={textColor}>
+              {new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'KZT',
+                maximumFractionDigits: 0,
+              }).format(numValue)}
+            </span>
+          );
+        }
+
+        if (normalizedKey === 'totalquantity') {
+          if (numValue > 50) textColor = 'text-blue-700 font-medium';
+          else if (numValue > 20) textColor = 'text-blue-600';
+          else if (numValue > 0) textColor = 'text-blue-500';
+
+          return <span className={textColor}>{numValue}</span>;
+        }
+      }
+    }
+
+    // Специальная обработка для отчета по продажам
+    if (reportType === 'SALES') {
+      // Форматирование даты
+      if (normalizedKey === 'date' || normalizedKey === 'createdAt') {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return String(value);
+
+        const options: Intl.DateTimeFormatOptions = {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        };
+        return date.toLocaleString('ru-RU', options);
+      }
+
+      // Форматирование цены и суммы
+      if (
+        normalizedKey === 'price' ||
+        normalizedKey === 'total' ||
+        normalizedKey === 'amount'
+      ) {
+        return new Intl.NumberFormat('ru-RU', {
+          style: 'currency',
+          currency: 'KZT',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(Number(value));
+      }
+
+      // Форматирование количества
+      if (normalizedKey === 'quantity') {
+        return new Intl.NumberFormat('ru-RU').format(Number(value));
+      }
+
+      // Форматирование статуса
+      if (normalizedKey === 'status') {
+        const statusMap: Record<string, { text: string; color: string }> = {
+          completed: { text: 'Завершен', color: 'green' },
+          pending: { text: 'В обработке', color: 'orange' },
+          cancelled: { text: 'Отменен', color: 'red' },
+        };
+        const status = statusMap[value.toLowerCase()] || {
+          text: value,
+          color: 'default',
+        };
+        return <Tag color={status.color}>{status.text}</Tag>;
+      }
+
+      // Форматирование способа оплаты
+      if (normalizedKey === 'method' || normalizedKey === 'paymentmethod') {
+        const methodMap: Record<string, string> = {
+          cash: 'Наличные',
+          card: 'Карта',
+          transfer: 'Перевод',
+        };
+        return methodMap[value.toLowerCase()] || value;
+      }
+    }
+
     // Форматирование для денежных значений
     if (
       [
@@ -515,6 +856,7 @@ export function ReportList({ reports }: ReportListProps) {
         'sales',
         'totalvalue',
         'cost',
+        'totalsales', // Добавлено для отчета по акциям
       ].includes(normalizedKey) &&
       (typeof value === 'number' || !isNaN(Number(value)))
     ) {
@@ -656,11 +998,8 @@ export function ReportList({ reports }: ReportListProps) {
           <div className="flex items-center">
             <FileTextOutlined className="text-blue-500 text-lg mr-2" />
             <span className="text-lg font-medium">
-              {viewingReport.name
-                ? `Отчет: ${viewingReport.name}`
-                : `Отчет: ${getReportTypeText(
-                    viewingReport.type
-                  )} (${formatDate(viewingReport.createdAt)})`}
+              Отчет: {getReportTypeText(viewingReport.type)} (
+              {formatDate(viewingReport.createdAt)})
             </span>
           </div>
         }
@@ -674,7 +1013,7 @@ export function ReportList({ reports }: ReportListProps) {
           <Button
             key="download"
             type="primary"
-            onClick={() => handleDownload(viewingReport.id)}
+            onClick={() => handleDownload(viewingReport)}
             icon={<DownloadIcon className="h-4 w-4 mr-1" />}
           >
             Скачать отчет
@@ -858,22 +1197,18 @@ export function ReportList({ reports }: ReportListProps) {
                             return (
                               <div
                                 key={key}
-                                className={`p-4 rounded-lg border border-gray-200 ${cardColorClass}`}
+                                className={`p-4 rounded-lg border ${cardColorClass}`}
                               >
-                                <div className="text-sm text-gray-500 mb-1">
+                                <div className="text-xs text-gray-500 mb-1">
                                   {getLocalizedSummaryKey(
                                     key,
                                     viewingReport.type
                                   )}
                                 </div>
                                 <div
-                                  className={`text-lg font-medium ${textColorClass}`}
+                                  className={`font-medium ${textColorClass}`}
                                 >
-                                  {formatColumnValue(
-                                    key,
-                                    value,
-                                    viewingReport.type
-                                  )}
+                                  {formatSummaryValue(key, value)}
                                 </div>
                               </div>
                             );
@@ -889,128 +1224,79 @@ export function ReportList({ reports }: ReportListProps) {
                         Детализация
                       </Title>
                       <Input
-                        placeholder="Поиск в таблице"
+                        placeholder="Поиск по отчету"
+                        prefix={<SearchOutlined />}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{ width: 250 }}
-                        suffix={<SearchOutlined />}
                         allowClear
                       />
                     </div>
 
-                    <div className="border rounded-lg overflow-hidden mb-6">
-                      <table className="min-w-full divide-y divide-gray-200 table-fixed">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            {reportDetails.details.length > 0 &&
-                              Object.keys(reportDetails.details[0]).map(
-                                (key, index) => (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div
+                        className="overflow-x-auto"
+                        style={{ maxHeight: '400px' }}
+                      >
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              {reportDetails.details.length > 0 &&
+                                (viewingReport.type === 'FINANCIAL'
+                                  ? getSortedFinancialColumns(
+                                      reportDetails.details[0]
+                                    )
+                                  : Object.keys(reportDetails.details[0])
+                                ).map((column) => (
                                   <th
-                                    key={index}
-                                    className="px-4 py-3 text-left text-xs font-medium text-gray-600"
-                                    style={{ wordBreak: 'break-word' }}
+                                    key={column}
+                                    className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
                                   >
                                     {getLocalizedColumnName(
-                                      key,
+                                      column,
                                       viewingReport.type
                                     )}
                                   </th>
-                                )
-                              )}
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {filteredReportData.length > 0 ? (
-                            filteredReportData.map(
-                              (row: Record<string, any>, rowIndex: number) => {
-                                // Проверяем, содержит ли строка важные индикаторы статуса
-                                let rowColorClass =
-                                  rowIndex % 2 === 0
-                                    ? 'bg-white'
-                                    : 'bg-gray-50';
-                                const hasLowStock = Object.values(row).some(
-                                  (value) => {
-                                    if (typeof value === 'string') {
-                                      const lowerValue = value.toLowerCase();
-                                      return (
-                                        lowerValue.includes('low_stock') ||
-                                        lowerValue === 'мало на складе'
-                                      );
-                                    }
-                                    return false;
-                                  }
-                                );
-
-                                const hasOutOfStock = Object.values(row).some(
-                                  (value) => {
-                                    if (typeof value === 'string') {
-                                      const lowerValue = value.toLowerCase();
-                                      return (
-                                        lowerValue.includes('out_of_stock') ||
-                                        lowerValue === 'отсутствует'
-                                      );
-                                    }
-                                    return false;
-                                  }
-                                );
-
-                                if (hasOutOfStock) {
-                                  rowColorClass = 'bg-red-50';
-                                } else if (hasLowStock) {
-                                  rowColorClass = 'bg-yellow-50';
-                                }
-
-                                return (
-                                  <tr key={rowIndex} className={rowColorClass}>
-                                    {Object.entries(row).map(
-                                      ([key, value], cellIndex) => (
-                                        <td
-                                          key={`${rowIndex}-${cellIndex}`}
-                                          className="px-4 py-3 text-sm"
-                                          style={{ wordBreak: 'break-word' }}
-                                        >
-                                          {formatColumnValue(
-                                            key,
-                                            value,
-                                            viewingReport.type
-                                          )}
-                                        </td>
-                                      )
-                                    )}
-                                  </tr>
-                                );
-                              }
-                            )
-                          ) : (
-                            <tr>
-                              <td
-                                colSpan={
-                                  reportDetails.details.length > 0
-                                    ? Object.keys(reportDetails.details[0])
-                                        .length
-                                    : 1
-                                }
-                                className="px-4 py-6 text-center text-gray-500"
-                              >
-                                {searchTerm
-                                  ? 'Нет данных, соответствующих условиям поиска'
-                                  : 'Нет данных для отображения'}
-                              </td>
+                                ))}
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {filteredReportData.map(
+                              (row: Record<string, any>, idx: number) => (
+                                <tr
+                                  key={idx}
+                                  className={
+                                    idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                  }
+                                >
+                                  {(viewingReport.type === 'FINANCIAL'
+                                    ? getSortedFinancialColumns(row)
+                                    : Object.keys(row)
+                                  ).map((column) => (
+                                    <td
+                                      key={`${idx}-${column}`}
+                                      className="px-4 py-3 text-sm"
+                                    >
+                                      {formatColumnValue(
+                                        column,
+                                        row[column],
+                                        viewingReport.type
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </>
                 )}
               </>
             ) : (
-              <div className="text-center py-8">
-                <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
-                <Title level={4} className="mt-4">
-                  Нет данных для отображения
-                </Title>
-                <Text type="secondary">Не удалось загрузить данные отчета</Text>
+              <div className="text-center py-8 text-gray-500">
+                Нет данных для отображения
               </div>
             )}
           </div>
@@ -1019,92 +1305,153 @@ export function ReportList({ reports }: ReportListProps) {
     );
   };
 
+  const showDeleteConfirm = (report: Report) => {
+    setReportToDelete(report);
+  };
+
+  const handleDeleteCancel = () => {
+    setReportToDelete(null);
+  };
+
+  // Функция для сортировки столбцов в финансовом отчете
+  const getSortedFinancialColumns = (row: Record<string, any>): string[] => {
+    // Определяем желаемый порядок столбцов
+    const columnOrder = [
+      'date', // Дата
+      'type', // Тип операции
+      'product', // Товар
+      'price', // Цена
+      'quantity', // Количество
+      'total', // Сумма
+      'amount', // Альтернативное название для суммы, если присутствует
+      'comment', // Комментарий
+      'description', // Описание
+      'category', // Категория
+      'balance', // Баланс
+      'method', // Способ платежа
+    ];
+
+    // Получаем все ключи из объекта
+    const availableColumns = Object.keys(row);
+
+    // Сначала добавляем столбцы в желаемом порядке, если они присутствуют
+    const sortedColumns = columnOrder.filter(
+      (col) =>
+        availableColumns.includes(col) ||
+        availableColumns.includes(col.toUpperCase()) ||
+        availableColumns.includes(col.charAt(0).toUpperCase() + col.slice(1))
+    );
+
+    // Затем добавляем оставшиеся столбцы, которые не были включены в заданный порядок
+    availableColumns.forEach((col) => {
+      const lowerCol = col.toLowerCase();
+      // Проверяем, не был ли столбец уже добавлен (в другом регистре)
+      if (!columnOrder.some((ordered) => ordered.toLowerCase() === lowerCol)) {
+        sortedColumns.push(col);
+      }
+    });
+
+    return sortedColumns;
+  };
+
   return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
+    <div>
+      {renderReportDetails()}
+
+      {/* Модальное окно подтверждения удаления */}
+      <Modal
+        title="Подтверждение удаления"
+        open={!!reportToDelete}
+        onOk={() => reportToDelete && handleDelete(reportToDelete)}
+        onCancel={handleDeleteCancel}
+        okText="Удалить"
+        cancelText="Отмена"
+        okButtonProps={{ danger: true }}
+      >
+        <p>
+          Вы действительно хотите удалить отчет типа "
+          {reportToDelete ? getReportTypeText(reportToDelete.type) : ''}"?
+        </p>
+        <p>Это действие нельзя будет отменить.</p>
+      </Modal>
+
+      <div className="bg-white shadow rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Название
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Тип
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Формат
               </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Дата создания
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Создан
               </th>
-              <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Действия</span>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Период
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Действия
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {reports && reports.length > 0 ? (
+            {reports.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                  Отчеты не найдены. Создайте новый отчет.
+                </td>
+              </tr>
+            ) : (
               reports.map((report) => (
-                <tr key={report.id} className="hover:bg-gray-50">
+                <tr key={report.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
-                      {report.name || 'Отчет без названия'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
+                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                       {getReportTypeText(report.type)}
-                    </div>
+                    </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {getFormatText(report.format)}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {getFormatText(report.format)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatDate(report.createdAt)}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(report.createdAt)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-3">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {report.period === 'custom'
+                      ? 'Произвольный'
+                      : report.period === 'day'
+                      ? 'День'
+                      : report.period === 'week'
+                      ? 'Неделя'
+                      : report.period === 'month'
+                      ? 'Месяц'
+                      : report.period === 'quarter'
+                      ? 'Квартал'
+                      : report.period === 'year'
+                      ? 'Год'
+                      : report.period}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex space-x-2">
                       <button
                         onClick={() => handleViewReport(report)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Просмотреть"
+                        className="text-indigo-600 hover:text-indigo-900 flex items-center"
+                        title="Просмотр отчета"
                       >
                         <EyeIcon className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => setEditingReport(report)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Редактировать"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDownload(report.id)}
-                        className="text-green-600 hover:text-green-900"
-                        title="Скачать"
+                        onClick={() => handleDownload(report)}
+                        className="text-blue-600 hover:text-blue-900 flex items-center"
+                        title="Скачать отчет"
                       >
                         <DownloadIcon className="h-5 w-5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(report.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Удалить"
+                        onClick={() => showDeleteConfirm(report)}
+                        className="text-red-600 hover:text-red-900 flex items-center"
+                        title="Удалить отчет"
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
@@ -1112,29 +1459,10 @@ export function ReportList({ reports }: ReportListProps) {
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-6 py-4 text-center text-sm text-gray-500"
-                >
-                  Нет доступных отчетов
-                </td>
-              </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {editingReport && (
-        <ReportForm
-          report={editingReport}
-          onClose={() => setEditingReport(null)}
-          open={true}
-        />
-      )}
-
-      {renderReportDetails()}
     </div>
   );
 }

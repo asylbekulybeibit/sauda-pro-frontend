@@ -6,14 +6,12 @@ import { createReport, updateReport } from '@/services/managerApi';
 import {
   Modal,
   Form,
-  Input,
   Select,
   DatePicker,
-  Space,
   message,
   Alert,
 } from 'antd';
-import dayjs, { OpUnitType } from 'dayjs';
+import dayjs  from 'dayjs';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -198,9 +196,7 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
     }
   };
 
-  const handleTypeChange = (value: ReportType) => {
-    setSelectedType(value);
-  };
+
 
   const handleSubmit = async (values: any) => {
     try {
@@ -241,10 +237,26 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
         return;
       }
 
+      // Генерируем имя отчета автоматически на основе типа и даты
+      const reportTypeMap: Record<string, string> = {
+        SALES: 'Продажи',
+        INVENTORY: 'Инвентарь',
+        STAFF: 'Персонал',
+        FINANCIAL: 'Финансы',
+        CATEGORIES: 'Категории',
+        PROMOTIONS: 'Акции',
+      };
+
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('ru-RU');
+      const reportName = `${
+        reportTypeMap[values.type] || values.type
+      } (${formattedDate})`;
+
       // Prepare the data to be sent to the backend
       const formattedData = {
         shopId,
-        name: values.name,
+        name: reportName,
         type: values.type,
         format: values.format,
         period: values.period,
@@ -318,16 +330,6 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
             style={{ marginBottom: 16 }}
           />
         )}
-
-        <Form.Item
-          name="name"
-          label="Название"
-          rules={[
-            { required: true, message: 'Пожалуйста, введите название отчета' },
-          ]}
-        >
-          <Input placeholder="Введите название отчета" />
-        </Form.Item>
 
         <Form.Item
           name="type"

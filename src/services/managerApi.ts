@@ -4,17 +4,27 @@ import { Category } from '@/types/category';
 import { InventoryTransaction, TransactionType } from '@/types/inventory';
 import { UserRoleDetails } from '@/types/role';
 import { Invite } from '@/types/invite';
-import { Report } from '@/types/report';
+import { Report, ReportType, ReportFormat, ReportPeriod } from '@/types/report';
 import { Promotion } from '@/types/promotion';
 import { Supplier } from '@/types/supplier';
 import { LabelTemplate } from '@/types/label';
 import { PriceHistory } from '@/types/priceHistory';
-import { ApiErrorHandler, ApiError } from '@/utils/error-handler';
+import { ApiErrorHandler } from '@/utils/error-handler';
 import { RoleType } from '@/types/role';
 import { Purchase } from '@/types/purchase';
 import axios from 'axios';
 import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
+
+interface ApiError {
+  response: {
+    data: {
+      message: string;
+      [key: string]: any;
+    };
+    status: number;
+  };
+}
 
 interface GenerateLabelsRequest {
   shopId: string;
@@ -426,20 +436,27 @@ export const updateReport = async (data: {
   }
 };
 
-export const deleteReport = async (id: string): Promise<void> => {
-  await api.delete(`/manager/reports/${id}`);
+export const deleteReport = async (
+  id: string,
+  shopId: string
+): Promise<void> => {
+  await api.delete(`/manager/reports/${id}?shopId=${shopId}`);
 };
 
 export const downloadReport = async (
-  id: string
+  id: string,
+  shopId: string
 ): Promise<{
   data: Blob;
   type: string;
   filename: string;
 }> => {
-  const response = await api.get(`/manager/reports/${id}/download`, {
-    responseType: 'blob',
-  });
+  const response = await api.get(
+    `/manager/reports/${id}/download?shopId=${shopId}`,
+    {
+      responseType: 'blob',
+    }
+  );
   const contentType = response.headers['content-type'];
   const filename =
     response.headers['content-disposition']
@@ -507,24 +524,27 @@ export const createPromotion = async (data: any): Promise<Promotion> => {
   } catch (error) {
     console.error('Error in createPromotion:', error);
 
-    if (error.response?.status === 500) {
-      // Попытаемся отправить запрос специальным образом через query-параметры
-      try {
-        const payload = {
-          ...data,
-          value: Number(data.value),
-          discount: Number(data.value), // Для совместимости устанавливаем discount = value
-        };
+    if (error && typeof error === 'object' && 'response' in error) {
+      const apiError = error as ApiError;
+      if (apiError.response?.status === 500) {
+        // Попытаемся отправить запрос специальным образом через query-параметры
+        try {
+          const payload = {
+            ...data,
+            value: Number(data.value),
+            discount: Number(data.value), // Для совместимости устанавливаем discount = value
+          };
 
-        // Формируем специальный URL с параметрами
-        const url = `/manager/promotions/create-with-discount`;
-        console.log('Trying alternative endpoint:', url);
+          // Формируем специальный URL с параметрами
+          const url = `/manager/promotions/create-with-discount`;
+          console.log('Trying alternative endpoint:', url);
 
-        const response = await api.post(url, payload);
-        return response.data;
-      } catch (fallbackError) {
-        console.error('Alternative endpoint also failed:', fallbackError);
-        throw fallbackError;
+          const response = await api.post(url, payload);
+          return response.data;
+        } catch (fallbackError) {
+          console.error('Alternative endpoint also failed:', fallbackError);
+          throw fallbackError;
+        }
       }
     }
 
@@ -565,24 +585,17 @@ export const deletePromotion = async (
   shopId?: string
 ): Promise<void> => {
   try {
-    if (!shopId) {
-      // Получаем shopId из URL
-      const urlParams = new URLSearchParams(window.location.pathname);
-      const match = window.location.pathname.match(
-        /\/manager\/([^\/]+)\/promotions/
-      );
-      if (match && match[1]) {
-        shopId = match[1];
-      } else {
-        throw new Error('ShopId is required for deleting a promotion');
-      }
-    }
-
-    console.log(`Deleting promotion: id=${id}, shopId=${shopId}`);
-    await api.delete(`/manager/promotions/shop/${shopId}/promotion/${id}`);
+    await api.delete(
+      `/manager/promotions/${id}${shopId ? `?shopId=${shopId}` : ''}`
+    );
   } catch (error) {
-    console.error('Error deleting promotion:', error);
-    throw ApiErrorHandler.handle(error);
+    if (error && typeof error === 'object' && 'response' in error) {
+      const apiError = error as ApiError;
+      throw new Error(
+        apiError.response.data.message || 'Failed to delete promotion'
+      );
+    }
+    throw new Error('An unexpected error occurred');
   }
 };
 
@@ -904,7 +917,14 @@ export const getPriceChangesReport = async (
 
 // Хелпер для проверки ошибок
 export const isApiError = (error: unknown): error is ApiError => {
-  return error instanceof Error && 'code' in error && 'status' in error;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response
+  );
 };
 
 export interface CreatePurchaseRequest {
