@@ -69,6 +69,7 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
         };
         form.setFieldsValue(initialValues);
         setPeriod(report.period);
+        setSelectedType(report.type);
       } else {
         // Устанавливаем значения по умолчанию
         const today = dayjs();
@@ -187,6 +188,11 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
     if (startDate && endDate) {
       form.setFieldsValue({ dateRange: [startDate, endDate] });
     }
+  };
+
+  // Add handler for type changes
+  const handleTypeChange = (value: ReportType) => {
+    setSelectedType(value);
   };
 
   const handleSubmit = async (values: any) => {
@@ -310,6 +316,10 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
       width={520}
       maskClosable={false}
       destroyOnClose
+      okButtonProps={{
+        type: 'primary',
+        style: { backgroundColor: '#1890ff', borderColor: '#1890ff' },
+      }}
     >
       <Form form={form} layout="vertical" onFinish={handleSubmit}>
         {selectedType === 'INVENTORY' && (
@@ -329,7 +339,7 @@ export function ReportForm({ report, onClose, open }: ReportFormProps) {
             { required: true, message: 'Пожалуйста, выберите тип отчета' },
           ]}
         >
-          <Select>
+          <Select onChange={handleTypeChange}>
             <Option value="SALES">Продажи</Option>
             <Option value="INVENTORY">Инвентарь</Option>
             <Option value="STAFF">Персонал</Option>

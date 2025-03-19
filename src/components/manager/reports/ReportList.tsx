@@ -11,22 +11,10 @@ import {
   ArrowDownTrayIcon as DownloadIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import {
-  Modal,
-  Button,
-  Spin,
-  Typography,
-  Tag,
-  Input,
-  message,
- 
-} from 'antd';
-import {
-  FileTextOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { Modal, Button, Spin, Typography, Tag, Input, message } from 'antd';
+import { FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 
-const { Title,  } = Typography;
+const { Title } = Typography;
 
 interface ReportListProps {
   reports: Report[];
@@ -39,8 +27,6 @@ export function ReportList({ reports }: ReportListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [reportToDelete, setReportToDelete] = useState<Report | null>(null);
   const queryClient = useQueryClient();
-
-  
 
   const downloadMutation = useMutation({
     mutationFn: (params: { id: string; shopId: string }) =>
@@ -120,8 +106,6 @@ export function ReportList({ reports }: ReportListProps) {
       setLoadingDetails(false);
     }
   };
-
-  
 
   const handleCloseDetails = () => {
     setViewingReport(null);

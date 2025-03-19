@@ -146,6 +146,7 @@ export default function ReportsPage() {
             icon={<PlusOutlined />}
             onClick={() => setShowForm(true)}
             size="large"
+            style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
           >
             Создать отчет
           </Button>
@@ -221,6 +222,7 @@ export default function ReportsPage() {
               onClick={() => setShowForm(true)}
               className="mt-2"
               icon={<PlusOutlined />}
+              style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
             >
               Создать отчет
             </Button>
