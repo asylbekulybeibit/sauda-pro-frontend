@@ -718,6 +718,8 @@ const PurchaseForm = forwardRef<PurchaseFormRef, PurchaseFormProps>(
             );
             console.log('Результат обновления черновика:', result);
             message.success('Черновик сохранен');
+            // Инвалидируем кэш после обновления
+            queryClient.invalidateQueries({ queryKey: ['purchases', shopId] });
           } else {
             console.log('=== СОЗДАНИЕ НОВОГО ЧЕРНОВИКА ===');
             console.log('Причина: отсутствует existingDraftId');
@@ -728,6 +730,8 @@ const PurchaseForm = forwardRef<PurchaseFormRef, PurchaseFormProps>(
             console.log('Новый черновик создан с ID:', response.id);
             console.log('ID сохранен в состояние');
             message.success('Новый черновик создан');
+            // Инвалидируем кэш после создания
+            queryClient.invalidateQueries({ queryKey: ['purchases', shopId] });
           }
         } catch (error) {
           console.error('=== ОШИБКА ПРИ СОХРАНЕНИИ ЧЕРНОВИКА ===');

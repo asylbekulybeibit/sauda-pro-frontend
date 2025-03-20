@@ -99,6 +99,9 @@ function IncomingPage() {
       }
     },
     enabled: !!shopId,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   useEffect(() => {
