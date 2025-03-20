@@ -15,6 +15,7 @@ import { RoleType } from './types/role';
 import { ShopProvider } from '@/contexts/ShopContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManagerHeader } from '@/components/manager/layout/Header';
+import './styles/price-analytics.css';
 
 // Ленивая загрузка компонентов
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
@@ -94,6 +95,12 @@ const SupplierDetailsPage = React.lazy(
 const SupplierFormPage = React.lazy(
   () => import('./pages/manager/suppliers/SupplierFormPage')
 );
+const PriceAnalyticsPage = React.lazy(
+  () => import('./pages/manager/prices/PriceAnalyticsPage')
+);
+const ProductPriceHistoryPage = React.lazy(
+  () => import('./pages/manager/prices/ProductPriceHistoryPage')
+);
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -165,10 +172,8 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ShopProvider>
-        <Router
-          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-        >
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ShopProvider>
           <Suspense
             fallback={
               <div className="flex justify-center items-center h-screen">
@@ -280,6 +285,13 @@ export default function App() {
                     <Route path=":id/edit" element={<SupplierFormPage />} />
                     <Route path="new" element={<SupplierFormPage />} />
                   </Route>
+                  <Route path="prices">
+                    <Route index element={<PriceAnalyticsPage />} />
+                    <Route
+                      path="product/:id"
+                      element={<ProductPriceHistoryPage />}
+                    />
+                  </Route>
                 </Route>
               </Route>
 
@@ -287,8 +299,8 @@ export default function App() {
               <Route path="/" element={<Navigate to="/profile" replace />} />
             </Routes>
           </Suspense>
-        </Router>
-      </ShopProvider>
+        </ShopProvider>
+      </Router>
     </QueryClientProvider>
   );
 }

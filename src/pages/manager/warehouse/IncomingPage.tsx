@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Button,
@@ -13,6 +13,9 @@ import {
   Space,
   Dropdown,
   Modal,
+  Row,
+  Col,
+  Segmented,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +23,11 @@ import {
   getPurchases,
   deletePurchase,
   getPurchaseById,
+  completePurchaseDraft,
+  getShopPurchases,
+  getPurchaseStatuses,
+  getSuppliers,
+  updatePurchaseStatus,
 } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -32,12 +40,17 @@ import {
   CopyOutlined,
   DeleteOutlined,
   EyeOutlined,
+  EditOutlined,
+  CheckCircleOutlined,
+  SearchOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
-import { PurchaseForm } from '@/components/manager/warehouse/PurchaseForm';
+import PurchaseForm from '../../../components/manager/warehouse/PurchaseForm';
 import PurchaseDetails from '@/components/manager/warehouse/PurchaseDetails';
 import dayjs from 'dayjs';
 import type { Purchase } from '@/types/purchase';
 import * as XLSX from 'xlsx';
+import { Supplier } from '../../../types/supplier';
 
 const { RangePicker } = DatePicker;
 
@@ -57,6 +70,8 @@ function IncomingPage() {
     null
   );
   const [showDetails, setShowDetails] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<Purchase | null>(null);
+  const formRef = React.useRef<any>(null);
 
   const {
     data: purchases = [],
@@ -86,7 +101,6 @@ function IncomingPage() {
     enabled: !!shopId,
   });
 
-  // Логируем состояние purchases после загрузки
   useEffect(() => {
     console.log('Purchases state:', purchases);
     console.log('Purchases state type:', typeof purchases);
@@ -96,7 +110,6 @@ function IncomingPage() {
     }
   }, [purchases]);
 
-  // Получаем уникальный список поставщиков
   const suppliers = useMemo(() => {
     if (!purchases || !Array.isArray(purchases)) return [];
 
@@ -127,7 +140,6 @@ function IncomingPage() {
       Комментарий: purchase.comment || '-',
     }));
 
-    // Добавляем детальную информацию о товарах в отдельный лист
     const detailedData = filteredPurchases.flatMap((purchase: Purchase) =>
       Array.isArray(purchase.items)
         ? purchase.items.map((item) => ({
@@ -202,7 +214,6 @@ function IncomingPage() {
 
   const handleViewPurchase = async (purchase: Purchase) => {
     try {
-      // Загружаем детальную информацию о приходе
       const detailedPurchase = await getPurchaseById(
         purchase.id.toString(),
         shopId!
@@ -213,6 +224,79 @@ function IncomingPage() {
       console.error('Error loading purchase details:', error);
       message.error('Не удалось загрузить детали прихода');
     }
+  };
+
+  const handleEditDraft = async (purchase: Purchase) => {
+    try {
+      console.log('Редактирование черновика ID:', purchase.id);
+      const detailedPurchase = await getPurchaseById(
+        purchase.id.toString(),
+        shopId!
+      );
+
+      console.log('Получены данные черновика:', detailedPurchase);
+      console.log('Товары в черновике:', detailedPurchase.items);
+
+      // Проверяем, есть ли товары в черновике
+      if (!detailedPurchase.items || detailedPurchase.items.length === 0) {
+        message.warning('В черновике нет товаров или они не были загружены');
+      }
+
+      const formData = {
+        id: purchase.id,
+        supplierId: detailedPurchase.supplier.id,
+        invoiceNumber: detailedPurchase.invoiceNumber,
+        date: dayjs(detailedPurchase.date),
+        comment: detailedPurchase.comment,
+        items: detailedPurchase.items
+          ? detailedPurchase.items.map((item) => ({
+              id: crypto.randomUUID(),
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.total,
+              partialQuantity: item.partialQuantity,
+              serialNumber: item.serialNumber,
+              expiryDate: item.expiryDate,
+              needsLabels: false,
+              comment: item.comment,
+              // Добавляем дополнительные поля, которые могут понадобиться
+              barcode: item.product?.barcode,
+              name: item.product?.name,
+              sku: item.product?.sku,
+              unit: item.product?.unit || 'шт',
+            }))
+          : [],
+      };
+
+      console.log('Подготовленные данные формы:', formData);
+      setEditingDraft(detailedPurchase);
+      setSelectedPurchase(formData as any);
+      setShowForm(true);
+    } catch (error) {
+      console.error('Error loading draft for editing:', error);
+      message.error('Не удалось загрузить данные черновика');
+    }
+  };
+
+  const handleCompleteDraft = (purchase: Purchase) => {
+    Modal.confirm({
+      title: 'Завершение черновика',
+      content:
+        'Вы действительно хотите завершить этот черновик и создать приход?',
+      okText: 'Завершить',
+      cancelText: 'Отмена',
+      onOk: async () => {
+        try {
+          await completePurchaseDraft(shopId!, purchase.id.toString());
+          message.success('Черновик успешно завершен, приход создан');
+          refetch();
+        } catch (error) {
+          console.error('Error completing draft:', error);
+          message.error('Произошла ошибка при завершении черновика');
+        }
+      },
+    });
   };
 
   const columns: ColumnsType<Purchase> = [
@@ -261,10 +345,8 @@ function IncomingPage() {
       dataIndex: 'totalItems',
       key: 'totalItems',
       render: (totalItems: number, record: Purchase) => {
-        // Если есть поле totalItems, используем его
         if (typeof totalItems === 'number') return totalItems;
 
-        // Иначе вычисляем из items
         if (!record.items || !Array.isArray(record.items)) return 0;
         return record.items.reduce(
           (sum, item) => sum + (item.quantity || 0),
@@ -272,7 +354,6 @@ function IncomingPage() {
         );
       },
       sorter: (a, b) => {
-        // Если есть поле totalItems, используем его
         if (
           typeof a.totalItems === 'number' &&
           typeof b.totalItems === 'number'
@@ -280,7 +361,6 @@ function IncomingPage() {
           return a.totalItems - b.totalItems;
         }
 
-        // Иначе вычисляем из items
         const itemsA = a.items || [];
         const itemsB = b.items || [];
 
@@ -297,65 +377,74 @@ function IncomingPage() {
     {
       title: 'Действия',
       key: 'actions',
-      render: (_: any, record: Purchase) => (
-        <Space>
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => handleViewPurchase(record)}
-            title="Просмотр"
-          />
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'print',
-                  label: 'Печать',
-                  icon: <PrinterOutlined />,
-                  onClick: () => {
-                    /* TODO: Implement print */
-                  },
-                },
-                {
-                  key: 'copy',
-                  label: 'Копировать',
-                  icon: <CopyOutlined />,
-                  onClick: () => {
-                    /* TODO: Implement copy */
-                  },
-                },
-                {
-                  key: 'delete',
-                  label: 'Удалить',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                  onClick: () => handleDeletePurchase(record.id.toString()),
-                },
-              ],
-            }}
-          >
-            <Button type="text" icon={<EllipsisOutlined />} />
-          </Dropdown>
-        </Space>
-      ),
+      render: (_, record) => {
+        const items = [
+          {
+            key: 'view',
+            label: 'Просмотр',
+            icon: <EyeOutlined />,
+            onClick: () => handleViewPurchase(record),
+          },
+        ];
+
+        if (record.status === 'draft') {
+          items.push(
+            {
+              key: 'edit',
+              label: 'Редактировать',
+              icon: <EditOutlined />,
+              onClick: () => handleEditDraft(record),
+            },
+            {
+              key: 'complete',
+              label: 'Завершить',
+              icon: <CheckCircleOutlined />,
+              onClick: () => handleCompleteDraft(record),
+            }
+          );
+        }
+
+        items.push(
+          {
+            key: 'copy',
+            label: 'Копировать',
+            icon: <CopyOutlined />,
+            onClick: () => handleViewPurchase(record),
+          },
+          {
+            key: 'delete',
+            label: 'Удалить',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDeletePurchase(record.id.toString()),
+          }
+        );
+
+        return (
+          <Space size="small">
+            <Dropdown menu={{ items }} placement="bottomRight">
+              <Button type="text" icon={<EllipsisOutlined />} />
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 
   const filteredPurchases = useMemo(() => {
-    if (!purchases || !Array.isArray(purchases)) return [];
+    if (!purchases) return [];
 
     return purchases.filter((purchase: Purchase) => {
+      const searchFields = [
+        purchase.invoiceNumber,
+        purchase.supplier?.name,
+        purchase.comment,
+      ].filter(Boolean);
       const matchesSearch =
-        searchText === '' ||
-        purchase.invoiceNumber
-          .toLowerCase()
-          .includes(searchText.toLowerCase()) ||
-        purchase.supplier.name.toLowerCase().includes(searchText.toLowerCase());
-
-      const matchesDate =
-        !dateRange[0] ||
-        !dateRange[1] ||
-        (dayjs(purchase.date).isAfter(dateRange[0]) &&
-          dayjs(purchase.date).isBefore(dateRange[1]));
+        !searchText ||
+        searchFields.some((field) =>
+          field?.toLowerCase().includes(searchText.toLowerCase())
+        );
 
       const matchesStatus =
         !selectedStatus || purchase.status === selectedStatus;
@@ -363,27 +452,52 @@ function IncomingPage() {
       const matchesSupplier =
         !selectedSupplier || purchase.supplier.name === selectedSupplier;
 
-      const matchesAmount =
-        (!minAmount || purchase.totalAmount >= minAmount) &&
-        (!maxAmount || purchase.totalAmount <= maxAmount);
+      const matchesDateRange =
+        !dateRange?.[0] ||
+        !dateRange?.[1] ||
+        (dayjs(purchase.date).isAfter(dateRange[0]) &&
+          dayjs(purchase.date).isBefore(dateRange[1]));
+
+      const matchesMinAmount = !minAmount || purchase.totalAmount >= minAmount;
+      const matchesMaxAmount = !maxAmount || purchase.totalAmount <= maxAmount;
 
       return (
         matchesSearch &&
-        matchesDate &&
         matchesStatus &&
         matchesSupplier &&
-        matchesAmount
+        matchesDateRange &&
+        matchesMinAmount &&
+        matchesMaxAmount
       );
     });
   }, [
     purchases,
     searchText,
-    dateRange,
     selectedStatus,
     selectedSupplier,
+    dateRange,
     minAmount,
     maxAmount,
   ]);
+
+  // Обработчик закрытия модального окна
+  const handleModalClose = async () => {
+    console.log('Закрытие модального окна');
+    try {
+      if (formRef.current) {
+        console.log('Вызываем handleCloseWithSave через ref');
+        await formRef.current.handleCloseWithSave();
+      } else {
+        console.log('formRef.current отсутствует, просто закрываем окно');
+      }
+      setShowForm(false);
+    } catch (error) {
+      console.error('Ошибка при закрытии формы:', error);
+      message.error('Произошла ошибка при сохранении черновика');
+      // Все равно закрываем форму, чтобы не блокировать пользователя
+      setShowForm(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -396,31 +510,25 @@ function IncomingPage() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Приходы</h1>
+        <h1 className="text-2xl font-semibold">Учет приходов</h1>
         <Space>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => setShowForm(true)}
-            className="bg-blue-500"
+            onClick={() => {
+              setSelectedPurchase(null);
+              setEditingDraft(null);
+              setShowForm(true);
+            }}
           >
-            Новый приход
+            Добавить приход
           </Button>
           <Button
+            type="default"
             icon={<DownloadOutlined />}
             onClick={handleExportToExcel}
-            className="bg-blue-500"
-            type="primary"
           >
-            Экспорт в Excel
-          </Button>
-          <Button
-            icon={<FilterOutlined />}
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="bg-blue-500"
-            type="primary"
-          >
-            Фильтры
+            Экспорт
           </Button>
         </Space>
       </div>
@@ -494,43 +602,75 @@ function IncomingPage() {
       <Table
         columns={columns}
         dataSource={filteredPurchases}
-        rowKey="id"
+        rowKey={(record) => record.id.toString()}
         loading={isLoading}
-        pagination={{
-          showSizeChanger: true,
-          showTotal: (total) => `Всего: ${total}`,
-          defaultPageSize: 10,
-          pageSizeOptions: ['10', '20', '50', '100'],
+        pagination={{ pageSize: 10 }}
+      />
+
+      <Modal
+        open={showForm}
+        onCancel={handleModalClose}
+        footer={null}
+        width={1200}
+        destroyOnClose
+        maskClosable={false}
+        closeIcon={<CloseOutlined />}
+      >
+        <PurchaseForm
+          shopId={shopId!}
+          onClose={() => setShowForm(false)}
+          onSuccess={() => {
+            setShowForm(false);
+            refetch();
+          }}
+          initialData={selectedPurchase as any}
+          ref={formRef}
+        />
+      </Modal>
+
+      <Modal
+        open={showDetails}
+        onCancel={() => {
+          console.log('Закрытие модального окна деталей прихода');
+          setShowDetails(false);
         }}
-      />
-
-      {showForm && (
-        <Modal
-          open={showForm}
-          onCancel={() => setShowForm(false)}
-          footer={null}
-          width="90%"
-          style={{ top: 20 }}
-          bodyStyle={{ padding: 0 }}
-          destroyOnClose
-        >
-          <PurchaseForm
-            shopId={shopId!}
-            onClose={() => setShowForm(false)}
-            onSuccess={() => {
-              setShowForm(false);
-              message.success('Приход успешно создан');
-              refetch();
+        footer={[
+          <Button key="close" onClick={() => setShowDetails(false)}>
+            Закрыть
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            icon={<PrinterOutlined />}
+            onClick={() => {
+              const detailsComponent = document.getElementById(
+                'purchase-details-print'
+              );
+              if (detailsComponent) {
+                const originalContents = document.body.innerHTML;
+                document.body.innerHTML = detailsComponent.innerHTML;
+                window.print();
+                document.body.innerHTML = originalContents;
+                window.location.reload();
+              }
             }}
-          />
-        </Modal>
-      )}
-
-      <PurchaseDetails
-        purchase={selectedPurchase}
-        visible={showDetails}
-        onClose={() => setShowDetails(false)}
-      />
+            className="bg-blue-500"
+          >
+            Печать
+          </Button>,
+        ]}
+        title="Детали прихода"
+        width={1200}
+      >
+        <PurchaseDetails
+          purchase={selectedPurchase}
+          visible={showDetails}
+          onClose={() => {
+            console.log('Закрываем модальное окно деталей');
+            setShowDetails(false);
+          }}
+        />
+      </Modal>
     </div>
   );
 }

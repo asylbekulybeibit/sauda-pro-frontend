@@ -12,6 +12,7 @@ import {
   UserPlusIcon,
   ArchiveBoxIcon,
   TruckIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 import { Disclosure } from '@headlessui/react';
 
@@ -61,6 +62,12 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       href: `/manager/${shopId}/cash-registers`,
       icon: CashIcon,
       color: 'bg-yellow-100 text-yellow-600',
+    },
+    {
+      name: 'Цены',
+      icon: CurrencyDollarIcon,
+      color: 'bg-green-100 text-green-600',
+      href: `/manager/${shopId}/prices`,
     },
     {
       name: 'Продажи',
@@ -138,7 +145,6 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
         { name: 'Отчеты', href: `/manager/${shopId}/analytics/reports` },
       ],
     },
-   
   ];
 
   return (

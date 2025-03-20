@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, Descriptions, Table, Tag, Button } from 'antd';
-import { PrinterOutlined } from '@ant-design/icons';
+import { Descriptions, Table, Tag } from 'antd';
 import { Purchase } from '@/types/purchase';
 import { formatPrice } from '@/utils/format';
 import { formatDate, formatDateTime } from '@/utils/date';
@@ -16,9 +15,6 @@ export default function PurchaseDetails({
   visible,
   onClose,
 }: PurchaseDetailsProps) {
-  console.log('PurchaseDetails - purchase:', purchase);
-  console.log('PurchaseDetails - purchase items:', purchase?.items);
-
   if (!purchase) return null;
 
   const getStatusName = (status: string) => {
@@ -96,126 +92,94 @@ export default function PurchaseDetails({
     },
   ];
 
-  const handlePrint = () => {
-    const printContent = document.getElementById('purchase-details-print');
-    if (printContent) {
-      const originalContents = document.body.innerHTML;
-      document.body.innerHTML = printContent.innerHTML;
-      window.print();
-      document.body.innerHTML = originalContents;
-      window.location.reload();
-    }
-  };
-
   return (
-    <Modal
-      title="Детали прихода"
-      open={visible}
-      onCancel={onClose}
-      width={1200}
-      footer={[
-        <Button key="close" onClick={onClose}>
-          Закрыть
-        </Button>,
-        <Button
-          key="print"
-          type="primary"
-          icon={<PrinterOutlined />}
-          onClick={handlePrint}
-          className="bg-blue-500"
-        >
-          Печать
-        </Button>,
-      ]}
-    >
-      <div id="purchase-details-print">
-        <Descriptions title="Информация о приходе" bordered column={2}>
-          <Descriptions.Item label="Номер накладной">
-            {purchase.invoiceNumber}
-          </Descriptions.Item>
-          <Descriptions.Item label="Дата создания">
-            {formatDateTime(purchase.date)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Поставщик">
-            {purchase.supplier.name}
-          </Descriptions.Item>
-          <Descriptions.Item label="Статус">
-            <Tag color={getStatusColor(purchase.status)}>
-              {getStatusName(purchase.status)}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Общая сумма">
-            {formatPrice(purchase.totalAmount)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Количество товаров">
-            {typeof purchase.totalItems === 'number'
-              ? purchase.totalItems
-              : Array.isArray(purchase.items)
-              ? purchase.items.reduce(
-                  (sum, item) => sum + (item.quantity || 0),
-                  0
-                )
-              : 0}
-          </Descriptions.Item>
-          <Descriptions.Item label="Принял">
-            {purchase.createdBy?.name || purchase.createdById || 'Неизвестно'}
-          </Descriptions.Item>
-          
-          {purchase.comment && (
-            <Descriptions.Item label="Комментарий" span={3}>
-              {purchase.comment}
-            </Descriptions.Item>
-          )}
-        </Descriptions>
+    <div id="purchase-details-print">
+      <Descriptions title="Информация о приходе" bordered column={2}>
+        <Descriptions.Item label="Номер накладной">
+          {purchase.invoiceNumber}
+        </Descriptions.Item>
+        <Descriptions.Item label="Дата создания">
+          {formatDateTime(purchase.date)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Поставщик">
+          {purchase.supplier.name}
+        </Descriptions.Item>
+        <Descriptions.Item label="Статус">
+          <Tag color={getStatusColor(purchase.status)}>
+            {getStatusName(purchase.status)}
+          </Tag>
+        </Descriptions.Item>
+        <Descriptions.Item label="Общая сумма">
+          {formatPrice(purchase.totalAmount)}
+        </Descriptions.Item>
+        <Descriptions.Item label="Количество товаров">
+          {typeof purchase.totalItems === 'number'
+            ? purchase.totalItems
+            : Array.isArray(purchase.items)
+            ? purchase.items.reduce(
+                (sum, item) => sum + (item.quantity || 0),
+                0
+              )
+            : 0}
+        </Descriptions.Item>
+        <Descriptions.Item label="Принял">
+          {purchase.createdBy?.name || purchase.createdById || 'Неизвестно'}
+        </Descriptions.Item>
 
-        <h3 className="text-lg font-semibold mt-6 mb-3">Товары</h3>
-        <Table
-          columns={columns}
-          dataSource={Array.isArray(purchase.items) ? purchase.items : []}
-          rowKey="productId"
-          pagination={false}
-          size="small"
-          summary={(pageData) => {
-            const totalQuantity = pageData.reduce(
-              (sum, item) => sum + (item.quantity || 0),
-              0
-            );
-            const totalAmount = pageData.reduce(
-              (sum, item) => sum + (item.total || 0),
-              0
-            );
-
-            return (
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={2}>
-                  <strong>Итого</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={2}>
-                  <strong>{totalQuantity}</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={3}></Table.Summary.Cell>
-                <Table.Summary.Cell index={4}>
-                  <strong>{formatPrice(totalAmount)}</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={5}></Table.Summary.Cell>
-                <Table.Summary.Cell index={6}></Table.Summary.Cell>
-                <Table.Summary.Cell index={7}></Table.Summary.Cell>
-              </Table.Summary.Row>
-            );
-          }}
-        />
-
-        {purchase.supplier.address && (
-          <div className="mt-4">
-            <strong>Адрес поставщика:</strong> {purchase.supplier.address}
-          </div>
+        {purchase.comment && (
+          <Descriptions.Item label="Комментарий" span={3}>
+            {purchase.comment}
+          </Descriptions.Item>
         )}
-        {purchase.supplier.phone && (
-          <div>
-            <strong>Телефон поставщика:</strong> {purchase.supplier.phone}
-          </div>
-        )}
-      </div>
-    </Modal>
+      </Descriptions>
+
+      <h3 className="text-lg font-semibold mt-6 mb-3">Товары</h3>
+      <Table
+        columns={columns}
+        dataSource={Array.isArray(purchase.items) ? purchase.items : []}
+        rowKey="productId"
+        pagination={false}
+        size="small"
+        summary={(pageData) => {
+          const totalQuantity = pageData.reduce(
+            (sum, item) => sum + (item.quantity || 0),
+            0
+          );
+          const totalAmount = pageData.reduce(
+            (sum, item) => sum + (item.total || 0),
+            0
+          );
+
+          return (
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0} colSpan={2}>
+                <strong>Итого</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={2}>
+                <strong>{totalQuantity}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={3}></Table.Summary.Cell>
+              <Table.Summary.Cell index={4}>
+                <strong>{formatPrice(totalAmount)}</strong>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={5}></Table.Summary.Cell>
+              <Table.Summary.Cell index={6}></Table.Summary.Cell>
+              <Table.Summary.Cell index={7}></Table.Summary.Cell>
+            </Table.Summary.Row>
+          );
+        }}
+      />
+
+      {purchase.supplier.address && (
+        <div className="mt-4">
+          <strong>Адрес поставщика:</strong> {purchase.supplier.address}
+        </div>
+      )}
+      {purchase.supplier.phone && (
+        <div>
+          <strong>Телефон поставщика:</strong> {purchase.supplier.phone}
+        </div>
+      )}
+    </div>
   );
 }

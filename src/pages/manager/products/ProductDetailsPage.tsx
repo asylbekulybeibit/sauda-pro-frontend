@@ -1,8 +1,9 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Descriptions, Spin, Tag } from 'antd';
+import { Card, Descriptions, Spin, Tag, Button } from 'antd';
 import { getProducts } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
+import { LineChartOutlined } from '@ant-design/icons';
 
 function ProductDetailsPage() {
   const { shopId, productId } = useParams<{
@@ -41,7 +42,14 @@ function ProductDetailsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">{product.name}</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">{product.name}</h1>
+        <Link to={`/manager/${shopId}/prices/product/${productId}`}>
+          <Button type="primary" icon={<LineChartOutlined />}>
+            История цен
+          </Button>
+        </Link>
+      </div>
 
       <Card>
         <Descriptions bordered column={2}>

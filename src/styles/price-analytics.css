@@ -1,0 +1,129 @@
+/* Стили для вкладок на странице аналитики цен */
+.price-analytics-tabs {
+  margin-top: 16px;
+}
+
+.price-analytics-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.price-analytics-tabs .ant-tabs-tab {
+  padding: 12px 20px;
+  transition: all 0.3s ease;
+}
+
+.price-analytics-tabs .ant-tabs-tab-active {
+  background-color: #f0f5ff;
+  border-radius: 4px 4px 0 0;
+}
+
+.price-analytics-tabs .ant-tabs-content {
+  background-color: #fff;
+  border-radius: 0 4px 4px 4px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для всех кнопок на странице цен */
+.price-analytics-tabs button.ant-btn,
+div[class*='PriceAnalytics'] button.ant-btn,
+div[class*='PriceHistory'] button.ant-btn,
+div[class*='PriceChangeForm'] button.ant-btn,
+div[class*='ProductPriceHistory'] button.ant-btn {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+  color: white !important;
+}
+
+/* Стиль для кнопок при наведении */
+.price-analytics-tabs button.ant-btn:hover,
+div[class*='PriceAnalytics'] button.ant-btn:hover,
+div[class*='PriceHistory'] button.ant-btn:hover,
+div[class*='PriceChangeForm'] button.ant-btn:hover,
+div[class*='ProductPriceHistory'] button.ant-btn:hover {
+  background-color: #40a9ff !important;
+  border-color: #40a9ff !important;
+}
+
+/* Стиль для текстовых кнопок и ссылок в таблицах */
+.price-analytics-tabs a,
+div[class*='PriceAnalytics'] a,
+div[class*='PriceHistory'] a,
+div[class*='ProductPriceHistory'] a {
+  color: #1890ff !important;
+}
+
+.price-analytics-tabs a:hover,
+div[class*='PriceAnalytics'] a:hover,
+div[class*='PriceHistory'] a:hover,
+div[class*='ProductPriceHistory'] a:hover {
+  color: #40a9ff !important;
+}
+
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+  .price-analytics-tabs .ant-tabs-tab {
+    padding: 8px 12px;
+    margin-right: 4px;
+  }
+}
+
+/* Стиль для кнопок в модальных окнах, связанных с ценами */
+.price-page .ant-modal button.ant-btn,
+.price-page .ant-modal-root button.ant-btn,
+.price-page .ant-modal-wrap button.ant-btn {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+  color: white !important;
+}
+
+.price-page .ant-modal button.ant-btn:hover,
+.price-page .ant-modal-root button.ant-btn:hover,
+.price-page .ant-modal-wrap button.ant-btn:hover {
+  background-color: #40a9ff !important;
+  border-color: #40a9ff !important;
+}
+
+/* Стили для кнопок в выпадающих меню и датапикерах */
+.price-page .ant-picker-dropdown button.ant-btn,
+.price-page .ant-dropdown button.ant-btn,
+.price-page .ant-select-dropdown button.ant-btn {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+  color: white !important;
+}
+
+.price-page .ant-picker-dropdown button.ant-btn:hover,
+.price-page .ant-dropdown button.ant-btn:hover,
+.price-page .ant-select-dropdown button.ant-btn:hover {
+  background-color: #40a9ff !important;
+  border-color: #40a9ff !important;
+}
+
+/* Общий селектор для всех кнопок на странице цен */
+.price-page button.ant-btn,
+.price-page button.ant-btn-primary,
+.price-page button.ant-btn-default,
+.price-page button.ant-btn-dashed,
+.price-page button.ant-btn-text,
+.price-page button.ant-btn-link {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+  color: white !important;
+}
+
+.price-page button.ant-btn:hover,
+.price-page button.ant-btn-primary:hover,
+.price-page button.ant-btn-default:hover,
+.price-page button.ant-btn-dashed:hover,
+.price-page button.ant-btn-text:hover,
+.price-page button.ant-btn-link:hover {
+  background-color: #40a9ff !important;
+  border-color: #40a9ff !important;
+}
+
+/* Особое правило для кнопок типа "text" и "link", чтобы убедиться, что они имеют правильные стили */
+.price-page button.ant-btn-text,
+.price-page button.ant-btn-link {
+  box-shadow: none !important;
+}

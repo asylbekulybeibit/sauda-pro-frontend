@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Line } from '@ant-design/charts';
+import { Line } from '@ant-design/plots';
 import { Card, DatePicker, Space, message } from 'antd';
 import { getPriceHistory } from '@/services/managerApi';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import dayjs from 'dayjs';
+import { formatPrice } from '@/utils/format';
 
 const { RangePicker } = DatePicker;
 
@@ -57,7 +58,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
     },
     yAxis: {
       title: {
-        text: 'Цена (₽)',
+        text: 'Цена (₸)',
       },
       min: 0,
     },
@@ -65,7 +66,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
       formatter: (datum: any) => {
         return {
           name: 'Цена',
-          value: `${datum.price.toFixed(2)} ₽`,
+          value: formatPrice(datum.price),
         };
       },
     },

@@ -14,4 +14,13 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
   shopId: string;
+  unit?: string;
+}
+
+export interface ProductsResponse {
+  items: Product[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
 }

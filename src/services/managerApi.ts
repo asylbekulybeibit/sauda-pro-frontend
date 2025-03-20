@@ -884,10 +884,11 @@ export const getPriceHistory = async (
     if (endDate) params.append('endDate', endDate);
 
     const response = await api.get(
-      `/manager/price-history/${productId}?${params.toString()}`
+      `/manager/price-history/product/${productId}?${params.toString()}`
     );
     return response.data;
   } catch (error) {
+    console.error('Error fetching price history:', error);
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -895,8 +896,29 @@ export const getPriceHistory = async (
 export const addPriceChange = async (
   data: Omit<PriceHistory, 'id' | 'createdAt'>
 ): Promise<PriceHistory> => {
-  const response = await api.post('/manager/price-history', data);
-  return response.data;
+  try {
+    // Проверяем данные перед отправкой
+    console.log('addPriceChange - данные запроса:', data);
+
+    // Убедимся, что oldPrice и newPrice - числа
+    const payload = {
+      ...data,
+      oldPrice: Number(data.oldPrice),
+      newPrice: Number(data.newPrice),
+    };
+
+    console.log('addPriceChange - payload после преобразования:', payload);
+
+    const response = await api.post('/manager/price-history', payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error adding price change:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getPriceChangesReport = async (
@@ -904,15 +926,20 @@ export const getPriceChangesReport = async (
   startDate: string,
   endDate: string
 ): Promise<PriceHistory[]> => {
-  const params = new URLSearchParams({
-    startDate,
-    endDate,
-  });
+  try {
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+    });
 
-  const response = await api.get(
-    `/manager/price-history/report/${shopId}?${params.toString()}`
-  );
-  return response.data;
+    const response = await api.get(
+      `/manager/price-history/report/${shopId}?${params.toString()}`
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching price changes report:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 // Хелпер для проверки ошибок
@@ -945,6 +972,7 @@ export interface CreatePurchaseRequest {
   updatePrices?: boolean;
   updatePurchasePrices?: boolean;
   createLabels?: boolean;
+  status?: 'draft' | 'completed' | 'cancelled';
 }
 
 export interface PurchaseResponse {
@@ -978,6 +1006,144 @@ export const createPurchase = async (
     return response.data;
   } catch (error) {
     console.error('Error creating purchase:', error);
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export async function createPurchaseDraft(data: {
+  shopId: string;
+  supplierId?: string;
+  invoiceNumber?: string;
+  date?: string;
+  comment?: string;
+  items: any[];
+  updatePrices?: boolean;
+  updatePurchasePrices?: boolean;
+  createLabels?: boolean;
+  status: string;
+}) {
+  console.log('Сохранение черновика:', data);
+  try {
+    const response = await api.post('/manager/purchases', {
+      ...data,
+      status: 'draft', // Всегда устанавливаем статус draft при создании черновика
+    });
+    console.log('Ответ от сервера при создании черновика:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Ошибка при создании черновика:', error);
+    throw ApiErrorHandler.handle(error);
+  }
+}
+
+export async function updatePurchaseDraft(
+  id: string,
+  data: {
+    shopId: string;
+    supplierId?: string;
+    invoiceNumber?: string;
+    date?: string;
+    comment?: string;
+    items: any[];
+    updatePrices?: boolean;
+    updatePurchasePrices?: boolean;
+    createLabels?: boolean;
+    status: string;
+  }
+) {
+  console.log('=== НАЧАЛО ОБНОВЛЕНИЯ ЧЕРНОВИКА В API ===');
+  console.log('ID черновика для обновления:', id);
+  console.log('Входящие данные:', JSON.stringify(data, null, 2));
+
+  try {
+    // Проверяем наличие обязательных полей
+    if (!data.shopId) {
+      console.error('Отсутствует обязательное поле shopId');
+      throw new Error('shopId is required');
+    }
+
+    if (!id) {
+      console.error('Отсутствует ID черновика');
+      throw new Error('Draft ID is required');
+    }
+
+    // Формируем данные для отправки
+    const payload = {
+      ...data,
+      status: 'draft', // Всегда сохраняем как черновик при обновлении
+      // Убеждаемся что все поля имеют правильный формат
+      supplierId: data.supplierId || undefined,
+      invoiceNumber: data.invoiceNumber || undefined,
+      date: data.date || undefined,
+      items: Array.isArray(data.items) ? data.items : [],
+    };
+
+    console.log(
+      'Подготовленные данные для отправки:',
+      JSON.stringify(payload, null, 2)
+    );
+
+    // Формируем URL для запроса
+    const url = `/manager/purchases/${data.shopId}/${id}/draft`;
+    console.log('URL для обновления:', url);
+
+    // Отправляем запрос
+    console.log('Отправка PATCH запроса...');
+    const response = await api.patch(url, payload);
+    console.log('Ответ от сервера:', JSON.stringify(response.data, null, 2));
+
+    return response.data;
+  } catch (error) {
+    console.error('=== ОШИБКА ПРИ ОБНОВЛЕНИИ ЧЕРНОВИКА В API ===');
+    if (axios.isAxiosError(error)) {
+      console.error('Тип ошибки: AxiosError');
+      console.error('Статус ответа:', error.response?.status);
+      console.error('Данные ответа:', error.response?.data);
+      console.error('URL запроса:', error.config?.url);
+      console.error('Данные запроса:', error.config?.data);
+
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+    } else {
+      console.error('Тип ошибки:', typeof error);
+      console.error('Содержимое ошибки:', error);
+    }
+    throw ApiErrorHandler.handle(error);
+  } finally {
+    console.log('=== ЗАВЕРШЕНИЕ ОБНОВЛЕНИЯ ЧЕРНОВИКА В API ===');
+  }
+}
+
+export async function completePurchaseDraft(id: string) {
+  console.log('Завершение черновика:', id);
+  try {
+    const response = await api.patch(`/manager/purchases/${id}/status`, {
+      status: 'completed',
+    });
+    console.log('Ответ от сервера при завершении черновика:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Ошибка при завершении черновика:', error);
+    throw ApiErrorHandler.handle(error);
+  }
+}
+
+export const updatePurchaseStatus = async (
+  shopId: string,
+  purchaseId: string,
+  status: 'draft' | 'completed' | 'cancelled'
+): Promise<Purchase> => {
+  try {
+    const response = await api.patch(
+      `/manager/purchases/${shopId}/${purchaseId}/status`,
+      {
+        status,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating purchase status:', error);
     throw ApiErrorHandler.handle(error);
   }
 };
