@@ -66,7 +66,7 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
       });
     }
 
-    if (isNaN(row.price) || row.price <= 0) {
+    if (!row.price || isNaN(Number(row.price)) || Number(row.price) <= 0) {
       errors.push({
         row: rowIndex,
         field: 'price',
@@ -74,7 +74,11 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
       });
     }
 
-    if (isNaN(row.quantity) || row.quantity < 0) {
+    if (
+      !row.quantity ||
+      isNaN(Number(row.quantity)) ||
+      Number(row.quantity) < 0
+    ) {
       errors.push({
         row: rowIndex,
         field: 'quantity',
@@ -90,26 +94,51 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const workbook = XLSX.read(e.target?.result, { type: 'binary' });
+          if (!e.target?.result) {
+            throw new Error('Не удалось прочитать файл');
+          }
+
+          let workbook;
+          if (typeof e.target.result === 'string') {
+            // Если результат строка (для CSV файлов)
+            workbook = XLSX.read(e.target.result, { type: 'binary' });
+          } else {
+            // Если результат ArrayBuffer (для Excel файлов)
+            const data = new Uint8Array(e.target.result as ArrayBuffer);
+            workbook = XLSX.read(data, { type: 'array' });
+          }
+
+          if (!workbook.SheetNames.length) {
+            throw new Error('Файл не содержит листов');
+          }
+
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const data = XLSX.utils.sheet_to_json(firstSheet);
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, {
+            raw: true,
+            defval: null, // Значение по умолчанию для пустых ячеек
+          });
+
+          if (!jsonData.length) {
+            throw new Error('Файл не содержит данных');
+          }
 
           const errors: ValidationError[] = [];
-          data.forEach((row: any, index: number) => {
+          jsonData.forEach((row: any, index: number) => {
             errors.push(...validateRow(row, index + 1));
           });
 
           resolve({
-            data,
+            data: jsonData,
             errors,
             hasErrors: errors.length > 0,
           });
         } catch (error) {
+          console.error('Error reading file:', error);
           reject(error);
         }
       };
       reader.onerror = (error) => reject(error);
-      reader.readAsBinaryString(file);
+      reader.readAsBinaryString(file); // Изменили метод чтения
     });
   };
 
@@ -159,15 +188,31 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
   };
 
   const handleFileChange = async (info: any) => {
-    const file = info.file.originFileObj;
-    if (file) {
+    const { file, fileList } = info;
+    setFileList(fileList);
+
+    if (file.status !== 'removed') {
       try {
-        const previewData = await handleFileRead(file);
+        const previewData = await handleFileRead(file.originFileObj);
         setPreview(previewData);
-        setFileList([info.file]);
+
+        if (previewData.hasErrors) {
+          message.warning(
+            'В файле обнаружены ошибки. Пожалуйста, исправьте их перед загрузкой.'
+          );
+        } else {
+          message.success('Файл успешно проверен и готов к загрузке');
+        }
       } catch (error) {
-        message.error('Ошибка при чтении файла');
+        console.error('File processing error:', error);
+        message.error(
+          'Ошибка при чтении файла. Убедитесь, что файл соответствует шаблону.'
+        );
+        setFileList([]);
+        setPreview(null);
       }
+    } else {
+      setPreview(null);
     }
   };
 
@@ -216,6 +261,7 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             fileList={fileList}
             onChange={handleFileChange}
             beforeUpload={() => false}
+            maxCount={1}
           >
             <Button icon={<UploadOutlined />}>Выбрать файл</Button>
           </Upload>
@@ -225,7 +271,6 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             onClick={handleUpload}
             disabled={!preview || preview.hasErrors || uploading}
             loading={uploading}
-            
           >
             Загрузить
           </Button>
@@ -242,7 +287,7 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
               <ul>
                 {preview.errors.map((error, index) => (
                   <li key={index}>
-                    Строка {error.row}: {error.message}
+                    Строка {error.row}: {error.message} (поле: {error.field})
                   </li>
                 ))}
               </ul>
@@ -252,25 +297,24 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
           />
         )}
 
-        {uploading && <Progress percent={progress} />}
-
         {preview && !preview.hasErrors && (
           <Alert
-            message="Файл проверен"
-            description={`Найдено ${preview.data.length} записей`}
+            message="Файл готов к загрузке"
+            description={`Найдено ${preview.data.length} товаров`}
             type="success"
             showIcon
-            icon={<CheckCircleOutlined />}
           />
         )}
 
+        {uploading && <Progress percent={progress} />}
+
         {preview && (
           <Table
-            columns={columns}
             dataSource={preview.data}
-            rowKey={(record: any) => record.sku}
-            scroll={{ y: 400 }}
-            pagination={{ pageSize: 10 }}
+            columns={columns}
+            size="small"
+            scroll={{ x: true }}
+            pagination={{ pageSize: 5 }}
           />
         )}
       </Space>

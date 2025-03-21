@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts, getCategories } from '@/services/managerApi';
 import { ProductList } from '@/components/manager/products/ProductList';
 import { ProductForm } from '@/components/manager/products/ProductForm';
-import { Button, Spin } from 'antd';
-import { TagIcon } from '@heroicons/react/24/outline';
+import { Button, Spin, Space } from 'antd';
+import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { Category } from '@/types/category';
 
-function ProductsPage() {
+export const ProductsPage: React.FC = () => {
+  const navigate = useNavigate();
   const { shopId } = useParams<{ shopId: string }>();
   const [showForm, setShowForm] = useState(false);
 
@@ -36,15 +37,24 @@ function ProductsPage() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Товары</h1>
-        <Button
-          type="primary"
-          icon={<TagIcon className="h-5 w-5" />}
-          onClick={() => setShowForm(true)}
-          className="bg-blue-500"
-
-        >
-          Добавить товар
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            icon={<UploadOutlined />}
+            onClick={() => navigate(`/manager/${shopId}/bulk-operations`)}
+            className="!bg-blue-500 !text-white hover:!bg-blue-600"
+          >
+            Массовые операции
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setShowForm(true)}
+            className="!bg-blue-500 !text-white hover:!bg-blue-600"
+          >
+            Добавить товар
+          </Button>
+        </Space>
       </div>
 
       {products && (
@@ -64,6 +74,6 @@ function ProductsPage() {
       )}
     </div>
   );
-}
+};
 
 export default ProductsPage;

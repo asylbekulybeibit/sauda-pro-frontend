@@ -99,14 +99,6 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
           name: 'Перемещения',
           href: `/manager/${shopId}/warehouse/transfers`,
         },
-        {
-          name: 'Списания',
-          href: `/manager/${shopId}/warehouse/writeoffs`,
-        },
-        {
-          name: 'Отчеты',
-          href: `/manager/${shopId}/warehouse/reports`,
-        },
       ],
     },
     {

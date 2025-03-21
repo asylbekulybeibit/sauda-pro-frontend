@@ -43,8 +43,8 @@ const ProductsPage = React.lazy(
 const ProductDetailsPage = React.lazy(
   () => import('./pages/manager/products/ProductDetailsPage')
 );
-const CategoryPage = React.lazy(
-  () => import('./pages/manager/products/CategoryPage')
+const CategoriesPage = React.lazy(
+  () => import('./pages/manager/categories/CategoriesPage')
 );
 const ReportsPage = React.lazy(
   () => import('./pages/manager/reports/ReportsPage')
@@ -248,7 +248,7 @@ export default function App() {
                     path="products/:productId"
                     element={<ProductDetailsPage />}
                   />
-                  <Route path="categories" element={<CategoryPage />} />
+                  <Route path="categories" element={<CategoriesPage />} />
                   <Route
                     path="cash-registers"
                     element={<CashRegistersPage />}
