@@ -7,6 +7,7 @@ export interface PriceHistory {
   changedBy: string;
   shopId: string;
   createdAt: string;
+  priceType?: 'purchase' | 'selling';
   product?: {
     id: string;
     name: string;

@@ -26,6 +26,7 @@ import {
   Divider,
   Upload,
   Modal,
+  Radio,
 } from 'antd';
 import {
   DeleteOutlined,
@@ -37,6 +38,9 @@ import {
   CopyOutlined,
   ExclamationCircleOutlined,
   InboxOutlined,
+  NumberOutlined,
+  PercentageOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -130,6 +134,8 @@ interface FormData {
   updatePrices?: boolean;
   createLabels?: boolean;
   checkDuplicates?: boolean;
+  markup?: number;
+  markupType?: 'percentage' | 'fixed';
 }
 
 interface PurchaseProps {
@@ -177,6 +183,7 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
     );
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
+    const [markupSuffix, setMarkupSuffix] = useState('%');
 
     // Queries
     const { data: allProducts = [] } = useQuery({
@@ -244,16 +251,24 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
 
     // Инициализация формы
     useEffect(() => {
-      // Установка начальных значений переключателей
+      // Инициализация формы значениями по умолчанию
       form.setFieldsValue({
         date: dayjs(),
         updatePrices: false,
         updatePurchasePrices: false,
         createLabels: false,
         checkDuplicates: false,
+        markup: 30, // 30% по умолчанию
+        markupType: 'percentage', // процентная наценка по умолчанию
       });
+      console.log('Форма инициализирована значениями по умолчанию');
+    }, [form]);
 
-      console.log('Форма инициализирована со значениями по умолчанию');
+    // Упростим useEffect для отслеживания изменений типа наценки
+    useEffect(() => {
+      // Устанавливаем начальное значение суффикса в зависимости от типа наценки
+      const markupType = form.getFieldValue('markupType');
+      setMarkupSuffix(markupType === 'percentage' ? '%' : '₸');
     }, [form]);
 
     // Обработчики
@@ -629,6 +644,8 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
           updatePurchasePrices: values.updatePurchasePrices,
           createLabels: values.createLabels,
           checkDuplicates: values.checkDuplicates,
+          markup: values.markup,
+          markupType: values.markupType,
         });
 
         if (!items.length) {
@@ -672,12 +689,19 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                   formValues.updatePurchasePrices === true;
                 const createLabels = formValues.createLabels === true;
                 const checkDuplicates = formValues.checkDuplicates === true;
+                const markup =
+                  formValues.markup !== undefined
+                    ? Number(formValues.markup)
+                    : undefined;
+                const markupType = formValues.markupType || 'percentage';
 
                 console.log('[SUBMIT] Финальные значения переключателей:', {
                   updatePrices,
                   updatePurchasePrices,
                   createLabels,
                   checkDuplicates,
+                  markup,
+                  markupType,
                 });
 
                 // Создаем новый приход
@@ -718,6 +742,8 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                   updatePurchasePrices,
                   createLabels,
                   checkDuplicates,
+                  markup,
+                  markupType,
                 };
 
                 console.log('Отправляем запрос с shopId:', shopId);
@@ -757,12 +783,19 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
           const updatePurchasePrices = formValues.updatePurchasePrices === true;
           const createLabels = formValues.createLabels === true;
           const checkDuplicates = formValues.checkDuplicates === true;
+          const markup =
+            formValues.markup !== undefined
+              ? Number(formValues.markup)
+              : undefined;
+          const markupType = formValues.markupType || 'percentage';
 
           console.log('[SUBMIT] Финальные значения переключателей:', {
             updatePrices,
             updatePurchasePrices,
             createLabels,
             checkDuplicates,
+            markup,
+            markupType,
           });
 
           // Если нет проблемных товаров, продолжаем без подтверждения
@@ -803,6 +836,8 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
             updatePurchasePrices,
             createLabels,
             checkDuplicates,
+            markup,
+            markupType,
           };
 
           console.log('Отправляем запрос с shopId:', shopId);
@@ -850,6 +885,12 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
       createLabels: 'Автоматически создать этикетки для новых товаров',
       checkDuplicates:
         'Объединять дубликаты одинаковых товаров в один с суммированием количества',
+      markup:
+        'Укажите величину наценки для автоматического расчёта цены продажи',
+      markupPercentage:
+        'Процентная наценка: новая цена = закупочная цена × (1 + процент/100)',
+      markupFixed:
+        'Фиксированная наценка: новая цена = закупочная цена + фиксированная сумма в тенге',
     };
 
     const columns = [
@@ -1527,6 +1568,86 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                     </Tooltip>
                   </Form.Item>
                   <span className="font-medium text-sm">Проверять дубли</span>
+                </div>
+
+                <div className="flex items-center gap-2 border rounded-md p-1.5 bg-gray-50 shadow-sm hover:bg-blue-50 transition-colors">
+                  <span className="font-medium text-sm mr-1 flex items-center text-blue-700">
+                    <DollarOutlined className="mr-1 text-blue-500" />
+                    Наценка:
+                  </span>
+
+                  <Form.Item name="markup" noStyle>
+                    <Tooltip title={tooltips.markup}>
+                      <InputNumber
+                        min={0}
+                        max={1000}
+                        placeholder="30"
+                        style={{ width: 90 }}
+                        addonAfter={markupSuffix}
+                        className="border rounded-l-md"
+                        onChange={(value) => {
+                          console.log(`[INPUT] Наценка изменена на: ${value}`);
+                          form.setFieldsValue({ markup: value });
+                        }}
+                      />
+                    </Tooltip>
+                  </Form.Item>
+
+                  <Form.Item name="markupType" noStyle>
+                    <Radio.Group
+                      buttonStyle="solid"
+                      size="small"
+                      className="ml-1"
+                      onChange={(e) => {
+                        const type = e.target.value;
+                        console.log(`[RADIO] Тип наценки изменен на: ${type}`);
+                        form.setFieldsValue({ markupType: type });
+                        // Обновляем суффикс
+                        setMarkupSuffix(type === 'percentage' ? '%' : '₸');
+                      }}
+                    >
+                      <Tooltip title={tooltips.markupPercentage}>
+                        <Radio.Button
+                          value="percentage"
+                          className="flex items-center justify-center"
+                          style={{
+                            backgroundColor:
+                              form.getFieldValue('markupType') === 'percentage'
+                                ? '#e6f7ff'
+                                : undefined,
+                            borderColor:
+                              form.getFieldValue('markupType') === 'percentage'
+                                ? '#1890ff'
+                                : undefined,
+                          }}
+                        >
+                          <span className="text-sm font-bold flex items-center">
+                            <PercentageOutlined className="mr-1" />%
+                          </span>
+                        </Radio.Button>
+                      </Tooltip>
+                      <Tooltip title={tooltips.markupFixed}>
+                        <Radio.Button
+                          value="fixed"
+                          className="flex items-center justify-center"
+                          style={{
+                            backgroundColor:
+                              form.getFieldValue('markupType') === 'fixed'
+                                ? '#e6f7ff'
+                                : undefined,
+                            borderColor:
+                              form.getFieldValue('markupType') === 'fixed'
+                                ? '#1890ff'
+                                : undefined,
+                          }}
+                        >
+                          <span className="text-sm font-bold flex items-center">
+                            <PlusOutlined className="mr-1" />₸
+                          </span>
+                        </Radio.Button>
+                      </Tooltip>
+                    </Radio.Group>
+                  </Form.Item>
                 </div>
               </Space>
 

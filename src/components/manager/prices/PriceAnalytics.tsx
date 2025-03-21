@@ -12,6 +12,10 @@ import {
   Tabs,
   Modal,
   Tooltip,
+  Tag,
+  Radio,
+  Avatar,
+  Empty,
 } from 'antd';
 import {
   ArrowUpOutlined,
@@ -20,6 +24,12 @@ import {
   EditOutlined,
   HistoryOutlined,
   FireOutlined,
+  PieChartOutlined,
+  TagOutlined,
+  UserOutlined,
+  RobotOutlined,
+  ToolOutlined,
+  QuestionOutlined,
 } from '@ant-design/icons';
 import { getPriceChangesReport, getProducts } from '@/services/managerApi';
 import { PriceHistory } from '@/types/priceHistory';
@@ -46,14 +56,19 @@ interface AnalyticsData {
   maxDecrease: number;
   mostChangedProducts: Array<{
     productId: string;
-    name?: string;
     changesCount: number;
+    name?: string;
   }>;
+  purchaseChanges: number;
+  sellingChanges: number;
 }
 
 export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
   const navigate = useNavigate();
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
+  const [filteredPriceHistory, setFilteredPriceHistory] = useState<
+    PriceHistory[]
+  >([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<{
@@ -63,11 +78,11 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
   } | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('summary');
+  const [priceTypeFilter, setPriceTypeFilter] = useState<string>('all');
 
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(30, 'day'),
-    dayjs(),
-  ]);
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
+    null
+  );
 
   // Загрузка товаров
   const fetchProducts = async () => {
@@ -86,66 +101,105 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
 
   // Загрузка изменений цен
   const fetchPriceChanges = async () => {
-    if (!shopId || !dateRange) return;
-
     try {
       setLoading(true);
-      const startDate = dateRange[0].format('YYYY-MM-DD');
-      const endDate = dateRange[1].format('YYYY-MM-DD');
-      const data = await getPriceChangesReport(shopId, startDate, endDate);
-
-      // Логирование данных для анализа
-      console.log('Полученные данные о ценах:', data);
-
-      // Обрабатываем данные для корректного отображения
-      const processedData = data.map((record) => {
-        // Создаем копию записи для модификации
-        const processedRecord = { ...record };
-
-        // Если старая цена равна 0, вычисляем только абсолютное изменение
-        if (record.oldPrice === 0) {
-          const change = record.newPrice - record.oldPrice;
-          processedRecord.formattedChange = `${
-            change > 0 ? '+' : ''
-          }${formatPrice(change)}`;
-        } else {
-          // Вычисляем процентное изменение
-          const change = record.newPrice - record.oldPrice;
-          const percentChange = ((change / record.oldPrice) * 100).toFixed(2);
-          processedRecord.formattedChange = `${
-            change > 0 ? '+' : ''
-          }${formatPrice(change)} (${percentChange}%)`;
-        }
-
-        return processedRecord;
+      console.log('[PriceAnalytics] Starting fetchPriceChanges:', {
+        shopId,
+        dateRange,
       });
 
-      setPriceHistory(processedData);
+      // Only use dates if dateRange is explicitly set
+      const startDate = dateRange
+        ? dateRange[0].format('YYYY-MM-DD')
+        : undefined;
+      const endDate = dateRange ? dateRange[1].format('YYYY-MM-DD') : undefined;
 
+      console.log('[PriceAnalytics] Fetching price changes with dates:', {
+        startDate,
+        endDate,
+      });
+
+      const data = await getPriceChangesReport(shopId, startDate, endDate);
+
+      console.log('[PriceAnalytics] Raw price history data:', data);
+
+      // Получаем продукты для отображения имен
       const products = await fetchProducts();
+      console.log('[PriceAnalytics] Fetched products:', products.length);
 
-      // Рассчет аналитики
-      const analyticsData = calculateAnalytics(processedData);
+      // Обогащаем данные именами продуктов
+      const enrichedData = data.map((record) => {
+        const product = products.find((p) => p.id === record.productId);
+        return {
+          ...record,
+          product: record.product || {
+            id: record.productId,
+            name: product?.name || 'Неизвестный товар',
+          },
+        };
+      });
 
-      // Добавление информации о товарах к аналитике
-      analyticsData.mostChangedProducts = analyticsData.mostChangedProducts.map(
-        (item) => {
-          const product = products.find((p) => p.id === item.productId);
+      console.log('[PriceAnalytics] Enriched price history data:', {
+        totalRecords: enrichedData.length,
+        sample: enrichedData[0],
+      });
+
+      setPriceHistory(enrichedData);
+
+      // Применяем фильтр по типу цены
+      filterPriceHistory(enrichedData, priceTypeFilter);
+
+      // Расчет аналитики
+      const stats = calculateAnalytics(enrichedData);
+      console.log('[PriceAnalytics] Calculated analytics:', stats);
+
+      // Добавляем имена продуктов к аналитике
+      const enrichedAnalytics = {
+        ...stats,
+        mostChangedProducts: stats.mostChangedProducts.map((product) => {
+          const foundProduct = products.find((p) => p.id === product.productId);
           return {
-            ...item,
-            name: product ? product.name : 'Неизвестный товар',
+            ...product,
+            name: foundProduct?.name || 'Неизвестный товар',
           };
-        }
-      );
+        }),
+      };
 
-      setAnalytics(analyticsData);
+      console.log(
+        '[PriceAnalytics] Final enriched analytics:',
+        enrichedAnalytics
+      );
+      setAnalytics(enrichedAnalytics);
     } catch (error) {
+      console.error('[PriceAnalytics] Error in fetchPriceChanges:', error);
       const apiError = ApiErrorHandler.handle(error);
       message.error(apiError.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // Функция для фильтрации истории цен по типу
+  const filterPriceHistory = (data: PriceHistory[], filter: string) => {
+    if (filter === 'all') {
+      setFilteredPriceHistory(data);
+      console.log('Применен фильтр "все", отображаем записей:', data.length);
+    } else {
+      const filtered = data.filter((record) => record.priceType === filter);
+      setFilteredPriceHistory(filtered);
+      console.log(
+        `Применен фильтр "${filter}", отображаем записей:`,
+        filtered.length
+      );
+    }
+  };
+
+  // Эффект для применения фильтра при его изменении
+  useEffect(() => {
+    if (priceHistory.length > 0) {
+      filterPriceHistory(priceHistory, priceTypeFilter);
+    }
+  }, [priceTypeFilter, priceHistory]);
 
   // Вызов загрузки при изменении диапазона дат или ID магазина
   useEffect(() => {
@@ -162,6 +216,8 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
     let totalChangeAmount = 0;
     let maxIncrease = 0;
     let maxDecrease = 0;
+    let purchaseChanges = 0;
+    let sellingChanges = 0;
 
     // Map для подсчета количества изменений на товар
     const productChangesMap = new Map<string, number>();
@@ -169,6 +225,12 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
     data.forEach((record) => {
       const change = record.newPrice - record.oldPrice;
       totalChangeAmount += change;
+
+      if (record.priceType === 'purchase') {
+        purchaseChanges++;
+      } else if (record.priceType === 'selling') {
+        sellingChanges++;
+      }
 
       if (change > 0) {
         increasesCount++;
@@ -197,6 +259,8 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
       maxIncrease,
       maxDecrease,
       mostChangedProducts: productChanges,
+      purchaseChanges,
+      sellingChanges,
     };
   };
 
@@ -221,6 +285,118 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
     fetchPriceChanges();
   };
 
+  // Функция для отображения ответственного за изменение цены
+  const renderChangedBy = (record: PriceHistory) => {
+    const changedBy = record.changedBy;
+    const changedByUser = record.changedByUser;
+
+    // Первый приоритет: используем данные из changedByUser, если они есть
+    if (changedByUser && typeof changedByUser === 'object') {
+      if (changedByUser.firstName && changedByUser.lastName) {
+        const userInfo = [];
+
+        // Добавляем имя и фамилию
+        userInfo.push(`${changedByUser.firstName} ${changedByUser.lastName}`);
+
+        // Добавляем контактную информацию, если она есть
+        if (changedByUser.phone || changedByUser.email) {
+          userInfo.push(
+            [
+              changedByUser.phone ? `Тел: ${changedByUser.phone}` : '',
+              changedByUser.email || '',
+            ]
+              .filter(Boolean)
+              .join(', ')
+          );
+        }
+
+        return (
+          <Tooltip title={userInfo.length > 1 ? userInfo[1] : ''}>
+            <Space>
+              <Avatar icon={<UserOutlined />} />
+              <span>{userInfo[0]}</span>
+            </Space>
+          </Tooltip>
+        );
+      }
+    }
+
+    // Второй приоритет: если changedBy - объект, используем его данные
+    if (typeof changedBy === 'object' && changedBy !== null) {
+      const user = changedBy as any;
+
+      // Если есть имя и фамилия, отображаем их
+      if (user.firstName && user.lastName) {
+        return (
+          <Space>
+            <Avatar icon={<UserOutlined />} />
+            <span>{`${user.firstName} ${user.lastName}`}</span>
+          </Space>
+        );
+      }
+
+      // Если объект имеет id и name, это может быть сериализованный пользователь
+      if (user.id && user.name) {
+        return (
+          <Space>
+            <Avatar icon={<UserOutlined />} />
+            <span>{user.name}</span>
+          </Space>
+        );
+      }
+    }
+
+    // Третий приоритет: обработка строковых значений
+    const changedByString = typeof changedBy === 'string' ? changedBy : '';
+
+    if (!changedByString || changedByString === 'system') {
+      return (
+        <Space>
+          <Avatar icon={<RobotOutlined />} />
+          <span>Система</span>
+        </Space>
+      );
+    }
+
+    if (changedByString === 'unknown') {
+      return (
+        <Space>
+          <Avatar icon={<QuestionOutlined />} />
+          <span>Неизвестно</span>
+        </Space>
+      );
+    }
+
+    if (changedByString === 'import') {
+      return (
+        <Space>
+          <Avatar icon={<ToolOutlined />} />
+          <span>Импорт</span>
+        </Space>
+      );
+    }
+
+    if (changedByString === 'admin') {
+      return (
+        <Space>
+          <Avatar
+            icon={<UserOutlined />}
+            style={{ backgroundColor: '#ff4d4f' }}
+          />
+          <span>Администратор</span>
+        </Space>
+      );
+    }
+
+    // Если ничего не подошло, отображаем значение как есть
+    return (
+      <Space>
+        <Avatar icon={<UserOutlined />} />
+        <span>{changedByString}</span>
+      </Space>
+    );
+  };
+
   // Колонки таблицы для истории изменений цен
   const priceHistoryColumns = [
     {
@@ -238,6 +414,20 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => dayjs(date).format('DD.MM.YYYY HH:mm'),
+    },
+    {
+      title: 'Тип цены',
+      dataIndex: 'priceType',
+      key: 'priceType',
+      render: (priceType?: string) => {
+        if (priceType === 'purchase') {
+          return <Tag color="blue">Закупочная</Tag>;
+        } else if (priceType === 'selling') {
+          return <Tag color="green">Продажная</Tag>;
+        } else {
+          return <Tag color="default">Неизвестно</Tag>;
+        }
+      },
     },
     {
       title: 'Старая цена',
@@ -301,41 +491,7 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
       title: 'Кто изменил',
       dataIndex: 'changedBy',
       key: 'changedBy',
-      render: (_: unknown, record: PriceHistory) => {
-        // Проверяем наличие данных о пользователе в записи
-        if (record.changedByUser?.firstName && record.changedByUser?.lastName) {
-          const userInfo = [];
-
-          // Добавляем имя и фамилию
-          userInfo.push(
-            `${record.changedByUser.firstName} ${record.changedByUser.lastName}`
-          );
-
-          // Добавляем телефон, если он есть
-          if (record.changedByUser.phone) {
-            userInfo.push(`Тел: ${record.changedByUser.phone}`);
-          }
-
-          // Добавляем email, если он есть
-          if (record.changedByUser.email) {
-            userInfo.push(`${record.changedByUser.email}`);
-          }
-
-          return (
-            <Tooltip title={userInfo.slice(1).join(', ')}>
-              <span>{userInfo[0]}</span>
-            </Tooltip>
-          );
-        }
-
-        const changedBy = record.changedBy;
-        if (!changedBy) return 'Система';
-        if (changedBy === 'unknown') return 'Неизвестно';
-        if (changedBy === 'system') return 'Система';
-        if (changedBy === 'import') return 'Импорт';
-        if (changedBy === 'admin') return 'Администратор';
-        return changedBy;
-      },
+      render: (_: unknown, record: PriceHistory) => renderChangedBy(record),
     },
   ];
 
@@ -374,51 +530,87 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
     },
   ];
 
+  // Формируем содержимое для отображения, когда нет данных
+  const noDataContent = (
+    <Empty
+      image={Empty.PRESENTED_IMAGE_SIMPLE}
+      description={
+        <span>
+          Нет данных об изменениях цен за выбранный период.
+          <br />
+          Выберите другой период или измените фильтр по типу цены.
+        </span>
+      }
+    />
+  );
+
   const items = [
     {
       key: 'summary',
-      label: <span>Сводная статистика</span>,
+      label: (
+        <span>
+          <PieChartOutlined /> Сводка изменений цен
+        </span>
+      ),
       children: (
-        <div className="space-y-6">
+        <div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
               <Card>
                 <Statistic
-                  title="Всего изменений"
+                  title="Всего изменений цен"
                   value={analytics?.totalChanges || 0}
-                  suffix="шт."
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Card>
                 <Statistic
-                  title="Повышения цен"
+                  title="Повышений цен"
                   value={analytics?.increasesCount || 0}
                   valueStyle={{ color: '#cf1322' }}
                   prefix={<ArrowUpOutlined />}
-                  suffix="шт."
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Card>
                 <Statistic
-                  title="Понижения цен"
+                  title="Снижений цен"
                   value={analytics?.decreasesCount || 0}
                   valueStyle={{ color: '#3f8600' }}
                   prefix={<ArrowDownOutlined />}
-                  suffix="шт."
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Card>
                 <Statistic
-                  title="Среднее изменение"
+                  title="Изменения закупочных цен"
+                  value={analytics?.purchaseChanges || 0}
+                  valueStyle={{ color: '#1890ff' }}
+                  prefix={<TagOutlined />}
+                  suffix={<Tag color="blue">Закупочные</Tag>}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Card>
+                <Statistic
+                  title="Изменения продажных цен"
+                  value={analytics?.sellingChanges || 0}
+                  valueStyle={{ color: '#52c41a' }}
+                  prefix={<TagOutlined />}
+                  suffix={<Tag color="green">Продажные</Tag>}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Card>
+                <Statistic
+                  title="Средн. изменение"
                   value={analytics?.averageChange || 0}
                   precision={2}
-                  prefix={(analytics?.averageChange || 0) > 0 ? '+' : ''}
                   suffix="₸"
                 />
               </Card>
@@ -448,6 +640,7 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
               </Card>
             </Col>
           </Row>
+          {analytics?.totalChanges === 0 && noDataContent}
         </div>
       ),
     },
@@ -460,7 +653,7 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
       ),
       children: (
         <Table
-          dataSource={priceHistory}
+          dataSource={filteredPriceHistory}
           columns={priceHistoryColumns}
           rowKey="id"
           loading={loading}
@@ -468,6 +661,9 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
             defaultPageSize: 10,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50'],
+          }}
+          locale={{
+            emptyText: 'Нет данных по истории цен за выбранный период',
           }}
         />
       ),
@@ -486,46 +682,57 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
           rowKey="productId"
           loading={loading}
           pagination={false}
+          locale={{
+            emptyText:
+              'Нет данных о товарах с изменениями цен за выбранный период',
+          }}
         />
       ),
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div>
-            <h3 className="text-lg font-medium">Выберите период:</h3>
+    <div className="price-analytics">
+      <Card
+        title="Анализ изменения цен"
+        extra={
+          <Space>
             <RangePicker
               value={dateRange}
               onChange={(dates) => {
-                if (dates && dates[0] && dates[1]) {
-                  setDateRange([dates[0], dates[1]]);
-                }
+                setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null);
               }}
-              allowClear={false}
+              allowClear={true}
+              placeholder={['Начальная дата', 'Конечная дата']}
             />
-          </div>
-        </div>
+            <Radio.Group
+              value={priceTypeFilter}
+              onChange={(e) => setPriceTypeFilter(e.target.value)}
+              buttonStyle="solid"
+            >
+              <Radio.Button value="all">Все цены</Radio.Button>
+              <Radio.Button value="purchase">Закупочные</Radio.Button>
+              <Radio.Button value="selling">Продажные</Radio.Button>
+            </Radio.Group>
+            <Button
+              type="primary"
+              onClick={fetchPriceChanges}
+              loading={loading}
+            >
+              Обновить
+            </Button>
+          </Space>
+        }
+      >
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
       </Card>
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={items}
-        type="card"
-        size="large"
-        className="price-analytics-tabs"
-      />
-
-      {/* Модальное окно изменения цены */}
+      {/* Модальное окно для изменения цены */}
       <Modal
-        title={`Изменение цены: ${selectedProduct?.name}`}
+        title={`Изменение цены для "${selectedProduct?.name}"`}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        width={500}
       >
         {selectedProduct && (
           <PriceChangeForm

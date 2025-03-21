@@ -876,20 +876,31 @@ export const getDefaultLabelTemplates = async (): Promise<LabelTemplate[]> => {
 export const getPriceHistory = async (
   productId: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  shopId?: string
 ): Promise<PriceHistory[]> => {
+  console.log('getPriceHistory called with:', {
+    productId,
+    startDate,
+    endDate,
+    shopId,
+  });
   try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    const url = shopId
+      ? `/manager/price-history/shop/${shopId}`
+      : `/manager/price-history/product/${productId}`;
+    const params = {
+      ...(startDate && endDate ? { startDate, endDate } : {}),
+      ...(shopId && { productId }),
+    };
+    console.log('getPriceHistory request:', { url, params });
 
-    const response = await api.get(
-      `/manager/price-history/product/${productId}?${params.toString()}`
-    );
+    const response = await api.get(url, { params });
+    console.log('getPriceHistory response:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error fetching price history:', error);
-    throw ApiErrorHandler.handle(error);
+    console.error('getPriceHistory error:', error);
+    throw error;
   }
 };
 
@@ -923,21 +934,35 @@ export const addPriceChange = async (
 
 export const getPriceChangesReport = async (
   shopId: string,
-  startDate: string,
-  endDate: string
+  startDate?: string,
+  endDate?: string
 ): Promise<PriceHistory[]> => {
   try {
-    const params = new URLSearchParams({
+    console.log('[managerApi] getPriceChangesReport called with:', {
+      shopId,
       startDate,
       endDate,
     });
 
-    const response = await api.get(
-      `/manager/price-history/report/${shopId}?${params.toString()}`
-    );
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+
+    const url = `/manager/price-history/report/${shopId}${
+      params.toString() ? `?${params.toString()}` : ''
+    }`;
+    console.log('[managerApi] Making request to:', url);
+
+    const response = await api.get(url);
+    console.log('[managerApi] getPriceChangesReport response:', {
+      status: response.status,
+      dataLength: response.data?.length,
+      firstRecord: response.data?.[0],
+    });
+
     return response.data;
   } catch (error) {
-    console.error('Error fetching price changes report:', error);
+    console.error('[managerApi] Error in getPriceChangesReport:', error);
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -973,6 +998,8 @@ export interface CreatePurchaseRequest {
   updatePurchasePrices?: boolean;
   createLabels?: boolean;
   checkDuplicates?: boolean;
+  markup?: number;
+  markupType?: 'percentage' | 'fixed';
   status?: 'draft' | 'completed' | 'cancelled';
 }
 

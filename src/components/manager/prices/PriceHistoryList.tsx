@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Table, DatePicker, Space, message, Tooltip } from 'antd';
+import { Table, DatePicker, Space, message, Tooltip, Tag, Avatar } from 'antd';
+import { UserOutlined, RobotOutlined, ToolOutlined } from '@ant-design/icons';
 import { getPriceHistory } from '@/services/managerApi';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
+import { useShop } from '@/hooks/useShop';
 import dayjs from 'dayjs';
 import { formatPrice } from '@/utils/format';
 import { translatePriceChangeReason } from '@/utils/translations';
@@ -16,20 +18,29 @@ interface PriceHistoryListProps {
 export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
   productId,
 }) => {
+  const { currentShop } = useShop();
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   const fetchPriceHistory = async () => {
+    if (!currentShop?.id) return;
+
     try {
       setLoading(true);
+      console.log('PriceHistoryList fetchPriceHistory called with:', {
+        dateRange,
+        shopId: currentShop.id,
+      });
+
       const data = await getPriceHistory(
         productId,
         dateRange?.[0],
-        dateRange?.[1]
+        dateRange?.[1],
+        currentShop.id
       );
 
-      console.log('Данные истории цен:', data);
+      console.log('PriceHistoryList received data:', data);
 
       // Проверим структуру данных о пользователе
       if (data && data.length > 0) {
@@ -79,6 +90,20 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => dayjs(date).format('DD.MM.YYYY HH:mm'),
+    },
+    {
+      title: 'Тип цены',
+      dataIndex: 'priceType',
+      key: 'priceType',
+      render: (priceType?: string) => {
+        if (priceType === 'purchase') {
+          return <Tag color="blue">Закупочная</Tag>;
+        } else if (priceType === 'selling') {
+          return <Tag color="green">Продажная</Tag>;
+        } else {
+          return <Tag color="default">Неизвестно</Tag>;
+        }
+      },
     },
     {
       title: 'Старая цена',
@@ -139,40 +164,130 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
       dataIndex: 'changedBy',
       key: 'changedBy',
       render: (_: unknown, record: PriceHistory) => {
-        // Выводим отладочную информацию для понимания структуры данных
-        console.log(`Запись ${record.id}, changedBy:`, record.changedBy);
-        console.log(
-          `Запись ${record.id}, changedByUser:`,
-          record.changedByUser
-        );
+        const changedBy = record.changedBy as any;
+        const changedByUser = record.changedByUser as any;
 
-        // Проверяем, есть ли информация о changedBy в виде объекта
-        if (typeof record.changedBy === 'object' && record.changedBy !== null) {
-          const user = record.changedBy as any;
-          if (user.firstName && user.lastName) {
-            return `${user.firstName} ${user.lastName}`;
+        const renderChangedBy = (changedBy: any, changedByUser?: any) => {
+          // Первый приоритет: используем данные из changedByUser, если они есть
+          if (changedByUser && typeof changedByUser === 'object') {
+            if (changedByUser.firstName && changedByUser.lastName) {
+              const userInfo = [];
+
+              // Добавляем имя и фамилию
+              userInfo.push(
+                `${changedByUser.firstName} ${changedByUser.lastName}`
+              );
+
+              // Добавляем контактную информацию, если она есть
+              if (changedByUser.phone || changedByUser.email) {
+                userInfo.push(
+                  [
+                    changedByUser.phone ? `Тел: ${changedByUser.phone}` : '',
+                    changedByUser.email || '',
+                  ]
+                    .filter(Boolean)
+                    .join(', ')
+                );
+              }
+
+              return (
+                <Tooltip title={userInfo.length > 1 ? userInfo[1] : ''}>
+                  <Space>
+                    <Avatar icon={<UserOutlined />} />
+                    <span>{userInfo[0]}</span>
+                  </Space>
+                </Tooltip>
+              );
+            }
           }
-        }
 
-        // Проверяем наличие данных в changedByUser
-        if (record.changedByUser && typeof record.changedByUser === 'object') {
-          if (record.changedByUser.firstName && record.changedByUser.lastName) {
-            return `${record.changedByUser.firstName} ${record.changedByUser.lastName}`;
+          // Второй приоритет: если changedBy - объект, используем его данные
+          if (typeof changedBy === 'object' && changedBy !== null) {
+            const user = changedBy as any;
+
+            // Если есть имя и фамилия, отображаем их
+            if (user.firstName && user.lastName) {
+              return (
+                <Space>
+                  <Avatar icon={<UserOutlined />} />
+                  <span>{`${user.firstName} ${user.lastName}`}</span>
+                </Space>
+              );
+            }
+
+            // Если объект имеет id и name, это может быть сериализованный пользователь
+            if (user.id && user.name) {
+              return (
+                <Space>
+                  <Avatar icon={<UserOutlined />} />
+                  <span>{user.name}</span>
+                </Space>
+              );
+            }
           }
-        }
 
-        // Проверяем наличие строковых идентификаторов
-        const changedBy = record.changedBy;
-        if (typeof changedBy === 'string') {
-          if (!changedBy) return 'Система';
-          if (changedBy === 'unknown') return 'Неизвестно';
-          if (changedBy === 'system') return 'Система';
-          if (changedBy === 'import') return 'Импорт';
-          if (changedBy === 'admin') return 'Администратор';
-          return changedBy;
-        }
+          // Третий приоритет: обработка строковых значений
+          const changedByString =
+            typeof changedBy === 'string' ? changedBy : '';
 
-        return 'Неизвестно';
+          if (!changedByString || changedByString === 'system') {
+            return (
+              <Space>
+                <Avatar
+                  icon={<RobotOutlined />}
+                  style={{ backgroundColor: '#87d068' }}
+                />
+                <span>Система</span>
+              </Space>
+            );
+          }
+
+          if (changedByString === 'unknown') {
+            return (
+              <Space>
+                <Avatar
+                  icon={<UserOutlined />}
+                  style={{ backgroundColor: '#d9d9d9' }}
+                />
+                <span>Неизвестно</span>
+              </Space>
+            );
+          }
+
+          if (changedByString === 'import') {
+            return (
+              <Space>
+                <Avatar
+                  icon={<ToolOutlined />}
+                  style={{ backgroundColor: '#1890ff' }}
+                />
+                <span>Импорт</span>
+              </Space>
+            );
+          }
+
+          if (changedByString === 'admin') {
+            return (
+              <Space>
+                <Avatar
+                  icon={<UserOutlined />}
+                  style={{ backgroundColor: '#ff4d4f' }}
+                />
+                <span>Администратор</span>
+              </Space>
+            );
+          }
+
+          // Если ничего не подошло, отображаем значение как есть
+          return (
+            <Space>
+              <Avatar icon={<UserOutlined />} />
+              <span>{changedByString}</span>
+            </Space>
+          );
+        };
+
+        return renderChangedBy(changedBy, changedByUser);
       },
     },
   ];
@@ -181,16 +296,23 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
     <div>
       <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
         <RangePicker
+          value={null}
           onChange={(dates) => {
+            console.log('RangePicker onChange dates:', dates);
             if (dates) {
-              setDateRange([
+              const newDateRange: [string, string] = [
                 dates[0]!.startOf('day').toISOString(),
                 dates[1]!.endOf('day').toISOString(),
-              ]);
+              ];
+              console.log('Setting new dateRange:', newDateRange);
+              setDateRange(newDateRange);
             } else {
+              console.log('Clearing dateRange');
               setDateRange(null);
             }
           }}
+          allowClear={true}
+          placeholder={['Начальная дата', 'Конечная дата']}
         />
       </Space>
 
@@ -199,6 +321,7 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
         dataSource={priceHistory}
         loading={loading}
         rowKey="id"
+        locale={{ emptyText: 'Нет данных по истории цен за выбранный период' }}
       />
     </div>
   );
