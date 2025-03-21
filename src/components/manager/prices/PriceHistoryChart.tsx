@@ -18,7 +18,6 @@ import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import dayjs from 'dayjs';
 import { formatPrice } from '@/utils/format';
-import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import {
   RobotOutlined,
   UserOutlined,
@@ -32,15 +31,17 @@ const { Title, Text } = Typography;
 
 interface PriceHistoryChartProps {
   productId: string;
+  priceTypeFilter: string;
+  dateRange: [string, string] | null;
 }
 
 export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
   productId,
+  priceTypeFilter,
+  dateRange,
 }) => {
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
-  const [priceTypeFilter, setPriceTypeFilter] = useState<string>('all');
   const [productName, setProductName] = useState<string>('');
 
   const fetchPriceHistory = async () => {
@@ -434,38 +435,7 @@ ${
         size="middle"
         style={{ width: '100%', marginBottom: 16 }}
       >
-        {productName && (
-          <Title level={4} style={{ marginBottom: 8 }}>
-            История изменения цен: {productName}
-          </Title>
-        )}
-
-        <Space>
-          <RangePicker
-            value={null}
-            onChange={(dates) => {
-              if (dates && dates[0] && dates[1]) {
-                setDateRange([
-                  dates[0].format('YYYY-MM-DD'),
-                  dates[1].format('YYYY-MM-DD'),
-                ]);
-              } else {
-                setDateRange(null);
-              }
-            }}
-            allowClear={true}
-            placeholder={['Начальная дата', 'Конечная дата']}
-          />
-          <Radio.Group
-            value={priceTypeFilter}
-            onChange={(e) => setPriceTypeFilter(e.target.value)}
-            buttonStyle="solid"
-          >
-            <Radio.Button value="all">Все цены</Radio.Button>
-            <Radio.Button value="purchase">Закупочные</Radio.Button>
-            <Radio.Button value="selling">Продажные</Radio.Button>
-          </Radio.Group>
-        </Space>
+       
 
         <Card loading={loading}>
           {chartData.length > 0 ? (

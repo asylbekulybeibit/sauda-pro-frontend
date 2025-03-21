@@ -64,7 +64,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-yellow-100 text-yellow-600',
     },
     {
-      name: 'Цены',
+      name: 'История изменений цен',
       icon: CurrencyDollarIcon,
       color: 'bg-green-100 text-green-600',
       href: `/manager/${shopId}/prices`,

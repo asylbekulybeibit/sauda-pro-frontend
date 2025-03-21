@@ -13,15 +13,18 @@ const { RangePicker } = DatePicker;
 
 interface PriceHistoryListProps {
   productId: string;
+  priceTypeFilter: string;
+  dateRange: [string, string] | null;
 }
 
 export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
   productId,
+  priceTypeFilter,
+  dateRange,
 }) => {
   const { currentShop } = useShop();
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(false);
-  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   const fetchPriceHistory = async () => {
     if (!currentShop?.id) return;
@@ -292,33 +295,16 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
     },
   ];
 
+  const filteredData = priceHistory.filter((record) => {
+    if (priceTypeFilter === 'all') return true;
+    return record.priceType === priceTypeFilter;
+  });
+
   return (
     <div>
-      <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
-        <RangePicker
-          value={null}
-          onChange={(dates) => {
-            console.log('RangePicker onChange dates:', dates);
-            if (dates) {
-              const newDateRange: [string, string] = [
-                dates[0]!.startOf('day').toISOString(),
-                dates[1]!.endOf('day').toISOString(),
-              ];
-              console.log('Setting new dateRange:', newDateRange);
-              setDateRange(newDateRange);
-            } else {
-              console.log('Clearing dateRange');
-              setDateRange(null);
-            }
-          }}
-          allowClear={true}
-          placeholder={['Начальная дата', 'Конечная дата']}
-        />
-      </Space>
-
       <Table
         columns={columns}
-        dataSource={priceHistory}
+        dataSource={filteredData}
         loading={loading}
         rowKey="id"
         locale={{ emptyText: 'Нет данных по истории цен за выбранный период' }}

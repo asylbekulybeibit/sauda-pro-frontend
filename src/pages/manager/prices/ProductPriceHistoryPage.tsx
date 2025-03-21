@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Spin,
@@ -12,6 +12,8 @@ import {
   Alert,
   Space,
   Divider,
+  Radio,
+  DatePicker,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -31,11 +33,14 @@ import { formatPrice } from '@/utils/format';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const ProductPriceHistoryPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { currentShop } = useShop();
   const navigate = useNavigate();
+  const [priceTypeFilter, setPriceTypeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   // Запрос на получение товаров
   const { data: products, isLoading } = useQuery({
@@ -125,7 +130,7 @@ const ProductPriceHistoryPage: React.FC = () => {
             Назад
           </Button>
           <Title level={2} style={{ margin: 0 }}>
-            История цен
+          История изменения цены
           </Title>
         </div>
 
@@ -204,14 +209,54 @@ const ProductPriceHistoryPage: React.FC = () => {
           </Row>
         </Card>
 
+        {/* Фильтры */}
+        <Card>
+          <Space size="middle">
+            <RangePicker
+              value={
+                dateRange ? [dayjs(dateRange[0]), dayjs(dateRange[1])] : null
+              }
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  setDateRange([
+                    dates[0].format('YYYY-MM-DD'),
+                    dates[1].format('YYYY-MM-DD'),
+                  ]);
+                } else {
+                  setDateRange(null);
+                }
+              }}
+              allowClear={true}
+              placeholder={['Начальная дата', 'Конечная дата']}
+            />
+            <Radio.Group
+              value={priceTypeFilter}
+              onChange={(e) => setPriceTypeFilter(e.target.value)}
+              buttonStyle="solid"
+            >
+              <Radio.Button value="all">Все цены</Radio.Button>
+              <Radio.Button value="purchase">Закупочные</Radio.Button>
+              <Radio.Button value="selling">Продажные</Radio.Button>
+            </Radio.Group>
+          </Space>
+        </Card>
+
         {/* График цен */}
         <Card title="График изменения цен">
-          <PriceHistoryChart productId={id} />
+          <PriceHistoryChart
+            productId={id}
+            priceTypeFilter={priceTypeFilter}
+            dateRange={dateRange}
+          />
         </Card>
 
         {/* История изменений */}
-        <Card title="История изменений цен">
-          <PriceHistoryList productId={id} />
+        <Card >
+          <PriceHistoryList
+            productId={id}
+            priceTypeFilter={priceTypeFilter}
+            dateRange={dateRange}
+          />
         </Card>
       </Space>
     </div>
