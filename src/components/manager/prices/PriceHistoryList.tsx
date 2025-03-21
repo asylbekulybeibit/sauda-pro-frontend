@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, DatePicker, Space, message, Tooltip, Tag, Avatar } from 'antd';
 import { UserOutlined, RobotOutlined, ToolOutlined } from '@ant-design/icons';
-import { getPriceHistory } from '@/services/managerApi';
+import { getPriceChangesReport } from '@/services/managerApi';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import { useShop } from '@/hooks/useShop';
@@ -36,23 +36,21 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
         shopId: currentShop.id,
       });
 
-      const data = await getPriceHistory(
-        productId,
+      const data = await getPriceChangesReport(
+        currentShop.id,
         dateRange?.[0],
-        dateRange?.[1],
-        currentShop.id
+        dateRange?.[1]
       );
 
-      console.log('PriceHistoryList received data:', data);
+      // Фильтруем данные по productId
+      const filteredData = data.filter(
+        (record) => record.productId === productId
+      );
 
-      // Проверим структуру данных о пользователе
-      if (data && data.length > 0) {
-        console.log('Информация о пользователе:', data[0].changedBy);
-        console.log('Объект пользователя:', data[0].changedByUser);
-      }
+      console.log('PriceHistoryList received data:', filteredData);
 
       // Обрабатываем данные для корректного отображения
-      const processedData = data.map((record) => {
+      const processedData = filteredData.map((record) => {
         // Создаем копию записи для модификации
         const processedRecord = { ...record };
 
@@ -85,7 +83,7 @@ export const PriceHistoryList: React.FC<PriceHistoryListProps> = ({
 
   useEffect(() => {
     fetchPriceHistory();
-  }, [productId, dateRange]);
+  }, [productId, dateRange, priceTypeFilter, currentShop?.id]);
 
   const columns = [
     {

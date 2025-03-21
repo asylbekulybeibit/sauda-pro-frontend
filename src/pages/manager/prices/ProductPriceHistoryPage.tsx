@@ -50,7 +50,11 @@ const ProductPriceHistoryPage: React.FC = () => {
   });
 
   // Запрос на получение истории цен
-  const { data: priceHistory, isLoading: isLoadingHistory } = useQuery({
+  const {
+    data: priceHistory,
+    isLoading: isLoadingHistory,
+    refetch,
+  } = useQuery({
     queryKey: ['priceHistory', id, currentShop?.id],
     queryFn: () => getPriceHistory(id!, undefined, undefined, currentShop?.id),
     enabled: !!id && !!currentShop?.id,
@@ -130,7 +134,7 @@ const ProductPriceHistoryPage: React.FC = () => {
             Назад
           </Button>
           <Title level={2} style={{ margin: 0 }}>
-          История изменения цены
+            История изменения цены
           </Title>
         </div>
 
@@ -218,16 +222,20 @@ const ProductPriceHistoryPage: React.FC = () => {
               }
               onChange={(dates) => {
                 if (dates && dates[0] && dates[1]) {
-                  setDateRange([
-                    dates[0].format('YYYY-MM-DD'),
-                    dates[1].format('YYYY-MM-DD'),
-                  ]);
+                  const startDate = dates[0]
+                    .startOf('day')
+                    .format('YYYY-MM-DD HH:mm:ss');
+                  const endDate = dates[1]
+                    .endOf('day')
+                    .format('YYYY-MM-DD HH:mm:ss');
+                  setDateRange([startDate, endDate]);
                 } else {
                   setDateRange(null);
                 }
               }}
               allowClear={true}
               placeholder={['Начальная дата', 'Конечная дата']}
+              showTime={false}
             />
             <Radio.Group
               value={priceTypeFilter}
@@ -251,7 +259,7 @@ const ProductPriceHistoryPage: React.FC = () => {
         </Card>
 
         {/* История изменений */}
-        <Card >
+        <Card>
           <PriceHistoryList
             productId={id}
             priceTypeFilter={priceTypeFilter}

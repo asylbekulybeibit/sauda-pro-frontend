@@ -13,7 +13,7 @@ import {
   Avatar,
   Tooltip,
 } from 'antd';
-import { getPriceHistory } from '@/services/managerApi';
+import { getPriceChangesReport } from '@/services/managerApi';
 import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import dayjs from 'dayjs';
@@ -25,6 +25,7 @@ import {
   ImportOutlined,
   CrownOutlined,
 } from '@ant-design/icons';
+import { useShop } from '@/hooks/useShop';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
@@ -40,21 +41,29 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
   priceTypeFilter,
   dateRange,
 }) => {
+  const { currentShop } = useShop();
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [productName, setProductName] = useState<string>('');
 
   const fetchPriceHistory = async () => {
+    if (!currentShop?.id) return;
+
     try {
       setLoading(true);
-      const data = await getPriceHistory(
-        productId,
+      const data = await getPriceChangesReport(
+        currentShop.id,
         dateRange?.[0],
         dateRange?.[1]
       );
 
+      // Фильтруем данные по productId
+      const filteredData = data.filter(
+        (record) => record.productId === productId
+      );
+
       // Сортируем данные по дате для правильного отображения на графике
-      const sortedData = [...data].sort(
+      const sortedData = [...filteredData].sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
@@ -62,8 +71,8 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
       setPriceHistory(sortedData);
 
       // Сохраняем название продукта, если оно есть в данных
-      if (data.length > 0 && data[0].product?.name) {
-        setProductName(data[0].product.name);
+      if (sortedData.length > 0 && sortedData[0].product?.name) {
+        setProductName(sortedData[0].product.name);
       }
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
@@ -75,7 +84,7 @@ export const PriceHistoryChart: React.FC<PriceHistoryChartProps> = ({
 
   useEffect(() => {
     fetchPriceHistory();
-  }, [productId, dateRange]);
+  }, [productId, dateRange, priceTypeFilter, currentShop?.id]);
 
   const filteredPriceHistory = priceHistory.filter((record) => {
     if (priceTypeFilter === 'all') return true;
@@ -435,8 +444,6 @@ ${
         size="middle"
         style={{ width: '100%', marginBottom: 16 }}
       >
-       
-
         <Card loading={loading}>
           {chartData.length > 0 ? (
             <>

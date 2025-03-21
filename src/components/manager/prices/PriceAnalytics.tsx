@@ -62,16 +62,15 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
   const fetchPriceChanges = async () => {
     try {
       setLoading(true);
-      console.log('[PriceAnalytics] Starting fetchPriceChanges:', {
-        shopId,
-        dateRange,
-      });
 
-      // Only use dates if dateRange is explicitly set
-      const startDate = dateRange
-        ? dateRange[0].format('YYYY-MM-DD')
-        : undefined;
-      const endDate = dateRange ? dateRange[1].format('YYYY-MM-DD') : undefined;
+      // Форматируем даты с учетом начала и конца дня
+      let startDate: string | undefined;
+      let endDate: string | undefined;
+
+      if (dateRange) {
+        startDate = dateRange[0].startOf('day').format('YYYY-MM-DD HH:mm:ss');
+        endDate = dateRange[1].endOf('day').format('YYYY-MM-DD HH:mm:ss');
+      }
 
       console.log('[PriceAnalytics] Fetching price changes with dates:', {
         startDate,
@@ -82,7 +81,6 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
 
       // Получаем продукты для отображения имен
       const products = await fetchProducts();
-      console.log('[PriceAnalytics] Fetched products:', products.length);
 
       // Обогащаем данные именами продуктов
       const enrichedData = data.map((record) => {
@@ -357,6 +355,7 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
               }}
               allowClear={true}
               placeholder={['Начальная дата', 'Конечная дата']}
+              showTime={false}
             />
             <Radio.Group
               value={priceTypeFilter}
@@ -367,7 +366,7 @@ export const PriceAnalytics: React.FC<PriceAnalyticsProps> = ({ shopId }) => {
               <Radio.Button value="purchase">Закупочные</Radio.Button>
               <Radio.Button value="selling">Продажные</Radio.Button>
             </Radio.Group>
-            
+           
           </Space>
         }
       >
