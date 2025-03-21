@@ -1,16 +1,26 @@
 import React, { useState, useMemo } from 'react';
-import { Button, Space, Popconfirm, Tag, Typography, Pagination } from 'antd';
+import {
+  Button,
+  Space,
+  Popconfirm,
+  Tag,
+  Typography,
+  Pagination,
+  Modal,
+} from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
   SortAscendingOutlined,
   SortDescendingOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteCategory } from '@/services/managerApi';
 import { Category } from '@/types/category';
 
 const { Text } = Typography;
+const { confirm } = Modal;
 
 interface CategoryTableProps {
   categories: Category[];
@@ -37,13 +47,24 @@ export function CategoryTable({
     },
   });
 
-  // Обработчик удаления категории
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteMutation.mutateAsync(id);
-    } catch (error) {
-      // Ошибка обрабатывается в мутации
-    }
+  // Обработчик удаления категории с модальным окном в центре
+  const showDeleteConfirm = (id: string, name: string) => {
+    confirm({
+      title: 'Удалить категорию?',
+      icon: <ExclamationCircleOutlined />,
+      content: `Вы уверены, что хотите удалить категорию "${name}"?`,
+      okText: 'Да',
+      okType: 'primary',
+      okButtonProps: {
+        className: 'bg-blue-500 hover:bg-blue-600 text-white',
+        type: 'primary',
+      },
+      cancelText: 'Нет',
+      centered: true,
+      onOk() {
+        deleteMutation.mutateAsync(id);
+      },
+    });
   };
 
   // Функция сортировки
@@ -180,15 +201,14 @@ export function CategoryTable({
                         icon={<EditOutlined />}
                         onClick={() => onEdit(category)}
                       />
-                      <Popconfirm
-                        title="Удалить категорию?"
-                        description="Вы уверены, что хотите удалить эту категорию?"
-                        onConfirm={() => handleDelete(category.id)}
-                        okText="Да"
-                        cancelText="Нет"
-                      >
-                        <Button type="text" danger icon={<DeleteOutlined />} />
-                      </Popconfirm>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() =>
+                          showDeleteConfirm(category.id, category.name)
+                        }
+                      />
                     </Space>
                   </td>
                 </tr>
@@ -205,7 +225,6 @@ export function CategoryTable({
       </div>
 
       <div className="mt-4 flex justify-end items-center">
-        
         <Pagination
           current={currentPage}
           pageSize={pageSize}

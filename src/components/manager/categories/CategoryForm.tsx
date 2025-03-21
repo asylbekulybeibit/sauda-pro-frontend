@@ -118,7 +118,12 @@ export function CategoryForm({
       onOk={() => form.submit()}
       okText="Сохранить"
       cancelText="Отмена"
+      okButtonProps={{
+        className: 'bg-blue-500 hover:bg-blue-600 text-white',
+        type: 'primary',
+      }}
       destroyOnClose
+      centered
     >
       <Form
         form={form}
