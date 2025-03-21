@@ -972,6 +972,7 @@ export interface CreatePurchaseRequest {
   updatePrices?: boolean;
   updatePurchasePrices?: boolean;
   createLabels?: boolean;
+  checkDuplicates?: boolean;
   status?: 'draft' | 'completed' | 'cancelled';
 }
 
@@ -1009,6 +1010,12 @@ export const createPurchase = async (
   console.log('  - invoiceNumber:', data.invoiceNumber);
   console.log('  - date:', data.date);
   console.log('  - Количество товаров:', data.items.length);
+
+  // Выводим значения флагов
+  console.log('  - updatePrices:', data.updatePrices);
+  console.log('  - updatePurchasePrices:', data.updatePurchasePrices);
+  console.log('  - createLabels:', data.createLabels);
+  console.log('  - checkDuplicates:', data.checkDuplicates);
 
   // Проверяем каждый товар на корректность цены
   console.log('[CREATE PURCHASE] Проверка товаров:');

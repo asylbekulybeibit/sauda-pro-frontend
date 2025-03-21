@@ -242,6 +242,20 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
       }
     }, [isScanning]);
 
+    // Инициализация формы
+    useEffect(() => {
+      // Установка начальных значений переключателей
+      form.setFieldsValue({
+        date: dayjs(),
+        updatePrices: false,
+        updatePurchasePrices: false,
+        createLabels: false,
+        checkDuplicates: false,
+      });
+
+      console.log('Форма инициализирована со значениями по умолчанию');
+    }, [form]);
+
     // Обработчики
     const handleBarcodeScan = (barcode: string) => {
       if (!barcode) return null;
@@ -609,6 +623,14 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
       try {
         const values = await form.validateFields();
 
+        // Логируем значения переключателей
+        console.log('[FORM VALUES]', {
+          updatePrices: values.updatePrices,
+          updatePurchasePrices: values.updatePurchasePrices,
+          createLabels: values.createLabels,
+          checkDuplicates: values.checkDuplicates,
+        });
+
         if (!items.length) {
           message.error('Добавьте хотя бы один товар');
           return;
@@ -639,6 +661,24 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                   'Состояние всех товаров перед отправкой:',
                   JSON.stringify(items, null, 2)
                 );
+
+                // Получаем текущие значения переключателей
+                const formValues = form.getFieldsValue();
+                console.log('[SUBMIT] Текущие значения формы:', formValues);
+
+                // Убедимся, что значения переключателей определены
+                const updatePrices = formValues.updatePrices === true;
+                const updatePurchasePrices =
+                  formValues.updatePurchasePrices === true;
+                const createLabels = formValues.createLabels === true;
+                const checkDuplicates = formValues.checkDuplicates === true;
+
+                console.log('[SUBMIT] Финальные значения переключателей:', {
+                  updatePrices,
+                  updatePurchasePrices,
+                  createLabels,
+                  checkDuplicates,
+                });
 
                 // Создаем новый приход
                 const purchaseData: CreatePurchaseRequest = {
@@ -674,9 +714,10 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                       comment: item.comment,
                     };
                   }),
-                  updatePrices: values.updatePrices,
-                  updatePurchasePrices: values.updatePurchasePrices,
-                  createLabels: values.createLabels,
+                  updatePrices,
+                  updatePurchasePrices,
+                  createLabels,
+                  checkDuplicates,
                 };
 
                 console.log('Отправляем запрос с shopId:', shopId);
@@ -706,6 +747,23 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
             'Состояние всех товаров перед отправкой:',
             JSON.stringify(items, null, 2)
           );
+
+          // Получаем текущие значения переключателей
+          const formValues = form.getFieldsValue();
+          console.log('[SUBMIT] Текущие значения формы:', formValues);
+
+          // Убедимся, что значения переключателей определены
+          const updatePrices = formValues.updatePrices === true;
+          const updatePurchasePrices = formValues.updatePurchasePrices === true;
+          const createLabels = formValues.createLabels === true;
+          const checkDuplicates = formValues.checkDuplicates === true;
+
+          console.log('[SUBMIT] Финальные значения переключателей:', {
+            updatePrices,
+            updatePurchasePrices,
+            createLabels,
+            checkDuplicates,
+          });
 
           // Если нет проблемных товаров, продолжаем без подтверждения
           const purchaseData: CreatePurchaseRequest = {
@@ -741,9 +799,10 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                 comment: item.comment,
               };
             }),
-            updatePrices: values.updatePrices,
-            updatePurchasePrices: values.updatePurchasePrices,
-            createLabels: values.createLabels,
+            updatePrices,
+            updatePurchasePrices,
+            createLabels,
+            checkDuplicates,
           };
 
           console.log('Отправляем запрос с shopId:', shopId);
@@ -789,7 +848,8 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
       updatePurchasePrices:
         'Автоматически обновить закупочные цены товаров на основе текущего прихода',
       createLabels: 'Автоматически создать этикетки для новых товаров',
-      checkDuplicates: 'Проверять наличие накладных с таким же номером',
+      checkDuplicates:
+        'Объединять дубликаты одинаковых товаров в один с суммированием количества',
     };
 
     const columns = [
@@ -1386,7 +1446,15 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                     noStyle
                   >
                     <Tooltip title={tooltips.updatePrices}>
-                      <Switch className="bg-gray-300" />
+                      <Switch
+                        className="bg-gray-300"
+                        onChange={(checked) => {
+                          console.log(
+                            `[SWITCH] updatePrices изменен на: ${checked}`
+                          );
+                          form.setFieldsValue({ updatePrices: checked });
+                        }}
+                      />
                     </Tooltip>
                   </Form.Item>
                   <span className="font-medium text-sm">
@@ -1401,7 +1469,17 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                     noStyle
                   >
                     <Tooltip title={tooltips.updatePurchasePrices}>
-                      <Switch className="bg-gray-300" />
+                      <Switch
+                        className="bg-gray-300"
+                        onChange={(checked) => {
+                          console.log(
+                            `[SWITCH] updatePurchasePrices изменен на: ${checked}`
+                          );
+                          form.setFieldsValue({
+                            updatePurchasePrices: checked,
+                          });
+                        }}
+                      />
                     </Tooltip>
                   </Form.Item>
                   <span className="font-medium text-sm">
@@ -1416,7 +1494,15 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                     noStyle
                   >
                     <Tooltip title={tooltips.createLabels}>
-                      <Switch className="bg-gray-300" />
+                      <Switch
+                        className="bg-gray-300"
+                        onChange={(checked) => {
+                          console.log(
+                            `[SWITCH] createLabels изменен на: ${checked}`
+                          );
+                          form.setFieldsValue({ createLabels: checked });
+                        }}
+                      />
                     </Tooltip>
                   </Form.Item>
                   <span className="font-medium text-sm">Создать этикетки</span>
@@ -1429,7 +1515,15 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
                     noStyle
                   >
                     <Tooltip title={tooltips.checkDuplicates}>
-                      <Switch className="bg-gray-300" />
+                      <Switch
+                        className="bg-gray-300"
+                        onChange={(checked) => {
+                          console.log(
+                            `[SWITCH] checkDuplicates изменен на: ${checked}`
+                          );
+                          form.setFieldsValue({ checkDuplicates: checked });
+                        }}
+                      />
                     </Tooltip>
                   </Form.Item>
                   <span className="font-medium text-sm">Проверять дубли</span>
