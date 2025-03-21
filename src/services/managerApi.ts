@@ -1001,11 +1001,43 @@ export interface PurchaseResponse {
 export const createPurchase = async (
   data: CreatePurchaseRequest
 ): Promise<PurchaseResponse> => {
+  console.log(
+    '[CREATE PURCHASE] Подробный анализ данных для создания прихода:'
+  );
+  console.log('  - shopId:', data.shopId);
+  console.log('  - supplierId:', data.supplierId);
+  console.log('  - invoiceNumber:', data.invoiceNumber);
+  console.log('  - date:', data.date);
+  console.log('  - Количество товаров:', data.items.length);
+
+  // Проверяем каждый товар на корректность цены
+  console.log('[CREATE PURCHASE] Проверка товаров:');
+  data.items.forEach((item, index) => {
+    // Убедимся, что цена в правильном типе и не NaN
+    if (typeof item.price !== 'number' || isNaN(item.price)) {
+      console.warn(
+        `[КРИТИЧЕСКАЯ ОШИБКА] Товар #${index} (productId: ${
+          item.productId
+        }) имеет невалидную цену: ${item.price}, тип: ${typeof item.price}`
+      );
+      // Исправляем цену на 0, чтобы избежать ошибки
+      item.price = 0;
+    }
+
+    console.log(`  Товар #${index}:`);
+    console.log(`    - productId: ${item.productId}`);
+    console.log(`    - quantity: ${item.quantity}`);
+    console.log(`    - price: ${item.price}`);
+    console.log(`    - тип цены: ${typeof item.price}`);
+  });
+
   try {
+    console.log('[CREATE PURCHASE] Отправка данных на сервер...');
     const response = await api.post('/manager/purchases', data);
+    console.log('[CREATE PURCHASE] Успешный ответ от сервера:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error creating purchase:', error);
+    console.error('[CREATE PURCHASE] Ошибка при создании прихода:', error);
     throw ApiErrorHandler.handle(error);
   }
 };

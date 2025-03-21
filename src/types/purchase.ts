@@ -24,7 +24,7 @@ export interface Purchase {
   totalAmount: number;
   totalItems?: number;
   comment?: string;
-  status: 'draft' | 'completed' | 'cancelled';
+  status: 'completed';
   createdById?: string;
   createdBy?: {
     id: string;

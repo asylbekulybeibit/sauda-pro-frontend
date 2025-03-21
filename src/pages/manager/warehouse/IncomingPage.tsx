@@ -71,7 +71,14 @@ function IncomingPage() {
   );
   const [showDetails, setShowDetails] = useState(false);
   const [editingDraft, setEditingDraft] = useState<Purchase | null>(null);
-  const formRef = React.useRef<any>(null);
+  const formRef = useRef<{ handleClose: () => Promise<void> } | null>(null);
+
+  // Функция для проверки, что строка является корректным UUID
+  const isValidUUID = (str: string) => {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
 
   const {
     data: purchases = [],
@@ -82,7 +89,12 @@ function IncomingPage() {
     queryFn: async () => {
       console.log('Fetching purchases for shopId:', shopId);
       try {
-        const response = await getPurchases(shopId!);
+        if (!shopId || !isValidUUID(shopId)) {
+          console.error('Invalid shopId:', shopId);
+          return [];
+        }
+
+        const response = await getPurchases(shopId);
         console.log('API Response:', response);
         console.log('API Response type:', typeof response);
         console.log('API Response is array:', Array.isArray(response));
@@ -98,7 +110,7 @@ function IncomingPage() {
         return [];
       }
     },
-    enabled: !!shopId,
+    enabled: !!shopId && isValidUUID(shopId),
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -195,6 +207,17 @@ function IncomingPage() {
   };
 
   const handleDeletePurchase = (id: string) => {
+    // Проверяем shopId перед удалением прихода
+    if (!shopId) {
+      message.error('ID магазина не указан');
+      return;
+    }
+
+    if (!isValidUUID(shopId)) {
+      message.error('ID магазина должен быть в формате UUID');
+      return;
+    }
+
     Modal.confirm({
       title: 'Подтверждение удаления',
       content: 'Вы действительно хотите удалить этот приход?',
@@ -202,7 +225,7 @@ function IncomingPage() {
       cancelText: 'Отмена',
       okButtonProps: { danger: true },
       onOk: () => {
-        deletePurchase(shopId!, id)
+        deletePurchase(shopId, id)
           .then(() => {
             message.success('Приход успешно удален');
             refetch();
@@ -217,9 +240,20 @@ function IncomingPage() {
 
   const handleViewPurchase = async (purchase: Purchase) => {
     try {
+      // Проверяем shopId перед загрузкой деталей прихода
+      if (!shopId) {
+        message.error('ID магазина не указан');
+        return;
+      }
+
+      if (!isValidUUID(shopId)) {
+        message.error('ID магазина должен быть в формате UUID');
+        return;
+      }
+
       const detailedPurchase = await getPurchaseById(
         purchase.id.toString(),
-        shopId!
+        shopId
       );
       setSelectedPurchase(detailedPurchase);
       setShowDetails(true);
@@ -231,10 +265,21 @@ function IncomingPage() {
 
   const handleEditDraft = async (purchase: Purchase) => {
     try {
+      // Проверяем shopId перед загрузкой черновика
+      if (!shopId) {
+        message.error('ID магазина не указан');
+        return;
+      }
+
+      if (!isValidUUID(shopId)) {
+        message.error('ID магазина должен быть в формате UUID');
+        return;
+      }
+
       console.log('Редактирование черновика ID:', purchase.id);
       const detailedPurchase = await getPurchaseById(
         purchase.id.toString(),
-        shopId!
+        shopId
       );
 
       console.log('Получены данные черновика:', detailedPurchase);
@@ -283,6 +328,17 @@ function IncomingPage() {
   };
 
   const handleCompleteDraft = (purchase: Purchase) => {
+    // Проверяем shopId перед завершением черновика
+    if (!shopId) {
+      message.error('ID магазина не указан');
+      return;
+    }
+
+    if (!isValidUUID(shopId)) {
+      message.error('ID магазина должен быть в формате UUID');
+      return;
+    }
+
     Modal.confirm({
       title: 'Завершение черновика',
       content:
@@ -291,7 +347,7 @@ function IncomingPage() {
       cancelText: 'Отмена',
       onOk: async () => {
         try {
-          await completePurchaseDraft(shopId!, purchase.id.toString());
+          await completePurchaseDraft(shopId, purchase.id.toString());
           message.success('Черновик успешно завершен, приход создан');
           refetch();
         } catch (error) {
@@ -483,29 +539,74 @@ function IncomingPage() {
     maxAmount,
   ]);
 
-  // Обработчик закрытия модального окна
-  const handleModalClose = async () => {
-    console.log('Закрытие модального окна');
-    try {
-      if (formRef.current) {
-        console.log('Вызываем handleCloseWithSave через ref');
-        await formRef.current.handleCloseWithSave();
-      } else {
-        console.log('formRef.current отсутствует, просто закрываем окно');
-      }
-      setShowForm(false);
-    } catch (error) {
-      console.error('Ошибка при закрытии формы:', error);
-      message.error('Произошла ошибка при сохранении черновика');
-      // Все равно закрываем форму, чтобы не блокировать пользователя
-      setShowForm(false);
+  const handleModalClose = () => {
+    console.log('Modal close clicked');
+    Modal.confirm({
+      title: 'Внимание',
+      content:
+        'Вы уверены, что хотите закрыть окно? Все введенные данные будут потеряны.',
+      onOk: () => {
+        try {
+          formRef.current?.handleClose();
+          setShowForm(false);
+        } catch (e) {
+          message.error('Произошла ошибка при закрытии окна');
+        }
+      },
+      okText: 'Да',
+      cancelText: 'Нет',
+    });
+  };
+
+  const handleSuccessfulSubmit = () => {
+    console.log('Purchase successfully submitted');
+    setShowForm(false);
+    refetch();
+  };
+
+  // Функция для проверки перед открытием модального окна
+  const openAddPurchaseModal = () => {
+    if (!shopId) {
+      message.error('ID магазина не указан');
+      return;
     }
+
+    if (!isValidUUID(shopId)) {
+      message.error('ID магазина должен быть в формате UUID');
+      return;
+    }
+
+    setSelectedPurchase(null);
+    setEditingDraft(null);
+    setShowForm(true);
   };
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
         <Spin size="large" />
+      </div>
+    );
+  }
+
+  // Проверка на корректность shopId
+  if (!shopId || !isValidUUID(shopId)) {
+    return (
+      <div className="p-6">
+        <div className="text-center p-10 bg-red-50 rounded-lg">
+          <h1 className="text-2xl font-semibold text-red-600 mb-4">
+            Ошибка загрузки данных
+          </h1>
+          <p className="text-lg">
+            ID магазина отсутствует или имеет некорректный формат.
+          </p>
+          <p className="text-gray-600 mt-2">
+            Пожалуйста, проверьте URL и попробуйте снова.
+          </p>
+          <p className="text-gray-600 mt-2">
+            Текущий ID: {shopId || 'не указан'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -518,11 +619,7 @@ function IncomingPage() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => {
-              setSelectedPurchase(null);
-              setEditingDraft(null);
-              setShowForm(true);
-            }}
+            onClick={openAddPurchaseModal}
           >
             Добавить приход
           </Button>
@@ -611,23 +708,20 @@ function IncomingPage() {
       />
 
       <Modal
+        title="Создание прихода"
+        width={1000}
         open={showForm}
-        onCancel={handleModalClose}
         footer={null}
-        width={1200}
         destroyOnClose
         maskClosable={false}
-        closeIcon={<CloseOutlined />}
+        keyboard={true}
+        onCancel={handleModalClose}
       >
         <PurchaseForm
-          shopId={shopId!}
-          onClose={() => setShowForm(false)}
-          onSuccess={() => {
-            setShowForm(false);
-            refetch();
-          }}
-          initialData={selectedPurchase as any}
           ref={formRef}
+          shopId={shopId}
+          onClose={handleModalClose}
+          onSuccess={handleSuccessfulSubmit}
         />
       </Modal>
 
@@ -664,6 +758,7 @@ function IncomingPage() {
         ]}
         title="Детали прихода"
         width={1200}
+        maskClosable={true}
       >
         <PurchaseDetails
           purchase={selectedPurchase}

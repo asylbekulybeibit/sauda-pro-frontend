@@ -17,24 +17,6 @@ export default function PurchaseDetails({
 }: PurchaseDetailsProps) {
   if (!purchase) return null;
 
-  const getStatusName = (status: string) => {
-    const statusNames = {
-      draft: 'Черновик',
-      completed: 'Завершен',
-      cancelled: 'Отменен',
-    };
-    return statusNames[status as keyof typeof statusNames] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    const statusColors = {
-      draft: 'gold',
-      completed: 'green',
-      cancelled: 'red',
-    };
-    return statusColors[status as keyof typeof statusColors] || 'default';
-  };
-
   const columns = [
     {
       title: 'Наименование',
@@ -105,9 +87,7 @@ export default function PurchaseDetails({
           {purchase.supplier.name}
         </Descriptions.Item>
         <Descriptions.Item label="Статус">
-          <Tag color={getStatusColor(purchase.status)}>
-            {getStatusName(purchase.status)}
-          </Tag>
+          <Tag color="green">Завершен</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Общая сумма">
           {formatPrice(purchase.totalAmount)}
@@ -123,7 +103,9 @@ export default function PurchaseDetails({
             : 0}
         </Descriptions.Item>
         <Descriptions.Item label="Принял">
-          {purchase.createdBy?.name || purchase.createdById || 'Неизвестно'}
+          {purchase.createdBy?.firstName && purchase.createdBy?.lastName
+            ? `${purchase.createdBy.firstName} ${purchase.createdBy.lastName}`
+            : purchase.createdBy?.phone || purchase.createdById || 'Неизвестно'}
         </Descriptions.Item>
 
         {purchase.comment && (
