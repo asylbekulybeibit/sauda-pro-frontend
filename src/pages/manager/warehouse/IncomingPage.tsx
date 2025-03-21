@@ -24,8 +24,6 @@ import {
   deletePurchase,
   getPurchaseById,
   completePurchaseDraft,
-  getShopPurchases,
-  getPurchaseStatuses,
   getSuppliers,
   updatePurchaseStatus,
 } from '@/services/managerApi';
@@ -206,7 +204,7 @@ function IncomingPage() {
     return statusColors[status as keyof typeof statusColors] || 'default';
   };
 
-  const handleDeletePurchase = (id: string) => {
+  const handleDeletePurchase = async (id: string) => {
     // Проверяем shopId перед удалением прихода
     if (!shopId) {
       message.error('ID магазина не указан');
@@ -224,16 +222,15 @@ function IncomingPage() {
       okText: 'Удалить',
       cancelText: 'Отмена',
       okButtonProps: { danger: true },
-      onOk: () => {
-        deletePurchase(shopId, id)
-          .then(() => {
-            message.success('Приход успешно удален');
-            refetch();
-          })
-          .catch((error) => {
-            console.error('Error deleting purchase:', error);
-            message.error('Произошла ошибка при удалении прихода');
-          });
+      onOk: async () => {
+        try {
+          await deletePurchase(shopId, id);
+          message.success('Приход успешно удален');
+          refetch();
+        } catch (error) {
+          console.error('Error deleting purchase:', error);
+          message.error('Произошла ошибка при удалении прихода');
+        }
       },
     });
   };
@@ -290,31 +287,29 @@ function IncomingPage() {
         message.warning('В черновике нет товаров или они не были загружены');
       }
 
+      const items = purchase.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+        total: item.total,
+        partialQuantity: (item as any).partialQuantity,
+        serialNumber: item.serialNumber,
+        expiryDate: item.expiryDate,
+        needsLabels: false,
+        comment: item.comment,
+        barcode: (item.product as any)?.barcode,
+        name: item.product?.name,
+        sku: item.product?.sku,
+        unit: (item.product as any)?.unit || 'шт',
+      }));
+
       const formData = {
         id: purchase.id,
         supplierId: detailedPurchase.supplier.id,
         invoiceNumber: detailedPurchase.invoiceNumber,
         date: dayjs(detailedPurchase.date),
         comment: detailedPurchase.comment,
-        items: detailedPurchase.items
-          ? detailedPurchase.items.map((item) => ({
-              id: crypto.randomUUID(),
-              productId: item.productId,
-              quantity: item.quantity,
-              price: item.price,
-              total: item.total,
-              partialQuantity: item.partialQuantity,
-              serialNumber: item.serialNumber,
-              expiryDate: item.expiryDate,
-              needsLabels: false,
-              comment: item.comment,
-              // Добавляем дополнительные поля, которые могут понадобиться
-              barcode: item.product?.barcode,
-              name: item.product?.name,
-              sku: item.product?.sku,
-              unit: item.product?.unit || 'шт',
-            }))
-          : [],
+        items: items,
       };
 
       console.log('Подготовленные данные формы:', formData);
@@ -347,7 +342,7 @@ function IncomingPage() {
       cancelText: 'Отмена',
       onOk: async () => {
         try {
-          await completePurchaseDraft(shopId, purchase.id.toString());
+          await completePurchaseDraft(purchase.id.toString());
           message.success('Черновик успешно завершен, приход создан');
           refetch();
         } catch (error) {
@@ -442,23 +437,23 @@ function IncomingPage() {
             key: 'view',
             label: 'Просмотр',
             icon: <EyeOutlined />,
-            onClick: () => handleViewPurchase(record),
+            onClick: () => Promise.resolve(handleViewPurchase(record)),
           },
         ];
 
-        if (record.status === 'draft') {
+        if ((record.status as string) === 'draft') {
           items.push(
             {
               key: 'edit',
               label: 'Редактировать',
               icon: <EditOutlined />,
-              onClick: () => handleEditDraft(record),
+              onClick: () => Promise.resolve(handleEditDraft(record)),
             },
             {
               key: 'complete',
               label: 'Завершить',
               icon: <CheckCircleOutlined />,
-              onClick: () => handleCompleteDraft(record),
+              onClick: () => Promise.resolve(handleCompleteDraft(record)),
             }
           );
         }
@@ -468,14 +463,14 @@ function IncomingPage() {
             key: 'copy',
             label: 'Копировать',
             icon: <CopyOutlined />,
-            onClick: () => handleViewPurchase(record),
+            onClick: () => Promise.resolve(handleViewPurchase(record)),
           },
           {
             key: 'delete',
             label: 'Удалить',
             icon: <DeleteOutlined />,
-            danger: true,
-            onClick: () => handleDeletePurchase(record.id.toString()),
+            onClick: () =>
+              Promise.resolve(handleDeletePurchase(record.id.toString())),
           }
         );
 
@@ -620,6 +615,7 @@ function IncomingPage() {
             type="primary"
             icon={<PlusOutlined />}
             onClick={openAddPurchaseModal}
+            className="bg-blue-500"
           >
             Добавить приход
           </Button>

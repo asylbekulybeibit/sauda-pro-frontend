@@ -105,7 +105,7 @@ export default function PurchaseDetails({
         <Descriptions.Item label="Принял">
           {purchase.createdBy?.firstName && purchase.createdBy?.lastName
             ? `${purchase.createdBy.firstName} ${purchase.createdBy.lastName}`
-            : purchase.createdBy?.phone || purchase.createdById || 'Неизвестно'}
+            : purchase.createdBy?.name || purchase.createdById || 'Неизвестно'}
         </Descriptions.Item>
 
         {purchase.comment && (
