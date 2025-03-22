@@ -129,7 +129,12 @@ export function ProductList({
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{product.barcode}</div>
+                  <div className="text-sm text-gray-900">
+                    {Array.isArray(product.barcodes) &&
+                    product.barcodes.length > 0
+                      ? product.barcodes[0]
+                      : product.barcode || '—'}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-3">

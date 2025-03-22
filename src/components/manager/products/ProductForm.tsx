@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Product } from '@/types/product';
 import { Category } from '@/types/category';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { createProduct, updateProduct } from '@/services/managerApi';
 import { Modal, Form, Input, InputNumber, Select, Button, Space } from 'antd';
+import { message } from 'antd';
 
 interface ProductFormProps {
   product?: Product;
@@ -27,6 +28,9 @@ export function ProductForm({
     JSON.stringify(categories, null, 2)
   );
 
+  // Add a loading state for the form
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Фильтруем только активные категории
   const validCategories = (categories || []).filter((category) => {
     const isValid = Boolean(
@@ -47,64 +51,85 @@ export function ProductForm({
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
 
-  // Установка начальных значений формы при изменении product
+  // Initialize form values from product data
   useEffect(() => {
-    if (product && form) {
-      form.setFieldsValue({
-        name: product.name,
-        description: product.description,
-        sellingPrice: product.sellingPrice,
-        purchasePrice: product.purchasePrice,
-        quantity: product.quantity,
-        minQuantity: product.minQuantity,
-        barcode: product.barcodes && product.barcodes[0],
+    if (product) {
+      console.log('INIT: Initializing form with product:', product.id);
+      console.log('INIT: Product data:', JSON.stringify(product, null, 2));
+      console.log(
+        'INIT: Barcodes from product:',
+        JSON.stringify(product.barcodes)
+      );
+      console.log(
+        'INIT: Barcodes type:',
+        Array.isArray(product.barcodes) ? 'array' : typeof product.barcodes
+      );
+
+      const initialValues = {
+        ...product,
         categoryId: product.categoryId,
-        sku: product.sku,
-      });
+        barcode:
+          Array.isArray(product?.barcodes) && product?.barcodes.length > 0
+            ? product.barcodes[0]
+            : '',
+      };
+
+      console.log(
+        'INIT: Initial values to set:',
+        JSON.stringify(initialValues, null, 2)
+      );
+      console.log('INIT: Barcode value being set:', initialValues.barcode);
+
+      form.setFieldsValue(initialValues);
+      console.log('INIT: Form values set successfully');
     }
   }, [product, form]);
 
-  const createMutation = useMutation({
-    mutationFn: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) =>
-      createProduct(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      onClose();
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Product> }) =>
-      updateProduct(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      onClose();
-    },
-  });
-
   const handleSubmit = async (values: any) => {
-    const payload = {
-      ...values,
-      sellingPrice: parseFloat(values.sellingPrice) || 0,
-      purchasePrice: parseFloat(values.purchasePrice) || 0,
-      quantity: parseInt(values.quantity) || 0,
-      minQuantity: parseInt(values.minQuantity) || 0,
-      categoryId: values.categoryId || undefined,
-      shopId,
-      barcodes: values.barcode ? [String(values.barcode)] : [],
-      barcode: values.barcode ? String(values.barcode) : undefined,
-      isActive: true,
-    };
+    console.log('SUBMIT: Starting form submission with raw values:', values);
+    setIsSubmitting(true); // Set loading state
 
-    console.log('Submitting payload:', payload);
+    try {
+      // Ensure barcode is properly handled as a string
+      const barcodeStr = values.barcode ? String(values.barcode).trim() : '';
 
-    if (product) {
-      await updateMutation.mutateAsync({
-        id: product.id,
-        data: payload,
-      });
-    } else {
-      await createMutation.mutateAsync(payload);
+      const payload = {
+        ...values,
+        sellingPrice: parseFloat(values.sellingPrice) || 0,
+        purchasePrice: parseFloat(values.purchasePrice) || 0,
+        quantity: parseInt(values.quantity) || 0,
+        minQuantity: parseInt(values.minQuantity) || 0,
+        categoryId: values.categoryId || undefined,
+        shopId,
+        barcodes: barcodeStr ? [barcodeStr] : [],
+        isActive: true,
+      };
+
+      // Remove potentially problematic fields
+      delete payload.barcode;
+
+      console.log('SUBMIT: Final payload:', JSON.stringify(payload, null, 2));
+
+      if (product) {
+        console.log('SUBMIT: Updating product ID:', product.id);
+        await updateProduct(product.id, payload);
+        console.log('SUBMIT: Product updated successfully');
+      } else {
+        console.log('SUBMIT: Creating new product');
+        await createProduct(payload);
+        console.log('SUBMIT: Product created successfully');
+      }
+
+      message.success(`Товар успешно ${product ? 'обновлен' : 'создан'}`);
+      queryClient.invalidateQueries({ queryKey: ['products', shopId] });
+      onClose();
+    } catch (error: any) {
+      console.error('SUBMIT: Error:', error);
+      message.error(
+        `Не удалось ${product ? 'обновить' : 'создать'} товар: ${error.message}`
+      );
+    } finally {
+      setIsSubmitting(false); // Reset loading state
     }
   };
 
@@ -129,7 +154,10 @@ export function ProductForm({
           purchasePrice: product?.purchasePrice || '',
           quantity: product?.quantity || 0,
           minQuantity: product?.minQuantity || 0,
-          barcode: (product?.barcodes && product.barcodes[0]) || '',
+          barcode:
+            Array.isArray(product?.barcodes) && product?.barcodes.length > 0
+              ? product.barcodes[0]
+              : '',
           categoryId: product?.categoryId || '',
           sku: product?.sku || '',
         }}
@@ -213,8 +241,27 @@ export function ProductForm({
         </div>
 
         {/* Штрихкод */}
-        <Form.Item name="barcode" label="Штрихкод">
-          <Input placeholder="Введите штрихкод товара" />
+        <Form.Item
+          name="barcode"
+          label="Штрихкод"
+          rules={[
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                // Trim and check if the value is not just spaces
+                if (String(value).trim().length === 0) {
+                  return Promise.reject('Штрихкод не может быть пустым');
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
+          <Input
+            placeholder="Введите штрихкод товара"
+            allowClear
+            maxLength={30}
+          />
         </Form.Item>
 
         {/* Описание */}
@@ -230,8 +277,8 @@ export function ProductForm({
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={createMutation.isPending || updateMutation.isPending}
                 style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+                loading={isSubmitting}
               >
                 {product ? 'Сохранить' : 'Создать'}
               </Button>
