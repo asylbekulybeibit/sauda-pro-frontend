@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Form,
@@ -15,12 +15,14 @@ import {
   Typography,
   InputNumber,
   Divider,
+  Modal,
 } from 'antd';
 import {
   PlusOutlined,
   SaveOutlined,
   DeleteOutlined,
   LoadingOutlined,
+  BarcodeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,6 +35,9 @@ import {
   createPurchase,
   getPurchaseById,
   updatePurchaseDraft,
+  createProduct,
+  getCategories,
+  createCategory,
 } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
@@ -127,6 +132,18 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
 
+  // Состояния для сканирования штрих-кода и создания нового товара
+  const [barcodeInputVisible, setBarcodeInputVisible] =
+    useState<boolean>(false);
+  const [barcodeValue, setBarcodeValue] = useState<string>('');
+  const [isScanningBarcode, setIsScanningBarcode] = useState<boolean>(false);
+  const [newProductModalVisible, setNewProductModalVisible] =
+    useState<boolean>(false);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const barcodeInputRef = useRef<any>(null);
+  const [newProductForm] = Form.useForm();
+  const [isCreatingProduct, setIsCreatingProduct] = useState<boolean>(false);
+
   // Fetch the necessary data
   const {
     data: products,
@@ -163,6 +180,20 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     queryFn: () => {
       console.log('Fetching shop details for shopId:', shopId);
       return getManagerShop(shopId);
+    },
+    enabled: !!shopId,
+  });
+
+  // Получаем список категорий
+  const {
+    data: categories,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useQuery({
+    queryKey: ['categories', shopId],
+    queryFn: () => {
+      console.log('Fetching categories for shopId:', shopId);
+      return getCategories(shopId);
     },
     enabled: !!shopId,
   });
@@ -246,94 +277,58 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       }`,
     ]);
   }
+  if (categoriesError) {
+    console.error('Categories error:', categoriesError);
+    setErrorMessages((prev) => [
+      ...prev,
+      `Ошибка загрузки категорий: ${
+        categoriesError instanceof Error
+          ? categoriesError.message
+          : 'Неизвестная ошибка'
+      }`,
+    ]);
+  }
 
-  // Create purchase mutation
+  // Мутация для создания прихода
   const createPurchaseMutation = useMutation({
-    mutationFn: createPurchase,
-    onSuccess: (data) => {
-      console.log('Purchase created successfully in mutation callback:', data);
-
-      // Проверяем наличие ID в ответе
-      if (!data || !data.id) {
-        console.error('Response is missing ID:', data);
-        message.warning(
-          'Приход создан, но не удалось получить его ID для навигации'
-        );
-        // Перенаправляем на страницу со списком приходов
-        queryClient.invalidateQueries({ queryKey: ['purchases'] });
-        navigate('/manager/warehouse/incoming');
-        return;
-      }
-
-      // Выводим ID для диагностики
-      console.log('Created purchase ID:', data.id);
-      console.log('Type of ID:', typeof data.id);
-      message.success('Приход успешно создан');
-
-      // Инвалидируем кэш и перенаправляем на детали нового прихода
+    mutationFn: (data: any) => createPurchase(data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
-
-      // Проверка формата UUID для ID
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (typeof data.id === 'string' && uuidRegex.test(data.id)) {
-        console.log(`Navigating to /manager/warehouse/purchases/${data.id}`);
-        navigate(`/manager/warehouse/purchases/${data.id}`);
-      } else if (typeof data.id === 'number') {
-        const stringId = String(data.id);
-        console.log(`Navigating to /manager/warehouse/purchases/${stringId}`);
-        navigate(`/manager/warehouse/purchases/${stringId}`);
-      } else {
-        console.error('Invalid purchase ID format:', data.id);
-        message.warning(
-          'Приход создан, но не удалось перейти к его деталям из-за некорректного формата ID'
-        );
-        navigate('/manager/warehouse/incoming');
-      }
-    },
-    onError: (error: any) => {
-      console.error('Error creating purchase in mutation callback:', error);
-
-      // Выводим детали ошибки для диагностики
-      if (error.response) {
-        console.error('Response data:', error.response.data);
-        console.error('Response status:', error.response.status);
-      } else if (error.request) {
-        console.error('Request was made but no response was received');
-        console.error('Request:', error.request);
-      }
-
-      const errorMessage = error.message || 'Неизвестная ошибка';
-      message.error(`Ошибка при создании прихода: ${errorMessage}`);
-
-      // Добавляем ошибку в список для отображения
-      setErrorMessages((prev) => [
-        ...prev,
-        `Ошибка при создании прихода: ${errorMessage}`,
-      ]);
     },
   });
 
-  // Update purchase mutation
+  // Мутация для обновления прихода
   const updatePurchaseMutation = useMutation({
-    mutationFn: (data: { id: string; data: any }) => {
-      console.log('Updating purchase:', data.id, data.data);
-      return updatePurchaseDraft(data.id, data.data);
-    },
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      updatePurchaseDraft(id, data),
     onSuccess: () => {
-      console.log('Purchase updated successfully');
-      message.success('Приход успешно обновлен');
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
-      navigate('/manager/warehouse/incoming');
+    },
+  });
+
+  // Мутация для создания нового товара
+  const createProductMutation = useMutation({
+    mutationFn: (data: any) => createProduct(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products', shopId] });
+      message.success('Товар успешно создан');
     },
     onError: (error: any) => {
-      console.error('Error updating purchase:', error);
-      message.error(`Ошибка при обновлении прихода: ${error.message}`);
-      // Добавляем ошибку в список для отображения
-      setErrorMessages((prev) => [
-        ...prev,
-        `Ошибка при обновлении прихода: ${error.message}`,
-      ]);
+      console.error('Error creating product:', error);
+      message.error(`Ошибка при создании товара: ${error.message}`);
+    },
+  });
+
+  // Мутация для создания новой категории
+  const createCategoryMutation = useMutation({
+    mutationFn: (data: any) => createCategory(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories', shopId] });
+      message.success('Категория успешно создана');
+    },
+    onError: (error: any) => {
+      console.error('Error creating category:', error);
+      message.error(`Ошибка при создании категории: ${error.message}`);
     },
   });
 
@@ -361,6 +356,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // Более явное отображение различных состояний загрузки
   console.log('===== Состояние загрузки компонентов =====');
   console.log('Products loading:', productsLoading);
+  console.log('Categories loading:', categoriesLoading);
   console.log('Suppliers loading:', suppliersLoading);
   console.log('Shop loading:', shopLoading);
   console.log('Purchase loading:', isPurchaseLoading);
@@ -427,6 +423,238 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // Handle removing an item from the purchase
   const handleRemoveItem = (itemId: string) => {
     setPurchaseItems((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  // Показать модальное окно для сканирования штрих-кода
+  const showBarcodeInput = () => {
+    setBarcodeInputVisible(true);
+    setIsScanningBarcode(true);
+    setBarcodeValue('');
+
+    // Автоматически фокусируемся на поле ввода
+    setTimeout(() => {
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.focus();
+      }
+    }, 100);
+  };
+
+  // Обработка ввода штрих-кода
+  const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setBarcodeValue(e.target.value);
+  };
+
+  // Поиск товара по штрих-коду и его добавление
+  const handleBarcodeSubmit = () => {
+    setIsScanningBarcode(false);
+
+    if (!barcodeValue.trim()) {
+      setBarcodeInputVisible(false);
+      return;
+    }
+
+    // Поиск товара по штрих-коду
+    const foundProduct = products?.find(
+      (product) =>
+        // Проверяем и в поле barcode, и в массиве barcodes
+        product.barcode === barcodeValue ||
+        (Array.isArray(product.barcodes) &&
+          product.barcodes.includes(barcodeValue))
+    );
+
+    if (foundProduct) {
+      // Добавляем найденный товар
+      const existingItemIndex = purchaseItems.findIndex(
+        (item) =>
+          item.productId === foundProduct.id || item.id === foundProduct.id
+      );
+
+      if (existingItemIndex >= 0) {
+        // Увеличиваем количество
+        const updatedItems = [...purchaseItems];
+        updatedItems[existingItemIndex].quantity += 1;
+        setPurchaseItems(updatedItems);
+        message.success(
+          `Товар "${foundProduct.name}" добавлен (${updatedItems[existingItemIndex].quantity} шт.)`
+        );
+      } else {
+        // Добавляем новый товар
+        const newItem: PurchaseItem = {
+          id: uuidv4(),
+          productId: foundProduct.id,
+          name: foundProduct.name,
+          sku: foundProduct.sku,
+          barcode: foundProduct.barcode,
+          barcodes: foundProduct.barcodes,
+          purchasePrice: foundProduct.purchasePrice || 0,
+          sellingPrice: foundProduct.sellingPrice || 0,
+          quantity: 1,
+          product: foundProduct,
+        };
+
+        setPurchaseItems((prev) => [...prev, newItem]);
+        message.success(`Товар "${foundProduct.name}" добавлен`);
+      }
+    } else {
+      // Если товар не найден, предлагаем создать новый
+      setScannedBarcode(barcodeValue);
+      // Инициализируем форму нового товара
+      newProductForm.setFieldsValue({
+        barcode: barcodeValue,
+        quantity: 1,
+        minQuantity: 0,
+        purchasePrice: 0,
+        sellingPrice: 0,
+      });
+      setNewProductModalVisible(true);
+    }
+
+    setBarcodeInputVisible(false);
+    setBarcodeValue('');
+  };
+
+  // Создание нового товара из модального окна
+  const handleCreateNewProduct = async () => {
+    try {
+      const values = await newProductForm.validateFields();
+      setIsCreatingProduct(true);
+
+      // Если цена продажи не указана, устанавливаем её на основе закупочной с наценкой 20%
+      if (!values.sellingPrice && values.purchasePrice) {
+        values.sellingPrice =
+          Math.round(values.purchasePrice * 1.2 * 100) / 100;
+      }
+
+      // Если артикул не указан, генерируем его автоматически
+      if (!values.sku || values.sku.trim() === '') {
+        // Генерируем артикул на основе первых 3 букв названия товара + случайное число
+        const namePrefix = values.name.substring(0, 3).toUpperCase();
+        const randomNum = Math.floor(Math.random() * 10000);
+        values.sku = `${namePrefix}${randomNum}`;
+      }
+
+      // Обработка категории с учетом режима tags
+      let categoryId = null;
+
+      // Проверяем, есть ли значение категории
+      if (values.category) {
+        // Если значение является массивом (режим tags), берем первый элемент
+        let categoryValue = Array.isArray(values.category)
+          ? values.category[0]
+          : values.category;
+
+        // Проверяем, является ли значение ID существующей категории
+        const isExistingCategory = categories?.some(
+          (cat) => cat.id === categoryValue
+        );
+
+        if (isExistingCategory) {
+          // Это существующая категория, используем её ID
+          categoryId = categoryValue;
+        } else if (
+          categoryValue &&
+          typeof categoryValue === 'string' &&
+          categoryValue.trim() !== ''
+        ) {
+          try {
+            // Это новая категория, создаем её
+            const newCategory = await createCategoryMutation.mutateAsync({
+              name: categoryValue.trim(),
+              shopId: shopId,
+              isActive: true,
+            });
+
+            // Используем ID новой категории
+            categoryId = newCategory.id;
+            message.success(`Категория "${newCategory.name}" создана`);
+          } catch (categoryError) {
+            console.error('Error creating new category:', categoryError);
+            // Продолжаем создание товара без категории
+          }
+        }
+      }
+
+      // Подготавливаем данные для создания нового товара
+      const productData = {
+        ...values,
+        categoryId: categoryId, // Используем ID категории (новой или выбранной)
+        shopId: shopId,
+        barcodes: [values.barcode],
+        isActive: true,
+      };
+
+      // Удаляем поле category, оно не нужно для создания товара
+      if (productData.category) {
+        delete productData.category;
+      }
+
+      console.log(
+        'Creating product with data:',
+        JSON.stringify(productData, null, 2)
+      );
+
+      // Создаем новый товар
+      const newProduct = await createProductMutation.mutateAsync(productData);
+
+      // Добавляем новый товар в список приходов
+      const newItem: PurchaseItem = {
+        id: uuidv4(),
+        productId: newProduct.id,
+        name: newProduct.name,
+        sku: newProduct.sku,
+        barcode: newProduct.barcode,
+        barcodes: newProduct.barcodes,
+        purchasePrice: newProduct.purchasePrice || values.purchasePrice,
+        sellingPrice:
+          newProduct.sellingPrice ||
+          values.sellingPrice ||
+          values.purchasePrice * 1.2,
+        quantity: values.quantity || 1,
+        product: newProduct,
+      };
+
+      setPurchaseItems((prev) => [...prev, newItem]);
+      setNewProductModalVisible(false);
+      setIsCreatingProduct(false);
+      message.success(
+        `Новый товар "${newProduct.name}" создан и добавлен в приход`
+      );
+    } catch (error: any) {
+      console.error('Error creating new product:', error);
+      setIsCreatingProduct(false);
+
+      // Показываем более информативное сообщение об ошибке
+      let errorMessage = 'Ошибка при создании товара';
+
+      if (error.response?.data?.message) {
+        errorMessage = `${errorMessage}: ${error.response.data.message}`;
+      } else if (error.message) {
+        errorMessage = `${errorMessage}: ${error.message}`;
+      }
+
+      // Проверяем типичные ошибки
+      if (errorMessage.includes('sku') && errorMessage.includes('NULL')) {
+        errorMessage =
+          'Ошибка: Артикул товара не может быть пустым. Пожалуйста, укажите артикул.';
+      } else if (
+        errorMessage.includes('артикулом') &&
+        errorMessage.includes('уже существует')
+      ) {
+        errorMessage =
+          'Ошибка: Товар с таким артикулом уже существует. Пожалуйста, используйте другой артикул или оставьте поле пустым для автоматической генерации.';
+      } else if (errorMessage.includes('Категория не найдена')) {
+        errorMessage =
+          'Ошибка: Указанная категория не найдена. Пожалуйста, выберите другую категорию.';
+      } else if (
+        errorMessage.includes('Категория принадлежит другому магазину')
+      ) {
+        errorMessage =
+          'Ошибка: Категория принадлежит другому магазину. Выберите категорию из текущего магазина.';
+      }
+
+      message.error(errorMessage);
+      setErrorMessages((prev) => [...prev, errorMessage]);
+    }
   };
 
   // Handle form submission
@@ -602,7 +830,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   ];
 
   const isFormLoading =
-    productsLoading || suppliersLoading || shopLoading || isPurchaseLoading;
+    productsLoading ||
+    suppliersLoading ||
+    shopLoading ||
+    isPurchaseLoading ||
+    categoriesLoading;
 
   // Очистка ошибок при изменении выбранного продукта, количества или изменении списка товаров
   useEffect(() => {
@@ -614,15 +846,261 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // При изменении статуса загрузки сбрасываем ошибки
   useEffect(() => {
     const isLoading =
-      productsLoading || suppliersLoading || shopLoading || isPurchaseLoading;
+      productsLoading ||
+      suppliersLoading ||
+      shopLoading ||
+      isPurchaseLoading ||
+      categoriesLoading;
     if (isLoading) {
       setErrorMessages([]);
     }
-  }, [productsLoading, suppliersLoading, shopLoading, isPurchaseLoading]);
+  }, [
+    productsLoading,
+    suppliersLoading,
+    shopLoading,
+    isPurchaseLoading,
+    categoriesLoading,
+  ]);
+
+  useEffect(() => {
+    // При обнаружении клавиатурных событий во время активного сканирования
+    const handleBarcodeKeyDown = (e: KeyboardEvent) => {
+      if (isScanningBarcode) {
+        if (e.key === 'Enter') {
+          handleBarcodeSubmit();
+        } else if (e.key === 'Escape') {
+          setBarcodeInputVisible(false);
+          setIsScanningBarcode(false);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleBarcodeKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleBarcodeKeyDown);
+    };
+  }, [isScanningBarcode, barcodeValue]);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <Card title={effectiveId ? 'Редактирование прихода' : 'Создание прихода'}>
+      {/* Модальное окно для сканирования штрих-кода */}
+      <Modal
+        title="Сканирование штрих-кода"
+        open={barcodeInputVisible}
+        onCancel={() => {
+          setBarcodeInputVisible(false);
+          setIsScanningBarcode(false);
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setBarcodeInputVisible(false);
+              setIsScanningBarcode(false);
+            }}
+          >
+            Отмена
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            className="bg-blue-500 hover:bg-blue-600"
+            onClick={handleBarcodeSubmit}
+          >
+            Найти товар
+          </Button>,
+        ]}
+      >
+        <div className="py-4">
+          <p className="mb-4">
+            Отсканируйте штрих-код товара или введите его вручную:
+          </p>
+          <Input
+            ref={barcodeInputRef}
+            value={barcodeValue}
+            onChange={handleBarcodeInputChange}
+            placeholder="Штрих-код товара"
+            autoFocus
+            onPressEnter={handleBarcodeSubmit}
+          />
+        </div>
+      </Modal>
+
+      {/* Модальное окно для создания нового товара */}
+      <Modal
+        title="Создание нового товара"
+        open={newProductModalVisible}
+        onCancel={() => setNewProductModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setNewProductModalVisible(false)}>
+            Отмена
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            className="bg-blue-500 hover:bg-blue-600"
+            onClick={handleCreateNewProduct}
+            loading={isCreatingProduct}
+          >
+            Создать товар
+          </Button>,
+        ]}
+        width={600}
+      >
+        <div className="py-4">
+          <p className="mb-4">
+            Товар со штрих-кодом <strong>{scannedBarcode}</strong> не найден.
+            Создайте новый товар:
+          </p>
+          <p className="mb-4 text-sm text-gray-500">
+            Обязательные поля: Название товара и Закупочная цена. Артикул будет
+            сгенерирован автоматически, если не указан. Если цена продажи не
+            указана, она будет автоматически рассчитана с наценкой 20% от
+            закупочной. Категорию можно выбрать из списка или создать новую,
+            просто введя её название в поле и нажав Enter.
+          </p>
+
+          <Form form={newProductForm} layout="vertical" requiredMark="optional">
+            <Form.Item
+              name="name"
+              label="Название товара"
+              rules={[{ required: true, message: 'Введите название товара' }]}
+            >
+              <Input placeholder="Введите название товара" />
+            </Form.Item>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item
+                name="barcode"
+                label="Штрих-код"
+                initialValue={scannedBarcode}
+              >
+                <Input disabled />
+              </Form.Item>
+
+              <Form.Item
+                name="sku"
+                label="Артикул"
+                rules={[{ required: false }]}
+                help="Необязательное поле. Если оставить пустым, будет сгенерировано автоматически. Если указать, должно быть уникальным для магазина."
+              >
+                <Input
+                  placeholder="Артикул товара"
+                  onPressEnter={handleCreateNewProduct}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="category"
+                label="Категория"
+                help="Выберите из списка или введите название новой категории и нажмите Enter"
+              >
+                <Select
+                  placeholder="Выберите или создайте категорию"
+                  allowClear
+                  showSearch
+                  style={{ width: '100%' }}
+                  loading={categoriesLoading}
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.label ?? '')
+                      .toLowerCase()
+                      .includes(input.toLowerCase())
+                  }
+                  options={categories?.map((category) => ({
+                    value: category.id,
+                    label: category.name,
+                  }))}
+                  notFoundContent={
+                    categoriesLoading ? <Spin size="small" /> : null
+                  }
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <div style={{ padding: '0 8px 4px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          Чтобы создать новую категорию, просто введите её
+                          название и нажмите Enter
+                        </Text>
+                      </div>
+                    </>
+                  )}
+                  mode="tags"
+                  maxTagCount={1}
+                  tokenSeparators={[',']}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="quantity"
+                label="Количество в приходе"
+                initialValue={1}
+                rules={[{ required: true, message: 'Введите количество' }]}
+              >
+                <InputNumber
+                  placeholder="0"
+                  min={1}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="minQuantity"
+                label="Минимальное количество"
+                initialValue={0}
+              >
+                <InputNumber
+                  placeholder="0"
+                  min={0}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="purchasePrice"
+                label="Закупочная цена"
+                rules={[{ required: true, message: 'Введите закупочную цену' }]}
+              >
+                <InputNumber
+                  placeholder="0"
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  addonAfter="₸"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="sellingPrice"
+                label="Цена продажи"
+                rules={[{ required: false, message: 'Введите цену продажи' }]}
+                help="Необязательное поле. Можно заполнить позже."
+              >
+                <InputNumber
+                  placeholder="0"
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  addonAfter="₸"
+                />
+              </Form.Item>
+            </div>
+
+            <Form.Item name="description" label="Описание">
+              <Input.TextArea rows={4} placeholder="Описание товара" />
+            </Form.Item>
+          </Form>
+        </div>
+      </Modal>
+
+      <Card className="mb-6 shadow-sm">
+        <div className="flex justify-between mb-4">
+          <Title level={4} className="m-0">
+            {effectiveId ? 'Редактирование прихода' : 'Создание прихода'}
+          </Title>
+        </div>
+
         {isFormLoading && (
           <div className="p-4 mb-4 bg-blue-50 border-l-4 border-blue-400">
             <div className="flex items-center">
@@ -706,50 +1184,80 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
           <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <Form.Item label="Товар" className="md:col-span-2">
-              <Select
-                showSearch
-                placeholder={
-                  productsLoading ? 'Загрузка товаров...' : 'Выберите товар'
-                }
-                value={selectedProduct}
-                onChange={setSelectedProduct}
-                filterOption={(input, option) =>
-                  option?.children
-                    ?.toString()
-                    .toLowerCase()
-                    .includes(input.toLowerCase()) ?? false
-                }
-                disabled={isLoading || productsLoading || !products}
-                loading={productsLoading}
-              >
-                {products?.map((product) => (
-                  <Option key={product.id} value={product.id}>
-                    {product.name}
-                  </Option>
-                ))}
-              </Select>
+              <div className="flex items-center space-x-2">
+                <Select
+                  placeholder="Выберите товар"
+                  showSearch
+                  optionFilterProp="children"
+                  value={selectedProduct}
+                  onChange={setSelectedProduct}
+                  style={{ width: 400 }}
+                  loading={productsLoading}
+                  filterOption={(input, option: any) => {
+                    const productId = option?.value;
+                    const product = products?.find((p) => p.id === productId);
+                    if (!product) return false;
+
+                    // Включаем поиск по имени, SKU, штрих-коду
+                    return (
+                      product.name
+                        .toLowerCase()
+                        .includes(input.toLowerCase()) ||
+                      (product.sku &&
+                        product.sku
+                          .toLowerCase()
+                          .includes(input.toLowerCase())) ||
+                      (product.barcode &&
+                        product.barcode
+                          .toLowerCase()
+                          .includes(input.toLowerCase())) ||
+                      (Array.isArray(product.barcodes) &&
+                        product.barcodes.some((barcode) =>
+                          barcode.toLowerCase().includes(input.toLowerCase())
+                        ))
+                    );
+                  }}
+                >
+                  {products?.map((product) => (
+                    <Option key={product.id} value={product.id}>
+                      {product.name} {product.sku ? `(${product.sku})` : ''}
+                    </Option>
+                  ))}
+                </Select>
+
+                <InputNumber
+                  min={1}
+                  value={quantity}
+                  onChange={(value) => setQuantity(value || 1)}
+                  placeholder="Кол-во"
+                />
+
+                <Button
+                  type="primary"
+                  className="bg-blue-500 hover:bg-blue-600"
+                  onClick={handleAddProduct}
+                  disabled={!selectedProduct}
+                >
+                  Добавить
+                </Button>
+
+                <Button
+                  type="default"
+                  icon={<BarcodeOutlined />}
+                  onClick={showBarcodeInput}
+                  title="Сканировать штрих-код"
+                >
+                  Сканировать
+                </Button>
+              </div>
             </Form.Item>
 
-            <Form.Item label="Количество">
-              <InputNumber
-                min={1}
-                value={quantity}
-                onChange={(value) => setQuantity(value || 1)}
-                style={{ width: '100%' }}
-                disabled={isLoading || !selectedProduct}
+            <Form.Item label="Магазин" className="hidden">
+              <Input
+                value={shop?.name || shopId}
+                disabled
+                className="w-full p-2"
               />
-            </Form.Item>
-
-            <Form.Item label=" " colon={false}>
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={handleAddProduct}
-                style={{ width: '100%' }}
-                disabled={isLoading || !selectedProduct}
-              >
-                Добавить
-              </Button>
             </Form.Item>
           </div>
 
