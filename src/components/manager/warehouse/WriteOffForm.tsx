@@ -247,7 +247,7 @@ export default function WriteOffForm({
                 dataSource={items}
                 rowKey="productId"
                 pagination={false}
-                scroll={{ y: true }}
+                scroll={{ y: '240px' }}
               />
             </div>
           </Form>

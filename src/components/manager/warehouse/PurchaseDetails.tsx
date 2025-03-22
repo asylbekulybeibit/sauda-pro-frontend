@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Button,
@@ -14,14 +14,15 @@ import {
 import {
   EditOutlined,
   ArrowLeftOutlined,
-  PrinterOutlined,
+  FileExcelOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { getPurchaseById } from '@/services/managerApi';
+import { getPurchaseById, getProducts } from '@/services/managerApi';
 import { formatDate, formatPrice } from '@/utils/format';
 import { ShopContext } from '@/contexts/ShopContext';
 import { PurchaseItem, User } from '@/types/purchase';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 
@@ -95,6 +96,13 @@ const PurchaseDetails: React.FC = () => {
     enabled: !!id && !!shopId,
   });
 
+  // Загружаем полную информацию о всех товарах для дополнения данных прихода
+  const { data: allProducts } = useQuery({
+    queryKey: ['products', shopId],
+    queryFn: () => (shopId ? getProducts(shopId) : Promise.resolve([])),
+    enabled: !!shopId,
+  });
+
   if (error) {
     console.error('Error fetching purchase details:', error);
     message.error('Ошибка при загрузке данных прихода');
@@ -163,6 +171,12 @@ const PurchaseDetails: React.FC = () => {
     return result;
   };
 
+  // Функция для получения полных данных о товаре, включая штрихкоды
+  const getFullProductInfo = (productId: string) => {
+    if (!allProducts || !productId) return null;
+    return allProducts.find((p) => p.id === productId);
+  };
+
   // Prepare items data with correct price and total values
   const prepareItemsData = (purchaseData: any) => {
     if (
@@ -174,19 +188,75 @@ const PurchaseDetails: React.FC = () => {
       return [];
     }
 
-    return purchaseData.items.map((item: any) => {
+    console.log(
+      'Исходные данные товаров для обработки:',
+      JSON.stringify(purchaseData.items)
+    );
+
+    // Проверим доступность полных данных о товарах
+    console.log('Доступные товары из каталога:', allProducts?.length || 0);
+
+    return purchaseData.items.map((item: any, index: number) => {
+      console.log(`Обрабатываю товар #${index}:`, JSON.stringify(item));
+
+      // Получаем полную информацию о товаре из каталога
+      const fullProductInfo = item.productId
+        ? getFullProductInfo(item.productId)
+        : null;
+
+      console.log(
+        `Дополнительная информация о товаре из каталога:`,
+        fullProductInfo
+      );
+
       // Ensure we have valid data
       const preparedItem: PurchaseItem = {
         ...item,
         id: item.id || String(Math.random()), // Ensure we have an ID for rowKey
         name:
           item.name ||
-          (item.product ? item.product.name : 'Товар без названия'),
+          (item.product
+            ? item.product.name
+            : fullProductInfo?.name || 'Товар без названия'),
         quantity: typeof item.quantity === 'number' ? item.quantity : 0,
         purchasePrice: 0, // Default value, will be updated below
         sellingPrice:
           typeof item.sellingPrice === 'number' ? item.sellingPrice : 0,
       };
+
+      // Копируем SKU из каталога товаров, если его нет
+      if (!preparedItem.sku) {
+        preparedItem.sku =
+          item.sku || item.product?.sku || fullProductInfo?.sku || null;
+      }
+
+      // Обработка штрихкодов - сохраняем все возможные источники
+      if (item.barcode) {
+        preparedItem.barcode = item.barcode;
+      } else if (item.barcodes && item.barcodes.length > 0) {
+        preparedItem.barcode = item.barcodes[0];
+        preparedItem.barcodes = item.barcodes;
+      } else if (item.product) {
+        if (item.product.barcode) {
+          preparedItem.barcode = item.product.barcode;
+        } else if (item.product.barcodes && item.product.barcodes.length > 0) {
+          preparedItem.barcode = item.product.barcodes[0];
+          preparedItem.barcodes = item.product.barcodes;
+        }
+      }
+
+      // Дополнительно проверяем информацию из каталога товаров
+      if (!preparedItem.barcode && fullProductInfo) {
+        if (fullProductInfo.barcode) {
+          preparedItem.barcode = fullProductInfo.barcode;
+        } else if (
+          fullProductInfo.barcodes &&
+          fullProductInfo.barcodes.length > 0
+        ) {
+          preparedItem.barcode = fullProductInfo.barcodes[0];
+          preparedItem.barcodes = fullProductInfo.barcodes;
+        }
+      }
 
       // Handle price - it might be in different properties
       let price = null;
@@ -204,6 +274,16 @@ const PurchaseDetails: React.FC = () => {
       // Make sure we always have a price
       preparedItem.purchasePrice = price !== null ? price : 0;
 
+      console.log(`Итоговый обработанный товар #${index}:`, {
+        id: preparedItem.id,
+        name: preparedItem.name,
+        sku: preparedItem.sku,
+        barcode: preparedItem.barcode,
+        barcodes: preparedItem.barcodes,
+        quantity: preparedItem.quantity,
+        purchasePrice: preparedItem.purchasePrice,
+      });
+
       return preparedItem;
     });
   };
@@ -216,9 +296,21 @@ const PurchaseDetails: React.FC = () => {
     ? prepareItemsData(enhancedPurchase)
     : [];
 
+  // Расчет общей суммы прихода на основе обработанных товаров
+  const itemsTotal = processedItems.reduce(
+    (sum: number, item: PurchaseItem) => {
+      const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
+      const price =
+        typeof item.purchasePrice === 'number' ? item.purchasePrice : 0;
+      return sum + quantity * price;
+    },
+    0
+  );
+
   // Console debugging to see structure
   console.log('Enhanced purchase data:', enhancedPurchase);
   console.log('Processed items for display:', processedItems);
+  console.log('Calculated total amount:', itemsTotal);
 
   // Check for empty or loading state
   if (isLoading || !enhancedPurchase) {
@@ -309,6 +401,128 @@ const PurchaseDetails: React.FC = () => {
     return '—';
   };
 
+  // Функция для экспорта данных прихода в Excel
+  const exportToExcel = (purchase: any) => {
+    try {
+      console.log('Начинаем экспорт в Excel:', { purchase, processedItems });
+
+      // Создаем заголовок для файла
+      const fileTitle = `Приход_${purchase.invoiceNumber || purchase.id}_${
+        new Date().toISOString().split('T')[0]
+      }`;
+
+      // Основная информация о приходе для первого листа
+      const purchaseInfo = [
+        ['Детали прихода', ''],
+        ['Статус', purchase.status === 'completed' ? 'Завершен' : 'Черновик'],
+        ['Номер накладной', purchase.invoiceNumber || purchase.number || '—'],
+        ['Поставщик', purchase.supplierName || purchase.supplier?.name || '—'],
+        ['Магазин', purchase.shop?.name || '—'],
+        ['Адрес', purchase.shop?.address || '—'],
+        ['Дата', formatDate(purchase.date) || '—'],
+        ['Создал', formatUserInfo(purchase.createdBy) || '—'],
+        ['Дата создания', formatDate(purchase.createdAt) || '—'],
+        ['Комментарий', purchase.comment || '—'],
+        ['', ''],
+        ['Общая сумма', formatPrice(purchase.totalAmount || itemsTotal)],
+      ];
+
+      // Данные товаров для второго листа
+      const itemsData = [
+        // Заголовки
+        [
+          'Название',
+          'Артикул',
+          'Штрихкод',
+          'Количество',
+          'Цена закупки',
+          'Сумма',
+        ],
+      ];
+
+      // Используем processedItems вместо purchase.items, так как они уже правильно подготовлены
+      console.log('Количество товаров для экспорта:', processedItems.length);
+
+      if (processedItems && processedItems.length > 0) {
+        processedItems.forEach((item: any, index: number) => {
+          console.log(`Обработка товара #${index}:`, item);
+
+          const quantity =
+            typeof item.quantity === 'number' ? item.quantity : 0;
+          const price =
+            typeof item.purchasePrice === 'number' ? item.purchasePrice : 0;
+          const total = quantity * price;
+
+          // Получаем штрихкод из всех возможных источников
+          let barcode = item.barcode || '—';
+
+          // Логируем все возможные места, где может быть штрихкод
+          console.log(`Поиск штрихкода для товара #${index}:`, {
+            'item.barcode': item.barcode,
+            'item.barcodes': item.barcodes,
+          });
+
+          // Дополнительная проверка для случая, когда штрихкод есть, но равен пустой строке
+          if (barcode === '' || barcode === null || barcode === undefined) {
+            barcode = '—';
+          }
+
+          // Форматируем числа для более удобного отображения
+          const formattedPrice = new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(price);
+
+          const formattedTotal = new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(total);
+
+          console.log(`Подготовленные данные для товара #${index}:`, {
+            name: item.name,
+            sku: item.sku || item.product?.sku || '—',
+            barcode,
+            quantity,
+            price: formattedPrice,
+            total: formattedTotal,
+          });
+
+          itemsData.push([
+            item.name,
+            item.sku || item.product?.sku || '—',
+            barcode,
+            quantity.toString(),
+            formattedPrice,
+            formattedTotal,
+          ]);
+        });
+      } else {
+        console.warn('Нет данных о товарах для экспорта!');
+        // Добавляем пустую строку с сообщением
+        itemsData.push(['Нет данных о товарах', '', '', '', '', '']);
+      }
+
+      // Создаем рабочую книгу
+      const wb = XLSX.utils.book_new();
+
+      // Добавляем первый лист с общей информацией
+      const ws1 = XLSX.utils.aoa_to_sheet(purchaseInfo);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Информация о приходе');
+
+      // Добавляем второй лист с товарами
+      const ws2 = XLSX.utils.aoa_to_sheet(itemsData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Товары');
+
+      // Сохраняем файл
+      XLSX.writeFile(wb, `${fileTitle}.xlsx`);
+
+      message.success('Данные успешно экспортированы в Excel');
+    } catch (error) {
+      console.error('Ошибка при экспорте в Excel:', error);
+      message.error('Не удалось экспортировать данные в Excel');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center mb-4">
@@ -350,7 +564,12 @@ const PurchaseDetails: React.FC = () => {
               Редактировать
             </Button>
           )}
-          <Button icon={<PrinterOutlined />}>Печать</Button>
+          <Button
+            icon={<FileExcelOutlined />}
+            onClick={() => exportToExcel(enhancedPurchase)}
+          >
+            Экспорт в Excel
+          </Button>
         </Space>
       </div>
 
