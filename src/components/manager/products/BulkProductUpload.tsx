@@ -376,6 +376,7 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             onClick={handleUpload}
             disabled={!preview || preview.hasErrors || uploading}
             loading={uploading}
+            className="!bg-blue-500 !text-white hover:!bg-blue-600"
           >
             Загрузить
           </Button>
