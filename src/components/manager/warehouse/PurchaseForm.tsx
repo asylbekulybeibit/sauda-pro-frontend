@@ -311,19 +311,54 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
 
         const newItems: PurchaseItem[] = [];
         const duplicateProducts: string[] = []; // Список дублирующихся товаров
+        const notFoundProducts: string[] = []; // Список не найденных товаров
 
         rows.forEach((row) => {
-          const product = filteredProducts?.find(
-            (p) =>
-              p.sku === row.sku ||
-              p.barcode === row.barcode ||
-              p.name === row.name
-          );
+          console.log('[EXCEL UPLOAD] Processing row:', row);
+
+          // Сначала пытаемся найти продукт по точным совпадениям (SKU или штрихкод)
+          let product: ExtendedProduct | undefined;
+
+          // Поиск по SKU (наиболее точный метод)
+          if (row.sku) {
+            product = filteredProducts?.find((p) => p.sku === row.sku);
+            if (product) {
+              console.log(`[EXCEL UPLOAD] Product found by SKU: ${row.sku}`);
+            }
+          }
+
+          // Если не нашли по SKU, ищем по штрихкоду
+          if (!product && row.barcode) {
+            product = filteredProducts?.find((p) => {
+              // Проверяем, есть ли barcodes массив и содержит ли он нужный штрихкод
+              if (Array.isArray(p.barcodes) && p.barcodes.length > 0) {
+                return p.barcodes.includes(row.barcode);
+              }
+              // Проверяем поле barcode, если оно есть
+              return p.barcode === row.barcode;
+            });
+            if (product) {
+              console.log(
+                `[EXCEL UPLOAD] Product found by barcode: ${row.barcode}`
+              );
+            }
+          }
+
+          // Только если не нашли по SKU или штрихкоду, пытаемся найти по имени
+          if (!product && row.name) {
+            product = filteredProducts?.find((p) => p.name === row.name);
+            if (product) {
+              console.log(
+                `[EXCEL UPLOAD] Product found by exact name match: ${row.name}`
+              );
+            }
+          }
 
           if (!product) {
-            message.warning(
-              `Товар не найден: ${row.sku || row.barcode || row.name}`
-            );
+            const identifier =
+              row.sku || row.barcode || row.name || 'Неизвестный товар';
+            notFoundProducts.push(identifier);
+            console.log(`[EXCEL UPLOAD] Product not found: ${identifier}`);
             return;
           }
 
@@ -335,6 +370,7 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
           if (existingItemInCurrentList) {
             // Добавляем название товара в список дублей
             duplicateProducts.push(product.name);
+            console.log(`[EXCEL UPLOAD] Duplicate product: ${product.name}`);
             return;
           }
 
@@ -399,6 +435,13 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
           );
         }
 
+        // Показываем предупреждение о не найденных товарах
+        if (notFoundProducts.length > 0) {
+          message.warning(
+            `Следующие товары не найдены: ${notFoundProducts.join(', ')}`
+          );
+        }
+
         // Проверяем каждый элемент на наличие корректной цены
         newItems.forEach((item) => {
           console.log(
@@ -424,9 +467,19 @@ const PurchaseForm = forwardRef<PurchaseFormHandle, PurchaseFormProps>(
         if (newItems.length > 0) {
           setItems(addIdsToItems([...items, ...newItems]));
           message.success(`Добавлено ${newItems.length} товаров`);
-        } else if (duplicateProducts.length === 0) {
+        } else if (
+          duplicateProducts.length === 0 &&
+          notFoundProducts.length === 0
+        ) {
           message.info('Нет новых товаров для добавления');
         }
+
+        // Логируем итоги обработки Excel-файла
+        console.log('[EXCEL UPLOAD] Processing summary:');
+        console.log(`- Rows processed: ${rows.length}`);
+        console.log(`- Products added: ${newItems.length}`);
+        console.log(`- Duplicate products: ${duplicateProducts.length}`);
+        console.log(`- Not found products: ${notFoundProducts.length}`);
       };
       reader.readAsArrayBuffer(file);
       return false;
