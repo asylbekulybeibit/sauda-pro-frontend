@@ -20,6 +20,59 @@ import * as XLSX from 'xlsx';
 import { bulkOperationsApi } from '@/services/bulkOperationsApi';
 import type { BulkProductOperation } from '@/services/bulkOperationsApi';
 
+// Helper для безопасного чтения Excel файлов
+const readExcelFile = (file: File | Blob): Promise<any[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        if (!e.target?.result) {
+          throw new Error('Не удалось прочитать результат файла');
+        }
+
+        let data;
+        if (e.target.result instanceof ArrayBuffer) {
+          data = new Uint8Array(e.target.result);
+        } else {
+          throw new Error('Неподдерживаемый формат данных файла');
+        }
+
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        if (!workbook.SheetNames.length) {
+          throw new Error('Excel файл не содержит листов');
+        }
+
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {
+          raw: true,
+          defval: null,
+        });
+
+        if (!jsonData.length) {
+          throw new Error('Файл не содержит данных');
+        }
+
+        resolve(jsonData);
+      } catch (error: any) {
+        console.error('Error parsing Excel file:', error);
+        reject(error);
+      }
+    };
+
+    reader.onerror = () => {
+      reject(new Error('Ошибка при чтении файла'));
+    };
+
+    try {
+      reader.readAsArrayBuffer(file);
+    } catch (error: any) {
+      reject(new Error(`Ошибка доступа к файлу: ${error.message}`));
+    }
+  });
+};
+
 interface BulkProductUploadProps {
   shopId: string;
   onSuccess: () => void;
@@ -89,39 +142,15 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
     return errors;
   };
 
-  const handleFileRead = (file: File): Promise<PreviewData> => {
+  const handleFileRead = (file: File | Blob): Promise<PreviewData> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          if (!e.target?.result) {
-            throw new Error('Не удалось прочитать файл');
-          }
+      if (!file || !(file instanceof Blob)) {
+        reject(new Error('Неверный формат файла или файл не выбран'));
+        return;
+      }
 
-          let workbook;
-          if (typeof e.target.result === 'string') {
-            // Если результат строка (для CSV файлов)
-            workbook = XLSX.read(e.target.result, { type: 'binary' });
-          } else {
-            // Если результат ArrayBuffer (для Excel файлов)
-            const data = new Uint8Array(e.target.result as ArrayBuffer);
-            workbook = XLSX.read(data, { type: 'array' });
-          }
-
-          if (!workbook.SheetNames.length) {
-            throw new Error('Файл не содержит листов');
-          }
-
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet, {
-            raw: true,
-            defval: null, // Значение по умолчанию для пустых ячеек
-          });
-
-          if (!jsonData.length) {
-            throw new Error('Файл не содержит данных');
-          }
-
+      readExcelFile(file)
+        .then((jsonData) => {
           const errors: ValidationError[] = [];
           jsonData.forEach((row: any, index: number) => {
             errors.push(...validateRow(row, index + 1));
@@ -132,13 +161,11 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             errors,
             hasErrors: errors.length > 0,
           });
-        } catch (error) {
-          console.error('Error reading file:', error);
+        })
+        .catch((error) => {
+          console.error('Excel reading error:', error);
           reject(error);
-        }
-      };
-      reader.onerror = (error) => reject(error);
-      reader.readAsBinaryString(file); // Изменили метод чтения
+        });
     });
   };
 
@@ -189,29 +216,20 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
 
   const handleFileChange = async (info: any) => {
     const { file, fileList } = info;
-    setFileList(fileList);
 
-    if (file.status !== 'removed') {
-      try {
-        const previewData = await handleFileRead(file.originFileObj);
-        setPreview(previewData);
+    console.log('File change event:', {
+      fileStatus: file.status,
+      fileName: file.name,
+      fileType: file?.type,
+      hasOriginFileObj: !!file.originFileObj,
+      fileSize: file.size,
+    });
 
-        if (previewData.hasErrors) {
-          message.warning(
-            'В файле обнаружены ошибки. Пожалуйста, исправьте их перед загрузкой.'
-          );
-        } else {
-          message.success('Файл успешно проверен и готов к загрузке');
-        }
-      } catch (error) {
-        console.error('File processing error:', error);
-        message.error(
-          'Ошибка при чтении файла. Убедитесь, что файл соответствует шаблону.'
-        );
-        setFileList([]);
-        setPreview(null);
-      }
-    } else {
+    setFileList(fileList.filter((f: UploadFile) => f.status !== 'error'));
+
+    // Если статус "done", то файл уже был обработан в beforeUpload
+    // Или просто удаляем файл
+    if (file.status === 'removed') {
       setPreview(null);
     }
   };
@@ -260,8 +278,95 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
             accept=".xlsx,.xls,.csv"
             fileList={fileList}
             onChange={handleFileChange}
-            beforeUpload={() => false}
+            customRequest={({ file, onSuccess, onError }) => {
+              // We're handling the file processing in beforeUpload
+              // This is just to satisfy Ant Design's upload flow
+              if (file instanceof File) {
+                setTimeout(() => {
+                  onSuccess?.('ok', undefined);
+                }, 0);
+              } else {
+                onError?.(new Error('Invalid file object'));
+              }
+            }}
+            beforeUpload={(file) => {
+              // Проверка типа файла
+              const isExcel =
+                file.type ===
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                file.type === 'application/vnd.ms-excel' ||
+                file.type ===
+                  'application/vnd.ms-excel.sheet.macroEnabled.12' ||
+                file.type === 'text/csv' ||
+                /\.xlsx?$/.test(file.name) ||
+                /\.csv$/.test(file.name);
+
+              if (!isExcel) {
+                message.error(
+                  'Вы можете загрузить только файлы Excel или CSV!'
+                );
+                return Upload.LIST_IGNORE;
+              }
+
+              if (!file.size || file.size <= 0) {
+                message.error('Файл пустой');
+                return Upload.LIST_IGNORE;
+              }
+
+              if (file.size > 5 * 1024 * 1024) {
+                // 5MB
+                message.error('Файл слишком большой, максимальный размер 5MB');
+                return Upload.LIST_IGNORE;
+              }
+
+              // Обработать файл здесь
+              console.log(
+                'File passed validation and processing directly:',
+                file.name,
+                file
+              );
+
+              // Защита от старых браузеров - убедиться, что у нас действительно есть File объект
+              if (!(file instanceof File)) {
+                message.error(
+                  'Ваш браузер не поддерживает загрузку файлов должным образом'
+                );
+                return Upload.LIST_IGNORE;
+              }
+
+              // Обрабатываем файл напрямую
+              handleFileRead(file)
+                .then((previewData) => {
+                  setPreview(previewData);
+                  if (previewData.hasErrors) {
+                    message.warning(
+                      'В файле обнаружены ошибки. Пожалуйста, исправьте их перед загрузкой.'
+                    );
+                  } else {
+                    message.success('Файл успешно проверен и готов к загрузке');
+                  }
+                })
+                .catch((error) => {
+                  console.error('Error reading file directly:', error);
+                  message.error(
+                    `Ошибка при чтении файла: ${
+                      error.message ||
+                      'Убедитесь, что файл соответствует шаблону.'
+                    }`
+                  );
+                  // Отменяем загрузку файла в случае ошибки
+                  setFileList([]);
+                  setPreview(null);
+                });
+
+              return true; // Разрешаем продолжить загрузку (будет обработана customRequest)
+            }}
             maxCount={1}
+            onRemove={() => {
+              setPreview(null);
+              setFileList([]);
+              return true;
+            }}
           >
             <Button icon={<UploadOutlined />}>Выбрать файл</Button>
           </Upload>
@@ -310,7 +415,10 @@ export const BulkProductUpload: React.FC<BulkProductUploadProps> = ({
 
         {preview && (
           <Table
-            dataSource={preview.data}
+            dataSource={preview.data.map((item, index) => ({
+              ...item,
+              key: `product-${index}`,
+            }))}
             columns={columns}
             size="small"
             scroll={{ x: true }}
