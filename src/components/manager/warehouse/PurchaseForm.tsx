@@ -23,6 +23,7 @@ import {
   DeleteOutlined,
   LoadingOutlined,
   BarcodeOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
@@ -61,25 +62,84 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   const queryClient = useQueryClient();
   const shopContext = useContext(ShopContext);
 
+  // Генерируем временный ID для нового прихода, если нет effectiveId
+  const [tempId] = useState(() => {
+    // Определяем, создаем ли мы новый приход
+    const isNewPurchase = !effectiveId || effectiveId.indexOf('temp-') === 0;
+
+    // Если создаем новый приход, очищаем предыдущие черновики и генерируем новый ID
+    if (isNewPurchase) {
+      // Очищаем все существующие черновики при создании нового прихода
+      try {
+        // Получаем shopId из разных источников для очистки
+        const shopIdFromUrl = getShopIdFromUrl();
+        const potentialShopId =
+          propShopId || shopIdFromUrl || shopContext?.currentShop?.id;
+
+        if (potentialShopId) {
+          const draftKeyPrefix = `purchase_draft_${potentialShopId}_`;
+          // Находим и удаляем все черновики для текущего магазина
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(draftKeyPrefix)) {
+              console.log('Очищаем старый черновик прихода:', key);
+              localStorage.removeItem(key);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Ошибка при очистке предыдущих черновиков:', error);
+      }
+
+      return `temp-${uuidv4()}`;
+    }
+
+    // Для существующего прихода используем его ID
+    return effectiveId;
+  });
+
   console.log('===== PurchaseForm Debug =====');
   console.log('Props shopId:', propShopId);
   console.log('Props id:', externalId);
   console.log('URL purchaseId:', purchaseId);
   console.log('effectiveId:', effectiveId);
+  console.log('tempId:', tempId);
   console.log('URL:', window.location.href);
   console.log('===== End Debug =====');
 
   // Попытка получить shopId из query параметра в URL
   const getShopIdFromUrl = () => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const shopIdParam = searchParams.get('shopId');
-    // Проверяем, что это валидный UUID
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (shopIdParam && uuidRegex.test(shopIdParam)) {
-      return shopIdParam;
+    try {
+      // Пробуем извлечь shopId из пути URL (формат: /manager/{shopId}/warehouse/...)
+      const pathMatch = window.location.pathname.match(
+        /\/manager\/([^\/]+)\/warehouse\//
+      );
+      if (pathMatch && pathMatch[1]) {
+        // Проверка на UUID формат
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(pathMatch[1])) {
+          console.log('Найден shopId в пути URL:', pathMatch[1]);
+          return pathMatch[1];
+        }
+      }
+
+      // Если не удалось найти в пути, пробуем query параметр
+      const searchParams = new URLSearchParams(window.location.search);
+      const shopIdParam = searchParams.get('shopId');
+      // Проверяем, что это валидный UUID
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (shopIdParam && uuidRegex.test(shopIdParam)) {
+        console.log('Найден shopId в query параметре:', shopIdParam);
+        return shopIdParam;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Ошибка при извлечении shopId из URL:', error);
+      return null;
     }
-    return null;
   };
 
   // Пробуем сначала получить из URL, затем из контекста
@@ -291,18 +351,49 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   // Мутация для создания прихода
   const createPurchaseMutation = useMutation({
-    mutationFn: (data: any) => createPurchase(data),
-    onSuccess: () => {
+    mutationFn: (data: any) => {
+      if (!data.shopId) {
+        console.error('Попытка создать приход без shopId!', data);
+        return Promise.reject(new Error('shopId не указан'));
+      }
+      console.log('Отправка запроса на создание прихода:', data);
+
+      // Проверяем, указан ли поставщик
+      if (!data.supplierId) {
+        console.log(
+          'Создание прихода без поставщика, используем специальный метод'
+        );
+        // Импортируем и используем функцию createPurchaseWithoutSupplier
+        return import('@/services/managerApi').then((api) =>
+          api.createPurchaseWithoutSupplier(data)
+        );
+      }
+
+      return createPurchase(data);
+    },
+    onSuccess: (data) => {
+      console.log('Успешно создан приход, ответ API:', data);
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
+    },
+    onError: (error) => {
+      console.error('Ошибка при создании прихода:', error);
     },
   });
 
   // Мутация для обновления прихода
   const updatePurchaseMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
-      updatePurchaseDraft(id, data),
+    mutationFn: ({ id, data }: { id: string; data: any }) => {
+      if (!data.shopId) {
+        console.error('Попытка обновить приход без shopId!', data);
+        return Promise.reject(new Error('shopId не указан'));
+      }
+      return updatePurchaseDraft(id, data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
+    },
+    onError: (error) => {
+      console.error('Ошибка при обновлении прихода:', error);
     },
   });
 
@@ -332,6 +423,305 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     },
   });
 
+  // Расчет состояния загрузки всех данных
+  const isFormLoading =
+    productsLoading ||
+    suppliersLoading ||
+    shopLoading ||
+    isPurchaseLoading ||
+    categoriesLoading;
+
+  // Функция для сохранения данных формы в localStorage
+  const saveFormStateToLocalStorage = () => {
+    try {
+      // Сохранение данных формы только если есть хотя бы один элемент
+      if (purchaseItems.length > 0) {
+        const currentFormValues = form.getFieldsValue();
+        const formData = {
+          ...currentFormValues,
+          date: currentFormValues.date
+            ? currentFormValues.date.toISOString() // Сохраняем полный формат даты со временем
+            : new Date().toISOString(),
+          items: purchaseItems,
+          tempId: tempId,
+        };
+
+        const storageKey = `purchase_draft_${shopId}_${tempId}`;
+        localStorage.setItem(storageKey, JSON.stringify(formData));
+        console.log('Успешно сохранено состояние формы:', storageKey);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Ошибка при сохранении состояния формы:', error);
+      return false;
+    }
+  };
+
+  // Функция для немедленного сохранения состояния формы
+  const forceFormStateSave = () => {
+    if (isFormLoading || !shopId) return;
+
+    console.log('Принудительное сохранение данных формы прихода');
+    saveFormStateToLocalStorage();
+  };
+
+  // Функция для восстановления данных формы из localStorage
+  const loadFormStateFromLocalStorage = () => {
+    // Проверяем, был ли редирект после успешного создания прихода
+    const hasJustSubmitted =
+      sessionStorage.getItem('purchase_submitted') === 'true';
+    if (hasJustSubmitted) {
+      // Очищаем флаг, чтобы не мешал при следующих загрузках
+      sessionStorage.removeItem('purchase_submitted');
+      console.log(
+        'Был редирект после успешного создания прихода - не восстанавливаем данные'
+      );
+      return false;
+    }
+
+    // Если это редактирование существующего прихода (effectiveId не начинается с 'temp-')
+    // то не восстанавливаем данные
+    if (
+      effectiveId &&
+      !effectiveId.startsWith('temp-') &&
+      effectiveId !== tempId
+    ) {
+      console.log(
+        'Редактирование существующего прихода - не восстанавливаем данные из localStorage'
+      );
+      return false;
+    }
+
+    // Строим ключ для поиска черновика
+    const storageKey = `purchase_draft_${shopId}_${tempId}`;
+
+    try {
+      const savedData = localStorage.getItem(storageKey);
+      if (!savedData) {
+        console.log('Нет сохраненных данных для ключа:', storageKey);
+
+        // Если мы не нашли данные для конкретного ключа, попробуем найти любой черновик для этого магазина
+        if (shopId) {
+          const draftKeyPrefix = `purchase_draft_${shopId}_`;
+
+          // Находим все черновики для текущего магазина
+          let mostRecentDraft = null;
+          let mostRecentTimestamp = 0;
+
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(draftKeyPrefix)) {
+              try {
+                const draftData = localStorage.getItem(key);
+                if (draftData) {
+                  const parsed = JSON.parse(draftData);
+
+                  // Проверяем, есть ли в черновике товары
+                  if (parsed.items && parsed.items.length > 0) {
+                    // Находим самый свежий черновик
+                    if (!mostRecentDraft) {
+                      mostRecentDraft = { key, data: parsed };
+                      console.log('Найден черновик:', key);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Ошибка при парсинге черновика:', e);
+              }
+            }
+          }
+
+          // Используем найденный черновик
+          if (mostRecentDraft) {
+            console.log(
+              'Используем существующий черновик:',
+              mostRecentDraft.key
+            );
+
+            // Сначала копируем данные в текущий ключ
+            localStorage.setItem(
+              storageKey,
+              JSON.stringify(mostRecentDraft.data)
+            );
+
+            // Загружаем данные
+            const parsedData = mostRecentDraft.data;
+
+            // Конвертируем строку даты в объект dayjs
+            if (parsedData.date) {
+              parsedData.date = dayjs(parsedData.date);
+            }
+
+            // Устанавливаем значения формы
+            form.setFieldsValue(parsedData);
+
+            // Загружаем товары, если они есть
+            if (parsedData.items && Array.isArray(parsedData.items)) {
+              setPurchaseItems(parsedData.items);
+            }
+
+            console.log('Успешно загружены данные из существующего черновика');
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      const parsedData = JSON.parse(savedData);
+
+      // Загружаем данные формы, если они есть
+      if (parsedData) {
+        // Конвертируем строку даты в объект dayjs
+        if (parsedData.date) {
+          parsedData.date = dayjs(parsedData.date); // Парсим ISO формат даты
+        }
+
+        // Устанавливаем значения формы
+        form.setFieldsValue(parsedData);
+
+        // Загружаем товары, если они есть
+        if (parsedData.items && Array.isArray(parsedData.items)) {
+          setPurchaseItems(parsedData.items);
+        }
+
+        console.log(
+          'Успешно загружены данные формы из localStorage:',
+          parsedData
+        );
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Ошибка при загрузке данных формы из localStorage:', error);
+      return false;
+    }
+  };
+
+  // Обработчик изменения значений формы
+  const handleFormValuesChange = (changedValues: any, allValues: any) => {
+    // Сохраняем изменения с дебаунсом
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+
+    saveTimeout.current = setTimeout(() => {
+      forceFormStateSave();
+    }, 500);
+  };
+
+  // Функция для очистки всех черновиков прихода для данного магазина
+  const clearAllDraftsForShop = (shopIdToClear: string) => {
+    if (!shopIdToClear) return;
+
+    try {
+      const draftKeyPrefix = `purchase_draft_${shopIdToClear}_`;
+      // Находим и удаляем все черновики для указанного магазина
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(draftKeyPrefix)) {
+          console.log('Очищаем черновик прихода:', key);
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при очистке черновиков прихода:', error);
+    }
+  };
+
+  // Функция для очистки сохраненных данных
+  const clearSavedFormState = () => {
+    if (!shopId) return;
+
+    const storageKey = `purchase_draft_${shopId}_${tempId}`;
+    localStorage.removeItem(storageKey);
+    console.log('Очищены сохраненные данные прихода:', storageKey);
+  };
+
+  // Создаем ref для хранения setTimeout
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Загружаем состояние формы при инициализации
+  useEffect(() => {
+    // Проверяем, есть ли возможность загрузить сохраненные данные
+    if (shopId && tempId && !isFormLoading) {
+      console.log(
+        `Попытка восстановить данные формы при инициализации. TempId: ${tempId}`
+      );
+      // Устанавливаем значение по умолчанию для даты, если создаем новый приход
+      if (!effectiveId || effectiveId.startsWith('temp-')) {
+        form.setFieldsValue({
+          date: dayjs(),
+        });
+      }
+
+      // Пытаемся загрузить данные
+      const restored = loadFormStateFromLocalStorage();
+      if (restored) {
+        console.log('Форма успешно восстановлена из localStorage');
+        message.info('Восстановлены сохраненные данные формы');
+      } else {
+        console.log('Не удалось восстановить данные формы, или данных нет');
+      }
+    }
+  }, [shopId, tempId, isFormLoading]);
+
+  // Автоматически сохраняем данные формы при изменениях с более коротким интервалом
+  useEffect(() => {
+    // Используем debounce, чтобы не сохранять слишком часто
+    if (saveTimeout.current) {
+      clearTimeout(saveTimeout.current);
+    }
+
+    saveTimeout.current = setTimeout(() => {
+      if (!isFormLoading && shopId) {
+        console.log('Автоматическое сохранение данных формы (интервал 350мс)');
+        saveFormStateToLocalStorage();
+      }
+    }, 350); // Уменьшаем время до 350 мс для более частого сохранения
+
+    return () => {
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+    };
+  }, [
+    purchaseItems,
+    shopId,
+    isFormLoading,
+    // Добавляем больше переменных для отслеживания:
+    form.getFieldValue('date'),
+    form.getFieldValue('supplierId'),
+    form.getFieldValue('invoiceNumber'),
+    form.getFieldValue('comment'),
+  ]);
+
+  // Добавляем обработчик события beforeunload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Принудительно сохраняем состояние формы перед обновлением/закрытием страницы
+      if (shopId) {
+        console.log('BeforeUnload: Сохраняем данные формы перед выходом');
+        forceFormStateSave();
+      }
+
+      // Стандартное сообщение для подтверждения ухода со страницы
+      if (purchaseItems.length > 0) {
+        const message =
+          'У вас есть несохраненные изменения. Вы действительно хотите покинуть страницу?';
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [purchaseItems, shopId, tempId]);
+
   // Initialize form with purchase data if editing
   useEffect(() => {
     if (purchaseData) {
@@ -350,17 +740,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           }))
         );
       }
+    } else if (!effectiveId || effectiveId.indexOf('temp-') === 0) {
+      // Если это новый приход или временный - пробуем восстановить из localStorage
+      loadFormStateFromLocalStorage();
     }
-  }, [purchaseData, form]);
-
-  // Более явное отображение различных состояний загрузки
-  console.log('===== Состояние загрузки компонентов =====');
-  console.log('Products loading:', productsLoading);
-  console.log('Categories loading:', categoriesLoading);
-  console.log('Suppliers loading:', suppliersLoading);
-  console.log('Shop loading:', shopLoading);
-  console.log('Purchase loading:', isPurchaseLoading);
-  console.log('===== Конец состояний загрузки =====');
+  }, [purchaseData, form, effectiveId, shopId, tempId]);
 
   // Set shop id if not already set
   useEffect(() => {
@@ -385,6 +769,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       return;
     }
 
+    // Обязательно получаем цены из объекта товара и используем значения по умолчанию, если они не заданы
+    const purchasePrice = productToAdd.purchasePrice || 0;
+    const sellingPrice = productToAdd.sellingPrice || 0;
+
     // Check if product already exists in the list
     const existingItemIndex = purchaseItems.findIndex(
       (item) =>
@@ -395,6 +783,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       // Update quantity of existing item
       const updatedItems = [...purchaseItems];
       updatedItems[existingItemIndex].quantity += quantity;
+      // Для уверенности также обновляем цены, чтобы они не потерялись при отправке
+      updatedItems[existingItemIndex].purchasePrice = purchasePrice;
+      updatedItems[existingItemIndex].sellingPrice = sellingPrice;
       setPurchaseItems(updatedItems);
     } else {
       // Add new item
@@ -405,8 +796,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         sku: productToAdd.sku,
         barcode: productToAdd.barcode,
         barcodes: productToAdd.barcodes,
-        purchasePrice: productToAdd.purchasePrice || 0,
-        sellingPrice: productToAdd.sellingPrice || 0,
+        purchasePrice: purchasePrice,
+        sellingPrice: sellingPrice,
         quantity: quantity,
         product: productToAdd,
       };
@@ -418,11 +809,17 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     setSelectedProduct(null);
     setQuantity(1);
     message.success(`Товар "${productToAdd.name}" добавлен в приход`);
+
+    // Добавляем принудительное сохранение после добавления товара
+    setTimeout(forceFormStateSave, 100);
   };
 
   // Handle removing an item from the purchase
   const handleRemoveItem = (itemId: string) => {
     setPurchaseItems((prev) => prev.filter((item) => item.id !== itemId));
+
+    // Добавляем принудительное сохранение после удаления товара
+    setTimeout(forceFormStateSave, 100);
   };
 
   // Показать модальное окно для сканирования штрих-кода
@@ -463,6 +860,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     );
 
     if (foundProduct) {
+      // Получаем цены из объекта товара, гарантируя, что они не будут undefined
+      const purchasePrice = foundProduct.purchasePrice || 0;
+      const sellingPrice = foundProduct.sellingPrice || 0;
+
       // Добавляем найденный товар
       const existingItemIndex = purchaseItems.findIndex(
         (item) =>
@@ -473,6 +874,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         // Увеличиваем количество
         const updatedItems = [...purchaseItems];
         updatedItems[existingItemIndex].quantity += 1;
+        // Обязательно обновляем цены
+        updatedItems[existingItemIndex].purchasePrice = purchasePrice;
+        updatedItems[existingItemIndex].sellingPrice = sellingPrice;
         setPurchaseItems(updatedItems);
         message.success(
           `Товар "${foundProduct.name}" добавлен (${updatedItems[existingItemIndex].quantity} шт.)`
@@ -486,8 +890,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           sku: foundProduct.sku,
           barcode: foundProduct.barcode,
           barcodes: foundProduct.barcodes,
-          purchasePrice: foundProduct.purchasePrice || 0,
-          sellingPrice: foundProduct.sellingPrice || 0,
+          purchasePrice: purchasePrice,
+          sellingPrice: sellingPrice,
           quantity: 1,
           product: foundProduct,
         };
@@ -511,6 +915,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
     setBarcodeInputVisible(false);
     setBarcodeValue('');
+
+    // Добавляем принудительное сохранение
+    setTimeout(forceFormStateSave, 100);
   };
 
   // Создание нового товара из модального окна
@@ -519,11 +926,18 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       const values = await newProductForm.validateFields();
       setIsCreatingProduct(true);
 
+      // Преобразуем цены в числа и гарантируем, что они не будут undefined
+      const purchasePrice = parseFloat(values.purchasePrice || 0);
+      let sellingPrice = parseFloat(values.sellingPrice || 0);
+
       // Если цена продажи не указана, устанавливаем её на основе закупочной с наценкой 20%
-      if (!values.sellingPrice && values.purchasePrice) {
-        values.sellingPrice =
-          Math.round(values.purchasePrice * 1.2 * 100) / 100;
+      if (!sellingPrice && purchasePrice) {
+        sellingPrice = Math.round(purchasePrice * 1.2 * 100) / 100;
       }
+
+      // Обновляем поля с преобразованными значениями
+      values.purchasePrice = purchasePrice;
+      values.sellingPrice = sellingPrice;
 
       // Если артикул не указан, генерируем его автоматически
       if (!values.sku || values.sku.trim() === '') {
@@ -596,6 +1010,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       // Создаем новый товар
       const newProduct = await createProductMutation.mutateAsync(productData);
 
+      // Гарантируем, что цены будут числами, а не undefined
+      const newPurchasePrice = newProduct.purchasePrice || purchasePrice;
+      const newSellingPrice = newProduct.sellingPrice || sellingPrice;
+
       // Добавляем новый товар в список приходов
       const newItem: PurchaseItem = {
         id: uuidv4(),
@@ -604,11 +1022,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         sku: newProduct.sku,
         barcode: newProduct.barcode,
         barcodes: newProduct.barcodes,
-        purchasePrice: newProduct.purchasePrice || values.purchasePrice,
-        sellingPrice:
-          newProduct.sellingPrice ||
-          values.sellingPrice ||
-          values.purchasePrice * 1.2,
+        purchasePrice: newPurchasePrice,
+        sellingPrice: newSellingPrice,
         quantity: values.quantity || 1,
         product: newProduct,
       };
@@ -619,6 +1034,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       message.success(
         `Новый товар "${newProduct.name}" создан и добавлен в приход`
       );
+
+      // Сохраняем состояние формы после добавления нового товара
+      setTimeout(forceFormStateSave, 100);
     } catch (error: any) {
       console.error('Error creating new product:', error);
       setIsCreatingProduct(false);
@@ -657,99 +1075,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     }
   };
 
-  // Handle form submission
-  const handleSubmit = async (values: any) => {
-    console.log('Form submission started with values:', values);
-    console.log('Shop ID:', shopId);
-
-    // Очищаем предыдущие сообщения об ошибках
-    setErrorMessages([]);
-
-    // Устанавливаем состояние загрузки
-    setIsLoading(true);
-
-    try {
-      // Создаем минимальный набор данных для создания прихода
-      const purchaseData = {
-        shopId: shopId,
-        date: values.date
-          ? values.date.format('YYYY-MM-DD')
-          : dayjs().format('YYYY-MM-DD'),
-        // Добавляем необязательные поля, только если они указаны
-        ...(values.supplierId && { supplierId: values.supplierId }),
-        ...(values.invoiceNumber && { invoiceNumber: values.invoiceNumber }),
-        ...(values.comment && { comment: values.comment }),
-        // Для элементов списка используем только существующие или пустой массив
-        items:
-          purchaseItems.length > 0
-            ? purchaseItems.map((item) => ({
-                productId: item.productId || item.id,
-                quantity: item.quantity,
-                price: item.purchasePrice,
-              }))
-            : [],
-        // Статус всегда draft для нового прихода
-        status: 'draft',
-      };
-
-      console.log('Prepared purchase data:', purchaseData);
-
-      // Создаем новый приход или обновляем существующий
-      if (effectiveId) {
-        console.log('Updating existing purchase with ID:', effectiveId);
-        const result = await updatePurchaseMutation.mutateAsync({
-          id: effectiveId,
-          data: purchaseData,
-        });
-
-        message.success('Приход успешно обновлен');
-        // Перенаправляем на страницу списка приходов
-        navigate('/manager/warehouse/incoming');
-      } else {
-        console.log('Creating new purchase...');
-
-        try {
-          const result = await createPurchaseMutation.mutateAsync(purchaseData);
-          console.log('Purchase created successfully:', result);
-
-          message.success('Приход успешно создан');
-
-          // Если есть ID, перенаправляем на страницу деталей
-          if (result && result.id) {
-            navigate(`/manager/warehouse/purchases/${result.id}`);
-          } else {
-            // Иначе просто на список приходов
-            navigate('/manager/warehouse/incoming');
-          }
-        } catch (apiError: any) {
-          // Обрабатываем ошибку API
-          console.error('API error during purchase creation:', apiError);
-
-          let errorMessage = 'Ошибка при создании прихода';
-
-          if (apiError.response?.data?.message) {
-            errorMessage = `${errorMessage}: ${apiError.response.data.message}`;
-          } else if (apiError.message) {
-            errorMessage = `${errorMessage}: ${apiError.message}`;
-          }
-
-          message.error(errorMessage);
-          setErrorMessages([errorMessage]);
-        }
-      }
-    } catch (error: any) {
-      // Обрабатываем общую ошибку
-      console.error('General error during form submission:', error);
-
-      const errorMessage = `Ошибка: ${error.message || 'Что-то пошло не так'}`;
-      message.error(errorMessage);
-      setErrorMessages([errorMessage]);
-    } finally {
-      // В любом случае снимаем состояние загрузки
-      setIsLoading(false);
-    }
-  };
-
   // Table columns for the items list
   const columns = [
     {
@@ -779,6 +1104,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               item.id === record.id ? { ...item, quantity: value || 1 } : item
             );
             setPurchaseItems(newItems);
+            // Сохраняем изменения после обновления количества
+            setTimeout(forceFormStateSave, 100);
           }}
           style={{ width: '100%' }}
         />
@@ -801,6 +1128,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                 : item
             );
             setPurchaseItems(newItems);
+            // Сохраняем изменения после обновления цены
+            setTimeout(forceFormStateSave, 100);
           }}
           style={{ width: '100%' }}
           addonAfter="₸"
@@ -828,13 +1157,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       ),
     },
   ];
-
-  const isFormLoading =
-    productsLoading ||
-    suppliersLoading ||
-    shopLoading ||
-    isPurchaseLoading ||
-    categoriesLoading;
 
   // Очистка ошибок при изменении выбранного продукта, количества или изменении списка товаров
   useEffect(() => {
@@ -881,6 +1203,312 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     };
   }, [isScanningBarcode, barcodeValue]);
 
+  // Функция для очистки формы и возврата на страницу приходов
+  const handleCancel = () => {
+    // Показываем модальное окно подтверждения
+    Modal.confirm({
+      title: 'Подтверждение отмены',
+      content:
+        purchaseItems.length > 0
+          ? `Вы не закончили создание прихода. В форме уже добавлено ${purchaseItems.length} товаров. Если вы отмените операцию, все введенные данные будут потеряны. Хотите продолжить?`
+          : 'Вы не закончили создание прихода. Если вы отмените операцию, все введенные данные будут потеряны. Хотите продолжить?',
+      okText: 'Да, отменить',
+      cancelText: 'Нет, вернуться к форме',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      onOk: () => {
+        console.log('Отмена прихода: начало очистки данных');
+
+        // Очищаем форму
+        form.resetFields();
+        console.log('Форма сброшена');
+
+        // Очищаем список товаров
+        setPurchaseItems([]);
+        console.log('Список товаров очищен');
+
+        // Очищаем данные из localStorage
+        if (shopId) {
+          // 1. Очищаем данные текущего прихода
+          if (tempId) {
+            const storageKey = `purchase_draft_${shopId}_${tempId}`;
+            localStorage.removeItem(storageKey);
+            console.log(`Удален ключ localStorage: ${storageKey}`);
+          }
+
+          // 2. Очищаем все черновики для текущего магазина
+          const draftKeyPrefix = `purchase_draft_${shopId}_`;
+          let removedCount = 0;
+
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(draftKeyPrefix)) {
+              localStorage.removeItem(key);
+              removedCount++;
+              console.log(`Удален дополнительный ключ: ${key}`);
+              // После удаления элемента индексы сдвигаются, поэтому уменьшаем i
+              i--;
+            }
+          }
+
+          console.log(`Всего удалено ${removedCount} ключей из localStorage`);
+        } else {
+          console.warn('Невозможно очистить localStorage: отсутствует shopId');
+        }
+
+        // Удаляем флаг создания нового прихода
+        sessionStorage.removeItem('creating_new_purchase');
+        console.log('Флаг creating_new_purchase удален из sessionStorage');
+
+        // Показываем сообщение пользователю
+        message.success('Форма очищена, данные удалены');
+
+        // Перенаправляем на страницу со списком приходов
+        if (shopId) {
+          console.log(
+            `Перенаправление на /manager/${shopId}/warehouse/incoming`
+          );
+          navigate(`/manager/${shopId}/warehouse/incoming`);
+        } else {
+          console.log('Перенаправление на /manager/warehouse/incoming');
+          navigate('/manager/warehouse/incoming');
+        }
+      },
+      // Стилизуем кнопки, чтобы они всегда были синими
+      okButtonProps: {
+        style: { backgroundColor: '#1890ff', borderColor: '#1890ff' },
+      },
+      cancelButtonProps: {
+        style: {
+          backgroundColor: '#1890ff',
+          borderColor: '#1890ff',
+          color: 'white',
+        },
+      },
+    });
+  };
+
+  // Handle form submission
+  const handleSubmit = async (values: any) => {
+    console.log('Form submission started with values:', values);
+    console.log('Shop ID:', shopId);
+
+    // Очищаем предыдущие сообщения об ошибках
+    setErrorMessages([]);
+
+    // Устанавливаем состояние загрузки
+    setIsLoading(true);
+
+    // Сохраняем состояние формы перед отправкой
+    // (даже если запрос не выполнится, у пользователя останутся данные)
+    forceFormStateSave();
+
+    try {
+      if (!shopId) {
+        throw new Error('ID магазина не определен. Невозможно создать приход.');
+      }
+
+      // Проверяем, есть ли хотя бы один товар в приходе
+      if (purchaseItems.length === 0) {
+        message.warning('Невозможно создать приход без товаров');
+        setIsLoading(false);
+        return;
+      }
+
+      // Проверяем, указан ли поставщик или номер накладной
+      const missingSupplier = !values.supplierId;
+      const missingInvoiceNumber = !values.invoiceNumber;
+
+      // Если отсутствует поставщик или номер накладной, показываем предупреждение
+      if (missingSupplier || missingInvoiceNumber) {
+        setIsLoading(false); // Снимаем состояние загрузки на время показа модального окна
+
+        // Формируем сообщение в зависимости от того, что именно отсутствует
+        let warningMessage = '';
+        if (missingSupplier && missingInvoiceNumber) {
+          warningMessage =
+            'В приходе не указан поставщик и номер накладной. Это может затруднить учет и поиск в будущем.';
+        } else if (missingSupplier) {
+          warningMessage =
+            'В приходе не указан поставщик. Это может затруднить учет и поиск в будущем.';
+        } else {
+          warningMessage =
+            'В приходе не указан номер накладной. Это может затруднить учет и поиск в будущем.';
+        }
+
+        // Показываем модальное окно с предупреждением
+        Modal.confirm({
+          title: 'Предупреждение',
+          content: warningMessage + ' Хотите продолжить?',
+          okText: 'Продолжить сохранение',
+          cancelText: 'Вернуться к форме',
+          icon: <ExclamationCircleOutlined style={{ color: '#faad14' }} />,
+          // Стилизуем кнопки, чтобы они всегда были синими
+          okButtonProps: {
+            style: { backgroundColor: '#1890ff', borderColor: '#1890ff' },
+          },
+          cancelButtonProps: {
+            style: {
+              backgroundColor: '#1890ff',
+              borderColor: '#1890ff',
+              color: 'white',
+            },
+          },
+          onOk: () => {
+            // Пользователь решил продолжить, выполняем сохранение
+            proceedWithSubmit(values);
+          },
+          onCancel: () => {
+            // Пользователь решил вернуться к форме
+            console.log('Пользователь отменил сохранение для заполнения полей');
+            setIsLoading(false);
+          },
+        });
+      } else {
+        // Если все поля заполнены, продолжаем с сохранением
+        proceedWithSubmit(values);
+      }
+    } catch (error: any) {
+      // Обрабатываем общую ошибку
+      console.error('General error during form submission:', error);
+
+      const errorMessage = `Ошибка: ${error.message || 'Что-то пошло не так'}`;
+      message.error(errorMessage);
+      setErrorMessages([errorMessage]);
+      setIsLoading(false);
+    }
+  };
+
+  // Функция для продолжения отправки формы после всех проверок
+  const proceedWithSubmit = async (values: any) => {
+    try {
+      setIsLoading(true);
+
+      // Подготавливаем элементы прихода, гарантируя, что все поля правильно заполнены
+      const preparedItems = purchaseItems.map((item) => {
+        // Преобразуем цены в числовой формат, если это не так
+        const price =
+          typeof item.purchasePrice === 'number'
+            ? item.purchasePrice
+            : parseFloat(item.purchasePrice as any) || 0;
+
+        return {
+          productId: item.productId || item.id,
+          quantity: item.quantity,
+          price: price,
+        };
+      });
+
+      console.log('Подготовленные элементы прихода:', preparedItems);
+
+      // Создаем минимальный набор данных для создания прихода
+      const purchaseData = {
+        shopId: shopId,
+        date: values.date
+          ? values.date.toISOString() // Используем полный ISO формат даты со временем
+          : new Date().toISOString(), // Для текущей даты тоже используем полный формат
+        // Если supplierId не задан, явно устанавливаем его как null
+        supplierId: values.supplierId || null,
+        // Для номера накладной тоже устанавливаем null, если он не задан
+        invoiceNumber: values.invoiceNumber || null,
+        ...(values.comment && { comment: values.comment }),
+        // Используем подготовленные элементы
+        items: preparedItems,
+        // Статус всегда draft для нового прихода
+        status: 'draft',
+        // Включаем автоматическое обновление закупочной цены при создании прихода
+        updatePurchasePrices: true,
+      };
+
+      console.log('Prepared purchase data:', purchaseData);
+
+      // Создаем новый приход или обновляем существующий
+      if (effectiveId && effectiveId.indexOf('temp-') !== 0) {
+        console.log('Updating existing purchase with ID:', effectiveId);
+        const result = await updatePurchaseMutation.mutateAsync({
+          id: effectiveId,
+          data: purchaseData,
+        });
+
+        message.success('Приход успешно обновлен');
+
+        // Очищаем сохраненные данные
+        clearSavedFormState();
+
+        // Для надежности очищаем все черновики магазина
+        clearAllDraftsForShop(shopId);
+
+        // Обновленный URL с shopId
+        if (shopId) {
+          navigate(`/manager/${shopId}/warehouse/incoming`);
+        } else {
+          navigate('/manager/warehouse/incoming');
+        }
+      } else {
+        console.log('Creating new purchase...');
+
+        try {
+          // Сохраняем данные еще раз перед отправкой формы
+          forceFormStateSave();
+
+          const result = await createPurchaseMutation.mutateAsync(purchaseData);
+          console.log('Purchase created successfully:', result);
+
+          message.success('Приход успешно создан');
+
+          // Очищаем сохраненные данные
+          clearSavedFormState();
+
+          // Для надежности очищаем все черновики магазина
+          clearAllDraftsForShop(shopId);
+
+          // Устанавливаем флаг успешного создания прихода
+          sessionStorage.setItem('purchase_submitted', 'true');
+
+          // Обновленный URL с shopId
+          if (result && typeof result === 'object' && result.id) {
+            // Перенаправляем на страницу деталей прихода
+            if (shopId) {
+              navigate(`/manager/${shopId}/warehouse/purchases/${result.id}`);
+            } else {
+              navigate(`/manager/warehouse/purchases/${result.id}`);
+            }
+          } else {
+            console.warn('Результат API не содержит ID прихода:', result);
+            // Перенаправляем на страницу списка приходов
+            if (shopId) {
+              navigate(`/manager/${shopId}/warehouse/incoming`);
+            } else {
+              navigate('/manager/warehouse/incoming');
+            }
+          }
+        } catch (apiError: any) {
+          // Обрабатываем ошибку API
+          console.error('API error during purchase creation:', apiError);
+
+          let errorMessage = 'Ошибка при создании прихода';
+
+          if (apiError.response?.data?.message) {
+            errorMessage = `${errorMessage}: ${apiError.response.data.message}`;
+          } else if (apiError.message) {
+            errorMessage = `${errorMessage}: ${apiError.message}`;
+          }
+
+          message.error(errorMessage);
+          setErrorMessages([errorMessage]);
+        }
+      }
+    } catch (error: any) {
+      // Обрабатываем общую ошибку
+      console.error('Error in proceedWithSubmit:', error);
+      const errorMessage = `Ошибка: ${error.message || 'Что-то пошло не так'}`;
+      message.error(errorMessage);
+      setErrorMessages([errorMessage]);
+    } finally {
+      // В любом случае снимаем состояние загрузки
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Модальное окно для сканирования штрих-кода */}
@@ -898,13 +1526,19 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               setBarcodeInputVisible(false);
               setIsScanningBarcode(false);
             }}
+            style={{
+              backgroundColor: '#1890ff',
+              borderColor: '#1890ff',
+              color: 'white',
+            }}
           >
             Отмена
           </Button>,
           <Button
             key="submit"
             type="primary"
-            className="bg-blue-500 hover:bg-blue-600"
+            className="bg-blue-500"
+            style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
             onClick={handleBarcodeSubmit}
           >
             Найти товар
@@ -932,13 +1566,22 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         open={newProductModalVisible}
         onCancel={() => setNewProductModalVisible(false)}
         footer={[
-          <Button key="cancel" onClick={() => setNewProductModalVisible(false)}>
+          <Button
+            key="cancel"
+            onClick={() => setNewProductModalVisible(false)}
+            style={{
+              backgroundColor: '#1890ff',
+              borderColor: '#1890ff',
+              color: 'white',
+            }}
+          >
             Отмена
           </Button>,
           <Button
             key="submit"
             type="primary"
-            className="bg-blue-500 hover:bg-blue-600"
+            className="bg-blue-500"
+            style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
             onClick={handleCreateNewProduct}
             loading={isCreatingProduct}
           >
@@ -1131,6 +1774,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           initialValues={{
             date: dayjs(),
           }}
+          onValuesChange={handleFormValuesChange}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Form.Item
@@ -1141,7 +1785,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               <DatePicker style={{ width: '100%' }} disabled={isLoading} />
             </Form.Item>
 
-            <Form.Item name="supplierId" label="Поставщик">
+            <Form.Item
+              name="supplierId"
+              label="Поставщик"
+              help="Необязательное поле. Рекомендуется указать поставщика для лучшего учета."
+            >
               <Select
                 placeholder={
                   suppliersLoading
@@ -1160,7 +1808,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               </Select>
             </Form.Item>
 
-            <Form.Item name="invoiceNumber" label="Номер накладной">
+            <Form.Item
+              name="invoiceNumber"
+              label="Номер накладной"
+              help="Необязательное поле. Рекомендуется указать номер накладной для лучшего учета."
+            >
               <Input
                 placeholder="Введите номер накладной"
                 disabled={isLoading}
@@ -1277,8 +1929,12 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           <div className="mt-4 flex justify-end">
             <Space>
               <Button
-                onClick={() => navigate('/manager/warehouse/incoming')}
+                onClick={handleCancel}
                 disabled={isLoading}
+                style={{
+                  backgroundColor: purchaseItems.length > 0 ? '#1890ff' : '',
+                  color: purchaseItems.length > 0 ? 'white' : '',
+                }}
               >
                 Отмена
               </Button>
@@ -1287,7 +1943,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                 htmlType="submit"
                 icon={<SaveOutlined />}
                 loading={isLoading}
-                className="bg-blue-500 hover:bg-blue-600"
+                className="bg-blue-500"
+                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
               >
                 Сохранить
               </Button>

@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Button,
   Card,
   Table,
   Space,
   message,
-  Tabs,
   Spin,
   Typography,
   Tag,
@@ -20,32 +19,15 @@ import { ShopContext } from '@/contexts/ShopContext';
 import { Purchase } from '@/types/purchase';
 
 const { Title } = Typography;
-const { TabPane } = Tabs;
 
 function IncomingPage() {
   const navigate = useNavigate();
   const shopContext = useContext(ShopContext);
   const shopId = shopContext?.currentShop?.id || '';
 
-  // State for the purchases list
-  const [activeTab, setActiveTab] = useState<string>('draft');
-
-  // Filter purchases based on the active tab
-  const filterPurchasesByTab = (purchases: Purchase[] | undefined) => {
-    if (!purchases) return [];
-
-    if (activeTab === 'all') return purchases;
-    if (activeTab === 'draft')
-      return purchases.filter((p) => p.status !== 'completed');
-    if (activeTab === 'completed')
-      return purchases.filter((p) => p.status === 'completed');
-
-    return purchases;
-  };
-
   // Fetch purchase data
   const {
-    data: allPurchases,
+    data: purchases,
     isLoading,
     error,
   } = useQuery({
@@ -53,9 +35,6 @@ function IncomingPage() {
     queryFn: () => getPurchases(shopId),
     enabled: !!shopId,
   });
-
-  // Filtered purchases based on active tab
-  const purchases = filterPurchasesByTab(allPurchases);
 
   useEffect(() => {
     if (error) {
@@ -168,22 +147,6 @@ function IncomingPage() {
       </div>
 
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab} className="mb-4">
-          <TabPane tab={`Все (${allPurchases?.length || 0})`} key="all" />
-          <TabPane
-            tab={`Черновики (${
-              allPurchases?.filter((p) => p.status !== 'completed')?.length || 0
-            })`}
-            key="draft"
-          />
-          <TabPane
-            tab={`Завершенные (${
-              allPurchases?.filter((p) => p.status === 'completed')?.length || 0
-            })`}
-            key="completed"
-          />
-        </Tabs>
-
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Spin size="large" />

@@ -981,8 +981,8 @@ export const isApiError = (error: unknown): error is ApiError => {
 
 export interface CreatePurchaseRequest {
   shopId: string;
-  supplierId: string;
-  invoiceNumber: string;
+  supplierId?: string | null;
+  invoiceNumber?: string | null;
   date: string;
   comment?: string;
   items: Array<{
@@ -1040,12 +1040,20 @@ export const createPurchase = async (
   // Убедимся, что базовые поля существуют
   const purchaseData = {
     ...data,
-    supplierId: data.supplierId || '',
-    invoiceNumber: data.invoiceNumber || '',
-    date: data.date || new Date().toISOString().split('T')[0],
+    supplierId: data.supplierId || null,
+    invoiceNumber: data.invoiceNumber || null,
+    date: data.date || new Date().toISOString(),
     items: data.items || [],
     status: data.status || 'draft',
   };
+
+  // Дополнительное логирование для отладки
+  console.log('[CREATE PURCHASE] Подготовленные данные:', {
+    shopId: purchaseData.shopId,
+    supplierId: purchaseData.supplierId,
+    invoiceNumber: purchaseData.invoiceNumber,
+    itemsCount: purchaseData.items.length,
+  });
 
   // Проверим наличие хотя бы одного товара
   if (!purchaseData.items || purchaseData.items.length === 0) {
@@ -1073,6 +1081,7 @@ export const createPurchase = async (
 
   // Определим все возможные URL-пути для создания прихода
   const possibleUrls = [
+    '/manager/purchases/no-supplier', // Сначала попробуем специальный маршрут для прихода без поставщика
     '/manager/purchases',
     `/manager/purchases/${purchaseData.shopId}`,
     `/manager/purchases/shop/${purchaseData.shopId}`,
@@ -1187,10 +1196,14 @@ export async function createPurchaseDraft(data: {
 }) {
   console.log('Сохранение черновика:', data);
   try {
-    const response = await api.post('/manager/purchases', {
+    // Если дата не предоставлена или неполная, используем текущую дату и время
+    const purchaseData = {
       ...data,
+      date: data.date || new Date().toISOString(), // Используем полный ISO формат
       status: 'draft', // Всегда устанавливаем статус draft при создании черновика
-    });
+    };
+
+    const response = await api.post('/manager/purchases', purchaseData);
     console.log('Ответ от сервера при создании черновика:', response.data);
     return response.data;
   } catch (error) {
@@ -1492,5 +1505,60 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
   } catch (error) {
     console.error('Error in getManagerShop:', error);
     throw ApiErrorHandler.handle(error);
+  }
+};
+
+// Специальная функция для создания прихода без поставщика
+export const createPurchaseWithoutSupplier = async (
+  data: Omit<CreatePurchaseRequest, 'supplierId'>
+): Promise<PurchaseResponse> => {
+  console.log(
+    '[CREATE PURCHASE WITHOUT SUPPLIER] Запрос на создание прихода без поставщика:',
+    data
+  );
+
+  // Убедимся, что shopId указан
+  if (!data.shopId) {
+    console.error(
+      '[CREATE PURCHASE WITHOUT SUPPLIER] ОШИБКА: Отсутствует shopId'
+    );
+    throw new Error('Не указан ID магазина (shopId)');
+  }
+
+  // Принудительно устанавливаем supplierId в null
+  const purchaseData = {
+    ...data,
+    supplierId: null,
+    invoiceNumber: data.invoiceNumber || null,
+    date: data.date || new Date().toISOString(),
+    items: data.items || [],
+    status: data.status || 'draft',
+  };
+
+  try {
+    console.log(
+      '[CREATE PURCHASE WITHOUT SUPPLIER] Отправляем запрос на сервер:',
+      purchaseData
+    );
+    const response = await api.post(
+      '/manager/purchases/no-supplier',
+      purchaseData
+    );
+    console.log(
+      '[CREATE PURCHASE WITHOUT SUPPLIER] Успешный ответ:',
+      response.data
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error('[CREATE PURCHASE WITHOUT SUPPLIER] Ошибка:', error);
+    if (error.response?.data) {
+      console.error('Детали ошибки:', error.response.data);
+    }
+
+    // Попробуем запасной вариант через стандартный API
+    console.log(
+      '[CREATE PURCHASE WITHOUT SUPPLIER] Пробуем через стандартный API createPurchase'
+    );
+    return createPurchase(purchaseData);
   }
 };
