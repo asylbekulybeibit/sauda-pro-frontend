@@ -122,6 +122,44 @@ const PurchaseDetails: React.FC = () => {
       };
     }
 
+    // Добавляем проверку и обработку данных о поставщике
+    if (purchase.supplierId) {
+      // Если у нас есть идентификатор поставщика, но нет полного объекта supplier
+      if (!purchase.supplier || typeof purchase.supplier !== 'object') {
+        console.log(
+          'Восстанавливаем информацию о поставщике из ID:',
+          purchase.supplierId
+        );
+        result.supplier = {
+          id: purchase.supplierId,
+          name: purchase.supplierName || `Поставщик #${purchase.supplierId}`,
+        };
+      } else {
+        // Если объект supplier есть, но нет name, устанавливаем запасное значение
+        if (!purchase.supplier.name) {
+          console.log(
+            'У поставщика нет имени, устанавливаем запасное значение'
+          );
+          result.supplier = {
+            ...purchase.supplier,
+            name: purchase.supplierName || `Поставщик #${purchase.supplierId}`,
+          };
+        }
+      }
+    } else {
+      // Если supplierId отсутствует, но есть supplier.name, сохраняем его
+      if (purchase.supplier?.name) {
+        console.log('У записи нет supplierId, но есть supplier.name');
+        result.supplierName = purchase.supplier.name;
+      }
+    }
+
+    console.log('Результат обработки данных поставщика:', {
+      supplierId: result.supplierId,
+      supplierName: result.supplierName,
+      supplier: result.supplier,
+    });
+
     return result;
   };
 

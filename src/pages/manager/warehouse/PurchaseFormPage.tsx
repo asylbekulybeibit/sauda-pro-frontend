@@ -37,6 +37,33 @@ const PurchaseFormPage: React.FC = () => {
     if (!id && shopId) {
       console.log('Открыта страница создания нового прихода.');
 
+      // Проверяем, был ли успешно создан предыдущий приход
+      const hasJustSubmitted =
+        sessionStorage.getItem('purchase_submitted') === 'true';
+      if (hasJustSubmitted) {
+        console.log(
+          'Обнаружен флаг успешного создания прихода. Очищаем все черновики и сбрасываем флаг.'
+        );
+        sessionStorage.removeItem('purchase_submitted');
+
+        try {
+          const draftKeyPrefix = `purchase_draft_${shopId}_`;
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(draftKeyPrefix)) {
+              localStorage.removeItem(key);
+              console.log(`Удален черновик: ${key}`);
+              i--; // Корректируем индекс после удаления
+            }
+          }
+        } catch (error) {
+          console.error(
+            'Ошибка при очистке черновиков после создания прихода:',
+            error
+          );
+        }
+      }
+
       // Проверяем, был ли прямой переход на страницу создания прихода
       // или это просто перезагрузка страницы
       const isDirectNavigation =

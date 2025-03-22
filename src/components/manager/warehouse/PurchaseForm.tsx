@@ -39,6 +39,7 @@ import {
   createProduct,
   getCategories,
   createCategory,
+  createPurchaseWithoutSupplier,
 } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
@@ -351,28 +352,15 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   // Мутация для создания прихода
   const createPurchaseMutation = useMutation({
-    mutationFn: (data: any) => {
-      if (!data.shopId) {
-        console.error('Попытка создать приход без shopId!', data);
-        return Promise.reject(new Error('shopId не указан'));
-      }
-      console.log('Отправка запроса на создание прихода:', data);
+    mutationFn: async (data: any) => {
+      console.log('Данные перед созданием прихода:', data);
 
-      // Проверяем, указан ли поставщик
-      if (!data.supplierId) {
-        console.log(
-          'Создание прихода без поставщика, используем специальный метод'
-        );
-        // Импортируем и используем функцию createPurchaseWithoutSupplier
-        return import('@/services/managerApi').then((api) =>
-          api.createPurchaseWithoutSupplier(data)
-        );
-      }
-
+      // Всегда используем стандартный метод createPurchase, который корректно обрабатывает все поля,
+      // включая supplierId (null или UUID)
       return createPurchase(data);
     },
     onSuccess: (data) => {
-      console.log('Успешно создан приход, ответ API:', data);
+      console.log('Приход успешно создан:', data);
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
     },
     onError: (error) => {
@@ -434,6 +422,16 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // Функция для сохранения данных формы в localStorage
   const saveFormStateToLocalStorage = () => {
     try {
+      // Проверяем, был ли уже успешно создан приход
+      const hasJustSubmitted =
+        sessionStorage.getItem('purchase_submitted') === 'true';
+      if (hasJustSubmitted) {
+        console.log(
+          'Приход уже был успешно создан, не сохраняем в localStorage'
+        );
+        return false;
+      }
+
       // Сохранение данных формы только если есть хотя бы один элемент
       if (purchaseItems.length > 0) {
         const currentFormValues = form.getFieldsValue();
@@ -477,6 +475,13 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       console.log(
         'Был редирект после успешного создания прихода - не восстанавливаем данные'
       );
+
+      // Очищаем все черновики для текущего магазина, чтобы данные завершенного прихода не восстановились
+      if (shopId) {
+        clearAllDraftsForShop(shopId);
+        console.log('Очищены все черновики после успешного создания прихода');
+      }
+
       return false;
     }
 
@@ -1406,7 +1411,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         date: values.date
           ? values.date.toISOString() // Используем полный ISO формат даты со временем
           : new Date().toISOString(), // Для текущей даты тоже используем полный формат
-        // Если supplierId не задан, явно устанавливаем его как null
+        // Всегда явно передаем supplierId даже если он null
         supplierId: values.supplierId || null,
         // Для номера накладной тоже устанавливаем null, если он не задан
         invoiceNumber: values.invoiceNumber || null,
@@ -1420,6 +1425,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       };
 
       console.log('Prepared purchase data:', purchaseData);
+      console.log('supplierId передаётся:', purchaseData.supplierId);
 
       // Создаем новый приход или обновляем существующий
       if (effectiveId && effectiveId.indexOf('temp-') !== 0) {
@@ -1455,14 +1461,19 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
           message.success('Приход успешно создан');
 
+          // Устанавливаем флаг успешного создания прихода ПЕРЕД очисткой хранилища
+          sessionStorage.setItem('purchase_submitted', 'true');
+          console.log('Установлен флаг успешного создания прихода');
+
           // Очищаем сохраненные данные
           clearSavedFormState();
 
           // Для надежности очищаем все черновики магазина
           clearAllDraftsForShop(shopId);
 
-          // Устанавливаем флаг успешного создания прихода
-          sessionStorage.setItem('purchase_submitted', 'true');
+          // Явно очищаем форму, чтобы она точно не сохранилась снова
+          form.resetFields();
+          setPurchaseItems([]);
 
           // Обновленный URL с shopId
           if (result && typeof result === 'object' && result.id) {

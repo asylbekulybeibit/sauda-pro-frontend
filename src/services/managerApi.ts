@@ -1031,6 +1031,14 @@ export const createPurchase = async (
 ): Promise<PurchaseResponse> => {
   console.log('[CREATE PURCHASE] Запрос на создание прихода с данными:', data);
 
+  // Проверяем, что api определен
+  if (typeof api === 'undefined') {
+    console.error('[CREATE PURCHASE] КРИТИЧЕСКАЯ ОШИБКА: api не определен');
+    throw new Error(
+      'API клиент не инициализирован. Попробуйте перезагрузить страницу.'
+    );
+  }
+
   // Обязательно проверим и установим shopId
   if (!data.shopId) {
     console.error('[CREATE PURCHASE] ОШИБКА: Отсутствует shopId');
@@ -1040,7 +1048,8 @@ export const createPurchase = async (
   // Убедимся, что базовые поля существуют
   const purchaseData = {
     ...data,
-    supplierId: data.supplierId || null,
+    // Явно устанавливаем supplierId даже если он null, чтобы он всегда передавался в запросе
+    supplierId: data.supplierId === undefined ? null : data.supplierId,
     invoiceNumber: data.invoiceNumber || null,
     date: data.date || new Date().toISOString(),
     items: data.items || [],
@@ -1081,14 +1090,14 @@ export const createPurchase = async (
 
   // Определим все возможные URL-пути для создания прихода
   const possibleUrls = [
-    '/manager/purchases/no-supplier', // Сначала попробуем специальный маршрут для прихода без поставщика
-    '/manager/purchases',
+    '/manager/purchases', // Сначала пробуем основной маршрут
     `/manager/purchases/${purchaseData.shopId}`,
     `/manager/purchases/shop/${purchaseData.shopId}`,
     `/manager/warehouse/purchases`,
     `/manager/warehouse/purchases/${purchaseData.shopId}`,
     `/manager/shops/${purchaseData.shopId}/purchases`,
     `/manager/purchases/create`,
+    '/manager/purchases/no-supplier', // Последним пробуем специальный маршрут для прихода без поставщика
   ];
 
   // Определим варианты данных от полных до минимальных
@@ -1517,6 +1526,16 @@ export const createPurchaseWithoutSupplier = async (
     data
   );
 
+  // Проверяем, что api определен
+  if (typeof api === 'undefined') {
+    console.error(
+      '[CREATE PURCHASE WITHOUT SUPPLIER] КРИТИЧЕСКАЯ ОШИБКА: api не определен'
+    );
+    throw new Error(
+      'API клиент не инициализирован. Попробуйте перезагрузить страницу.'
+    );
+  }
+
   // Убедимся, что shopId указан
   if (!data.shopId) {
     console.error(
@@ -1528,37 +1547,17 @@ export const createPurchaseWithoutSupplier = async (
   // Принудительно устанавливаем supplierId в null
   const purchaseData = {
     ...data,
-    supplierId: null,
-    invoiceNumber: data.invoiceNumber || null,
-    date: data.date || new Date().toISOString(),
-    items: data.items || [],
-    status: data.status || 'draft',
+    supplierId: null, // Явно устанавливаем null
   };
 
+  // Просто используем стандартный метод createPurchase с явно установленным supplierId=null
   try {
     console.log(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] Отправляем запрос на сервер:',
-      purchaseData
-    );
-    const response = await api.post(
-      '/manager/purchases/no-supplier',
-      purchaseData
-    );
-    console.log(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] Успешный ответ:',
-      response.data
-    );
-    return response.data;
-  } catch (error: any) {
-    console.error('[CREATE PURCHASE WITHOUT SUPPLIER] Ошибка:', error);
-    if (error.response?.data) {
-      console.error('Детали ошибки:', error.response.data);
-    }
-
-    // Попробуем запасной вариант через стандартный API
-    console.log(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] Пробуем через стандартный API createPurchase'
+      '[CREATE PURCHASE WITHOUT SUPPLIER] Передаем запрос в стандартный метод createPurchase'
     );
     return createPurchase(purchaseData);
+  } catch (error) {
+    console.error('[CREATE PURCHASE WITHOUT SUPPLIER] Ошибка:', error);
+    throw error;
   }
 };
