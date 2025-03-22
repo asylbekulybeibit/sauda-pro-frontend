@@ -1,18 +1,47 @@
-export const formatPrice = (price: number) => {
+export const formatPrice = (price: number | string | null | undefined) => {
+  // Проверка на null/undefined
+  if (price === null || price === undefined) {
+    return '—';
+  }
+
+  // Преобразуем строку в число при необходимости
+  let numPrice = typeof price === 'string' ? parseFloat(price) : price;
+
+  // Проверка на NaN
+  if (isNaN(numPrice)) {
+    return '—';
+  }
+
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'KZT',
-  }).format(price);
+  }).format(numPrice);
 };
 
-export const formatDate = (date: string | Date) => {
-  return new Intl.DateTimeFormat('ru-RU', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date));
+export const formatDate = (date: string | Date | null | undefined) => {
+  if (date === null || date === undefined) {
+    return '—';
+  }
+
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+    // Проверка на корректность даты
+    if (isNaN(dateObj.getTime())) {
+      return '—';
+    }
+
+    return new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(dateObj);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '—';
+  }
 };
 
 export const formatNumber = (number: number) => {

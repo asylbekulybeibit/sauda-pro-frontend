@@ -22,10 +22,42 @@ const extractShopIdFromPath = () => {
     // Check if window is available (for SSR safety)
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      const pathMatch = path.match(/\/manager\/([^\/]+)/);
-      if (pathMatch && pathMatch[1]) {
-        return pathMatch[1];
+      console.log('Current path for shop extraction:', path);
+
+      // UUID regex for validation
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      // Стратегия 1: Проверка стандартного формата /manager/{shopId}/...
+      const managerPathMatch = path.match(/\/manager\/([^\/]+)/);
+
+      if (managerPathMatch && managerPathMatch[1]) {
+        const possibleShopId = managerPathMatch[1];
+
+        // If it's a valid UUID, return it
+        if (uuidRegex.test(possibleShopId)) {
+          console.log('Found valid shop UUID in path:', possibleShopId);
+          return possibleShopId;
+        }
       }
+
+      // Стратегия 2: Попробовать извлечь из URL параметров
+      const params = new URLSearchParams(window.location.search);
+      const shopIdParam = params.get('shopId');
+
+      if (shopIdParam && uuidRegex.test(shopIdParam)) {
+        console.log('Found shop ID from URL query parameter:', shopIdParam);
+        return shopIdParam;
+      }
+
+      // Стратегия 3: Последняя попытка - поиск любого UUID в URL
+      const anyUuid = path.match(uuidRegex);
+      if (anyUuid) {
+        console.log('Found UUID in URL path:', anyUuid[0]);
+        return anyUuid[0];
+      }
+
+      console.log('No valid shop ID found in URL');
     }
     return null;
   } catch (error) {
@@ -38,50 +70,66 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
   const [currentShop, setCurrentShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function initializeShop() {
-      try {
-        // Extract shop ID from the URL path without using router hooks
-        const shopIdFromPath = extractShopIdFromPath();
+  const initializeShop = async () => {
+    try {
+      setLoading(true);
+      const shopId = extractShopIdFromPath();
 
-        // If we found a shopId in the path, use it
-        if (shopIdFromPath) {
-          console.log('Loading shop data for ID from path:', shopIdFromPath);
-          try {
-            const shop = await getManagerShop(shopIdFromPath);
-            console.log('Loaded shop data:', shop);
-            setCurrentShop(shop);
-            localStorage.setItem('currentShop', JSON.stringify(shop));
-          } catch (shopError) {
-            console.error('Error loading shop from API:', shopError);
-            // If API fails, try localStorage as fallback
-            loadFromLocalStorage();
-          }
-        } else {
-          // If no shopId in URL, load from localStorage
+      if (shopId) {
+        console.log('Initializing shop with ID from URL:', shopId);
+
+        try {
+          const shopData = await getManagerShop(shopId);
+          console.log('Successfully loaded shop data:', shopData);
+          setCurrentShop(shopData);
+          localStorage.setItem('currentShop', JSON.stringify(shopData));
+          setLoading(false);
+        } catch (error) {
+          console.error(
+            'Failed to load shop data from API, falling back to localStorage:',
+            error
+          );
           loadFromLocalStorage();
         }
-      } catch (error) {
-        console.error('Error initializing shop:', error);
+      } else {
+        console.log('No valid shop ID found in URL, loading from localStorage');
         loadFromLocalStorage();
-      } finally {
-        setLoading(false);
       }
+    } catch (error) {
+      console.error('Error in shop initialization:', error);
+      loadFromLocalStorage();
     }
+  };
 
-    function loadFromLocalStorage() {
-      const savedShop = localStorage.getItem('currentShop');
-      if (savedShop) {
-        console.log('Loading shop from localStorage');
-        try {
-          setCurrentShop(JSON.parse(savedShop));
-        } catch (e) {
-          console.error('Error parsing shop from localStorage:', e);
+  const loadFromLocalStorage = () => {
+    const savedShop = localStorage.getItem('currentShop');
+    if (savedShop) {
+      console.log('Loading shop from localStorage');
+      try {
+        const parsedShop = JSON.parse(savedShop);
+
+        // Validate that we have a valid shop object with an ID
+        if (parsedShop && parsedShop.id) {
+          console.log('Valid shop data found in localStorage:', parsedShop.id);
+          setCurrentShop(parsedShop);
+        } else {
+          console.error(
+            'Invalid shop data format in localStorage:',
+            parsedShop
+          );
           localStorage.removeItem('currentShop');
         }
+      } catch (e) {
+        console.error('Error parsing shop from localStorage:', e);
+        localStorage.removeItem('currentShop');
       }
+    } else {
+      console.log('No shop data found in localStorage');
     }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     initializeShop();
   }, []);
 

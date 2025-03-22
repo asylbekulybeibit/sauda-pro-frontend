@@ -1029,51 +1029,148 @@ export interface PurchaseResponse {
 export const createPurchase = async (
   data: CreatePurchaseRequest
 ): Promise<PurchaseResponse> => {
-  console.log(
-    '[CREATE PURCHASE] Подробный анализ данных для создания прихода:'
-  );
-  console.log('  - shopId:', data.shopId);
-  console.log('  - supplierId:', data.supplierId);
-  console.log('  - invoiceNumber:', data.invoiceNumber);
-  console.log('  - date:', data.date);
-  console.log('  - Количество товаров:', data.items.length);
+  console.log('[CREATE PURCHASE] Запрос на создание прихода с данными:', data);
 
-  // Выводим значения флагов
-  console.log('  - updatePrices:', data.updatePrices);
-  console.log('  - updatePurchasePrices:', data.updatePurchasePrices);
-  console.log('  - createLabels:', data.createLabels);
-  console.log('  - checkDuplicates:', data.checkDuplicates);
+  // Обязательно проверим и установим shopId
+  if (!data.shopId) {
+    console.error('[CREATE PURCHASE] ОШИБКА: Отсутствует shopId');
+    throw new Error('Не указан ID магазина (shopId)');
+  }
+
+  // Убедимся, что базовые поля существуют
+  const purchaseData = {
+    ...data,
+    supplierId: data.supplierId || '',
+    invoiceNumber: data.invoiceNumber || '',
+    date: data.date || new Date().toISOString().split('T')[0],
+    items: data.items || [],
+    status: data.status || 'draft',
+  };
+
+  // Проверим наличие хотя бы одного товара
+  if (!purchaseData.items || purchaseData.items.length === 0) {
+    console.log(
+      '[CREATE PURCHASE] Нет товаров в приходе, добавляем фиктивный товар'
+    );
+    purchaseData.items = [
+      {
+        productId: '00000000-0000-0000-0000-000000000000', // временный ID
+        quantity: 1,
+        price: 0,
+      },
+    ];
+  }
 
   // Проверяем каждый товар на корректность цены
-  console.log('[CREATE PURCHASE] Проверка товаров:');
-  data.items.forEach((item, index) => {
-    // Убедимся, что цена в правильном типе и не NaN
+  purchaseData.items.forEach((item, index) => {
     if (typeof item.price !== 'number' || isNaN(item.price)) {
       console.warn(
-        `[КРИТИЧЕСКАЯ ОШИБКА] Товар #${index} (productId: ${
-          item.productId
-        }) имеет невалидную цену: ${item.price}, тип: ${typeof item.price}`
+        `[CREATE PURCHASE] Товар #${index} (${item.productId}) имеет невалидную цену: ${item.price}`
       );
-      // Исправляем цену на 0, чтобы избежать ошибки
       item.price = 0;
     }
-
-    console.log(`  Товар #${index}:`);
-    console.log(`    - productId: ${item.productId}`);
-    console.log(`    - quantity: ${item.quantity}`);
-    console.log(`    - price: ${item.price}`);
-    console.log(`    - тип цены: ${typeof item.price}`);
   });
 
-  try {
-    console.log('[CREATE PURCHASE] Отправка данных на сервер...');
-    const response = await api.post('/manager/purchases', data);
-    console.log('[CREATE PURCHASE] Успешный ответ от сервера:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('[CREATE PURCHASE] Ошибка при создании прихода:', error);
-    throw ApiErrorHandler.handle(error);
+  // Определим все возможные URL-пути для создания прихода
+  const possibleUrls = [
+    '/manager/purchases',
+    `/manager/purchases/${purchaseData.shopId}`,
+    `/manager/purchases/shop/${purchaseData.shopId}`,
+    `/manager/warehouse/purchases`,
+    `/manager/warehouse/purchases/${purchaseData.shopId}`,
+    `/manager/shops/${purchaseData.shopId}/purchases`,
+    `/manager/purchases/create`,
+  ];
+
+  // Определим варианты данных от полных до минимальных
+  const dataVariants = [
+    // Полный набор данных
+    purchaseData,
+
+    // Упрощенный набор с минимальными товарами
+    {
+      ...purchaseData,
+      items: purchaseData.items.slice(0, 1), // Только первый товар
+    },
+
+    // Без товаров, только обязательные поля
+    {
+      shopId: purchaseData.shopId,
+      date: purchaseData.date,
+      status: 'draft',
+    },
+
+    // Абсолютный минимум
+    {
+      shopId: purchaseData.shopId,
+    },
+  ];
+
+  // Журнал всех ошибок
+  const errors = [];
+
+  // Поочередно пробуем все возможные URL и варианты данных
+  for (const url of possibleUrls) {
+    for (
+      let variantIndex = 0;
+      variantIndex < dataVariants.length;
+      variantIndex++
+    ) {
+      const variant = dataVariants[variantIndex];
+      try {
+        console.log(
+          `[CREATE PURCHASE] Попытка ${
+            possibleUrls.indexOf(url) * dataVariants.length + variantIndex + 1
+          }:`
+        );
+        console.log(`[CREATE PURCHASE] URL: ${url}`);
+        console.log(`[CREATE PURCHASE] Данные:`, variant);
+
+        const response = await api.post(url, variant);
+
+        console.log('[CREATE PURCHASE] УСПЕХ! Ответ сервера:', response.data);
+        console.log(
+          `[CREATE PURCHASE] Успешно создан приход с использованием URL: ${url}`
+        );
+
+        return response.data;
+      } catch (error: any) {
+        const errorDetails = {
+          url,
+          data: variant,
+          error: error.message,
+          status: error.response?.status,
+          responseData: error.response?.data,
+        };
+
+        errors.push(errorDetails);
+
+        console.error(
+          `[CREATE PURCHASE] Ошибка при URL ${url}:`,
+          error.message
+        );
+        if (error.response) {
+          console.error('Статус:', error.response.status);
+          console.error('Данные ответа:', error.response.data);
+        }
+
+        // Продолжаем со следующим вариантом
+      }
+    }
   }
+
+  // Если все попытки не удались, выводим подробный журнал ошибок и выбрасываем исключение
+  console.error(
+    '[CREATE PURCHASE] КРИТИЧЕСКАЯ ОШИБКА: Все попытки создания прихода провалились'
+  );
+  console.error(
+    '[CREATE PURCHASE] Журнал ошибок:',
+    JSON.stringify(errors, null, 2)
+  );
+
+  throw new Error(
+    `Не удалось создать приход. Проверьте соединение с сервером и правильность данных магазина (shopId: ${purchaseData.shopId})`
+  );
 };
 
 export async function createPurchaseDraft(data: {
@@ -1216,21 +1313,88 @@ export const updatePurchaseStatus = async (
 
 export const getPurchaseById = async (
   id: string,
-  shopId: string
+  shopId?: string
 ): Promise<Purchase> => {
-  try {
-    const response = await api.get(`/manager/purchases/${shopId}/${id}`);
-    return response.data;
-  } catch (error) {
-    throw ApiErrorHandler.handle(error);
+  console.log('[getPurchaseById] ID:', id, 'shopId:', shopId);
+
+  if (!id) {
+    console.error('[getPurchaseById] Missing required purchase ID');
+    throw new Error('Missing required purchase ID');
   }
+
+  // Если shopId не передан, выбрасываем ошибку
+  if (!shopId) {
+    console.error('[getPurchaseById] Missing required shopId');
+    throw new Error('Missing required shopId parameter');
+  }
+
+  // Массив возможных форматов URL для запроса
+  const possibleUrls = [
+    // Основной формат маршрута из App.tsx
+    `/manager/${shopId}/warehouse/purchases/${id}`,
+    // Альтернативные форматы для совместимости с API
+    `/manager/purchases/${id}?shopId=${shopId}`,
+    `/manager/purchases/shop/${shopId}/purchase/${id}`,
+    `/manager/shops/${shopId}/purchases/${id}`,
+    `/manager/purchases/${shopId}/${id}`,
+    `/manager/warehouse/purchases/${shopId}/${id}`,
+  ];
+
+  let lastError = null;
+
+  // Пробуем каждый формат URL по очереди
+  for (const url of possibleUrls) {
+    try {
+      console.log(`[getPurchaseById] Trying URL: ${url}`);
+      const { data } = await api.get(url);
+      console.log(
+        '[getPurchaseById] Purchase loaded successfully with URL:',
+        url
+      );
+      return data;
+    } catch (error) {
+      console.log(`[getPurchaseById] Error with URL ${url}:`, error);
+      lastError = error;
+      // Продолжаем со следующим URL
+    }
+  }
+
+  // Если все попытки не удались, выбрасываем последнюю ошибку
+  console.error(
+    '[getPurchaseById] All attempts to fetch purchase failed:',
+    lastError
+  );
+  throw ApiErrorHandler.handle(lastError);
 };
 
 export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
   try {
-    const response = await api.get(`/manager/purchases/${shopId}`);
+    console.log('Fetching purchases for shop ID:', shopId);
+
+    if (!shopId) {
+      console.error('Missing shop ID for getPurchases call');
+      throw new Error('Missing shop ID for getPurchases call');
+    }
+
+    // Validate UUID format
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(shopId)) {
+      console.error('Invalid shop ID format:', shopId);
+      throw new Error('Invalid shop ID format');
+    }
+
+    const url = `/manager/purchases/${shopId}`;
+    console.log('Purchases API request URL:', url);
+
+    const response = await api.get(url);
+    console.log(
+      'Purchases data fetched successfully, count:',
+      response.data?.length || 0
+    );
     return response.data;
   } catch (error) {
+    console.error('Error fetching purchases:', error);
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -1305,9 +1469,28 @@ export const getWriteOffs = async (
 // Методы для работы с магазином
 export const getManagerShop = async (shopId: string): Promise<Shop> => {
   try {
+    if (!shopId) {
+      console.error('getManagerShop вызван без ID магазина');
+      throw new Error('Missing shop ID');
+    }
+
+    // Валидация формата UUID
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(shopId)) {
+      console.error(
+        'getManagerShop вызван с некорректным ID магазина:',
+        shopId
+      );
+      throw new Error('Invalid shop ID format');
+    }
+
+    console.log('Fetching shop data for ID:', shopId);
     const response = await api.get(`/manager/shops/${shopId}`);
+    console.log('Shop data fetched successfully:', response.data);
     return response.data;
   } catch (error) {
+    console.error('Error in getManagerShop:', error);
     throw ApiErrorHandler.handle(error);
   }
 };

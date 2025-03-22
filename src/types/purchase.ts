@@ -1,38 +1,71 @@
-export interface Purchase {
+import { Product } from './product';
+
+// Интерфейс пользователя для createdBy/updatedBy
+export interface User {
   id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  isActive?: boolean;
+  isSuperAdmin?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: any; // Для других возможных полей
+}
+
+export interface PurchaseItem {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  barcodes?: string[];
+  quantity: number;
+  purchasePrice: number;
+  sellingPrice: number;
+  product?: Product;
+  productId?: string;
+}
+
+export interface Purchase {
+  id?: string;
   date: string;
-  invoiceNumber: string;
-  supplier: {
-    id: string;
+  supplierId?: string;
+  shopId: string;
+  comment?: string;
+  number?: string;
+  items: PurchaseItem[];
+  totalAmount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: 'draft' | 'completed' | 'cancelled';
+  supplierName?: string;
+  shopName?: string;
+  invoiceNumber?: string;
+  supplier?: {
     name: string;
     address?: string;
     phone?: string;
   };
-  items: Array<{
-    productId: string;
-    product: {
-      name: string;
-      sku: string;
-    };
-    quantity: number;
-    price: number;
-    total: number;
-    serialNumber?: string;
-    expiryDate?: string;
-    comment?: string;
-  }>;
-  totalAmount: number;
-  totalItems?: number;
-  comment?: string;
-  status: 'completed';
-  createdById?: string;
-  createdBy?: {
-    id: string;
+  shop?: {
     name: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+    id: string;
+    address?: string;
   };
-  createdAt?: string;
-  updatedAt?: string;
+  createdBy?: string | User;
+  createdById?: string;
+  updatedBy?: string | User;
+  updatedById?: string;
+}
+
+export interface PurchaseSummary {
+  id: string;
+  date: string;
+  number?: string;
+  supplierName?: string;
+  shopName: string;
+  totalAmount: number;
+  itemsCount: number;
+  createdAt: string;
+  updatedAt: string;
 }

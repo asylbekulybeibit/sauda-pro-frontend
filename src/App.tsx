@@ -102,6 +102,15 @@ const ProductPriceHistoryPage = React.lazy(
   () => import('./pages/manager/prices/ProductPriceHistoryPage')
 );
 
+// Use regular relative imports
+const PurchaseFormPage = React.lazy(
+  () => import('./pages/manager/warehouse/PurchaseFormPage')
+);
+
+const PurchaseDetailsPage = React.lazy(
+  () => import('./pages/manager/warehouse/PurchaseDetailsPage')
+);
+
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
   const location = useLocation();
@@ -270,6 +279,11 @@ export default function App() {
                   <Route path="warehouse">
                     <Route index element={<WarehousePage />} />
                     <Route path="incoming" element={<IncomingPage />} />
+                    <Route path="purchases">
+                      <Route path="create" element={<PurchaseFormPage />} />
+                      <Route path=":id" element={<PurchaseDetailsPage />} />
+                      <Route path="edit/:id" element={<PurchaseFormPage />} />
+                    </Route>
                     <Route path="inventory" element={<InventoryPage />} />
                     <Route path="transfers" element={<TransfersPage />} />
                     <Route path="writeoffs" element={<WriteOffsPage />} />
