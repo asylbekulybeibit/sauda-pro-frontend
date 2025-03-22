@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteProduct } from '@/services/managerApi';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/utils/format';
+import { Modal, Button } from 'antd';
 
 interface ProductListProps {
   products: Product[];
@@ -19,6 +20,7 @@ export function ProductList({
   shopId,
 }: ProductListProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
@@ -28,10 +30,19 @@ export function ProductList({
     },
   });
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот товар?')) {
-      await deleteMutation.mutateAsync(id);
+  const showDeleteConfirm = (product: Product) => {
+    setDeletingProduct(product);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deletingProduct) {
+      await deleteMutation.mutateAsync(deletingProduct.id);
+      setDeletingProduct(null);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeletingProduct(null);
   };
 
   const getCategoryName = (categoryId: string | undefined) => {
@@ -129,7 +140,7 @@ export function ProductList({
                       <PencilIcon className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(product.id)}
+                      onClick={() => showDeleteConfirm(product)}
                       className="text-red-600 hover:text-red-900"
                     >
                       <TrashIcon className="h-5 w-5" />
@@ -150,6 +161,29 @@ export function ProductList({
           shopId={shopId}
         />
       )}
+
+      <Modal
+        title="Подтвердите действие"
+        open={!!deletingProduct}
+        onCancel={handleDeleteCancel}
+        footer={null}
+        centered
+      >
+        <p className="mb-4">
+          Вы уверены, что хотите удалить товар "{deletingProduct?.name}"?
+        </p>
+        <div className="flex justify-end space-x-3">
+          <Button onClick={handleDeleteCancel}>Отмена</Button>
+          <Button
+            type="primary"
+            onClick={handleDeleteConfirm}
+            loading={deleteMutation.isPending}
+            style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+          >
+            OK
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

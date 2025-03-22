@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Product } from '@/types/product';
 import { Category } from '@/types/category';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createProduct, updateProduct } from '@/services/managerApi';
-import { XMarkIcon as XIcon } from '@heroicons/react/24/outline';
+import { Modal, Form, Input, InputNumber, Select, Button, Space } from 'antd';
 
 interface ProductFormProps {
   product?: Product;
@@ -11,6 +11,9 @@ interface ProductFormProps {
   onClose: () => void;
   shopId: string;
 }
+
+const { TextArea } = Input;
+const { Option } = Select;
 
 export function ProductForm({
   product,
@@ -41,23 +44,25 @@ export function ProductForm({
 
   console.log('Final valid categories:', validCategories);
 
-  const [formData, setFormData] = useState({
-    name: product?.name || '',
-    description: product?.description || '',
-    sellingPrice: product?.sellingPrice ? product.sellingPrice.toString() : '',
-    purchasePrice: product?.purchasePrice
-      ? product.purchasePrice.toString()
-      : '',
-    quantity: product?.quantity?.toString() || '0',
-    minQuantity: product?.minQuantity?.toString() || '0',
-    barcode: (product?.barcodes && product.barcodes[0]) || '',
-    categoryId: product?.categoryId || '',
-    sku: product?.sku || '',
-  });
-
-  console.log('Form initial state:', formData);
-
+  const [form] = Form.useForm();
   const queryClient = useQueryClient();
+
+  // Установка начальных значений формы при изменении product
+  useEffect(() => {
+    if (product && form) {
+      form.setFieldsValue({
+        name: product.name,
+        description: product.description,
+        sellingPrice: product.sellingPrice,
+        purchasePrice: product.purchasePrice,
+        quantity: product.quantity,
+        minQuantity: product.minQuantity,
+        barcode: product.barcodes && product.barcodes[0],
+        categoryId: product.categoryId,
+        sku: product.sku,
+      });
+    }
+  }, [product, form]);
 
   const createMutation = useMutation({
     mutationFn: (data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) =>
@@ -77,28 +82,17 @@ export function ProductForm({
     },
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    console.log('handleChange:', { name, value, type: typeof value });
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async (values: any) => {
     const payload = {
-      ...formData,
-      sellingPrice: parseFloat(formData.sellingPrice) || 0,
-      purchasePrice: parseFloat(formData.purchasePrice) || 0,
-      quantity: parseInt(formData.quantity) || 0,
-      minQuantity: parseInt(formData.minQuantity) || 0,
-      categoryId: formData.categoryId || undefined,
+      ...values,
+      sellingPrice: parseFloat(values.sellingPrice) || 0,
+      purchasePrice: parseFloat(values.purchasePrice) || 0,
+      quantity: parseInt(values.quantity) || 0,
+      minQuantity: parseInt(values.minQuantity) || 0,
+      categoryId: values.categoryId || undefined,
       shopId,
-      barcodes: formData.barcode ? [formData.barcode] : [],
+      barcodes: values.barcode ? [String(values.barcode)] : [],
+      barcode: values.barcode ? String(values.barcode) : undefined,
       isActive: true,
     };
 
@@ -115,210 +109,136 @@ export function ProductForm({
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">
-            {product ? 'Редактировать товар' : 'Создать товар'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+    <Modal
+      title={product ? 'Редактировать товар' : 'Создать товар'}
+      open={true}
+      onCancel={onClose}
+      footer={null}
+      width={650}
+      maskClosable={false}
+      centered
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        initialValues={{
+          name: product?.name || '',
+          description: product?.description || '',
+          sellingPrice: product?.sellingPrice || '',
+          purchasePrice: product?.purchasePrice || '',
+          quantity: product?.quantity || 0,
+          minQuantity: product?.minQuantity || 0,
+          barcode: (product?.barcodes && product.barcodes[0]) || '',
+          categoryId: product?.categoryId || '',
+          sku: product?.sku || '',
+        }}
+      >
+        {/* Название товара */}
+        <Form.Item
+          name="name"
+          label="Название товара"
+          rules={[{ required: true, message: 'Введите название товара' }]}
+        >
+          <Input placeholder="Введите название товара" />
+        </Form.Item>
+
+        <div className="grid grid-cols-2 gap-x-4">
+          {/* Артикул */}
+          <Form.Item name="sku" label="Артикул">
+            <Input placeholder="Артикул товара" />
+          </Form.Item>
+
+          {/* Категория */}
+          <Form.Item name="categoryId" label="Категория">
+            <Select placeholder="Выберите категорию">
+              <Option value="">Без категории</Option>
+              {validCategories.map((category) => (
+                <Option key={category.id} value={category.id}>
+                  {category.name}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          {/* Цена продажи */}
+          <Form.Item
+            name="sellingPrice"
+            label="Цена продажи"
+            rules={[{ required: true, message: 'Введите цену продажи' }]}
           >
-            <XIcon className="h-6 w-6" />
-          </button>
+            <InputNumber
+              placeholder="0.00"
+              min={0}
+              step={0.01}
+              style={{ width: '100%' }}
+              addonAfter="₸"
+            />
+          </Form.Item>
+
+          {/* Закупочная цена */}
+          <Form.Item
+            name="purchasePrice"
+            label="Закупочная цена"
+            rules={[{ required: true, message: 'Введите закупочную цену' }]}
+          >
+            <InputNumber
+              placeholder="0.00"
+              min={0}
+              step={0.01}
+              style={{ width: '100%' }}
+              addonAfter="₸"
+            />
+          </Form.Item>
+
+          {/* Количество */}
+          <Form.Item
+            name="quantity"
+            label="Количество"
+            rules={[{ required: true, message: 'Введите количество' }]}
+          >
+            <InputNumber placeholder="0" min={0} style={{ width: '100%' }} />
+          </Form.Item>
+
+          {/* Минимальное количество */}
+          <Form.Item
+            name="minQuantity"
+            label="Минимальное количество"
+            rules={[
+              { required: true, message: 'Введите минимальное количество' },
+            ]}
+          >
+            <InputNumber placeholder="0" min={0} style={{ width: '100%' }} />
+          </Form.Item>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Название
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
+        {/* Штрихкод */}
+        <Form.Item name="barcode" label="Штрихкод">
+          <Input placeholder="Введите штрихкод товара" />
+        </Form.Item>
 
-            <div>
-              <label
-                htmlFor="sku"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Артикул
-              </label>
-              <input
-                type="text"
-                id="sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
+        {/* Описание */}
+        <Form.Item name="description" label="Описание">
+          <TextArea placeholder="Введите описание товара" rows={3} />
+        </Form.Item>
 
-            <div>
-              <label
-                htmlFor="categoryId"
-                className="block text-sm font-medium text-gray-700"
+        {/* Кнопки действий */}
+        <Form.Item>
+          <div className="flex justify-end mt-4">
+            <Space>
+              <Button onClick={onClose}>Отмена</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={createMutation.isPending || updateMutation.isPending}
+                style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
               >
-                Категория
-              </label>
-              <select
-                id="categoryId"
-                name="categoryId"
-                value={formData.categoryId || ''}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              >
-                <option value="">Без категории</option>
-                {validCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="sellingPrice"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Цена продажи
-              </label>
-              <input
-                type="number"
-                id="sellingPrice"
-                name="sellingPrice"
-                value={formData.sellingPrice}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="purchasePrice"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Закупочная цена
-              </label>
-              <input
-                type="number"
-                id="purchasePrice"
-                name="purchasePrice"
-                value={formData.purchasePrice}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="quantity"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Количество
-              </label>
-              <input
-                type="number"
-                id="quantity"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                required
-                min="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="minQuantity"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Минимальное количество
-              </label>
-              <input
-                type="number"
-                id="minQuantity"
-                name="minQuantity"
-                value={formData.minQuantity}
-                onChange={handleChange}
-                required
-                min="0"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="barcode"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Штрихкод
-              </label>
-              <input
-                type="text"
-                id="barcode"
-                name="barcode"
-                value={formData.barcode}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              />
-            </div>
+                {product ? 'Сохранить' : 'Создать'}
+              </Button>
+            </Space>
           </div>
-
-          <div>
-            <label
-              htmlFor="description"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Описание
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              {product ? 'Сохранить' : 'Создать'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 }
