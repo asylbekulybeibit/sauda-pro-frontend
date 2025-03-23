@@ -1561,3 +1561,48 @@ export const createPurchaseWithoutSupplier = async (
     throw error;
   }
 };
+
+// Employees (Service Staff) API
+export const getEmployees = async (shopId: string) => {
+  const { data } = await api.get(`/manager/employees/shop/${shopId}`);
+  return data;
+};
+
+export const getActiveEmployees = async (shopId: string) => {
+  const { data } = await api.get(`/manager/employees/shop/${shopId}/active`);
+  return data;
+};
+
+export const getEmployee = async (shopId: string, employeeId: string) => {
+  const { data } = await api.get(
+    `/manager/employees/shop/${shopId}/${employeeId}`
+  );
+  return data;
+};
+
+export const createEmployee = async (shopId: string, employeeData: any) => {
+  const { data } = await api.post(
+    `/manager/employees/shop/${shopId}`,
+    employeeData
+  );
+  return data;
+};
+
+export const updateEmployee = async (
+  shopId: string,
+  employeeId: string,
+  employeeData: any
+) => {
+  const { data } = await api.patch(
+    `/manager/employees/shop/${shopId}/${employeeId}`,
+    employeeData
+  );
+  return data;
+};
+
+export const removeEmployee = async (shopId: string, employeeId: string) => {
+  const { data } = await api.delete(
+    `/manager/employees/shop/${shopId}/${employeeId}`
+  );
+  return data;
+};
