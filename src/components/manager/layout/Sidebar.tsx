@@ -14,6 +14,7 @@ import {
   TruckIcon,
   CurrencyDollarIcon,
   UserIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { Disclosure } from '@headlessui/react';
 
@@ -125,6 +126,19 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       href: `/manager/${shopId}/invites`,
       icon: UserPlusIcon,
       color: 'bg-pink-100 text-pink-600',
+    },
+    {
+      name: 'Услуги',
+      icon: WrenchScrewdriverIcon,
+      color: 'bg-teal-100 text-teal-600',
+      children: [
+        { name: 'Типы услуг', href: `/manager/${shopId}/services/types` },
+        {
+          name: 'Автомобили клиентов',
+          href: `/manager/${shopId}/services/vehicles`,
+        },
+        { name: 'История услуг', href: `/manager/${shopId}/services/history` },
+      ],
     },
     {
       name: 'Маркетинг',

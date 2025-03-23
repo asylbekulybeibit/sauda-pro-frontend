@@ -105,6 +105,17 @@ const ProductPriceHistoryPage = React.lazy(
   () => import('./pages/manager/prices/ProductPriceHistoryPage')
 );
 
+// Страницы для услуг
+const ServiceTypesPage = React.lazy(
+  () => import('./pages/manager/services/ServiceTypesPage')
+);
+const ClientVehiclesPage = React.lazy(
+  () => import('./pages/manager/services/ClientVehiclesPage')
+);
+const ServiceHistoryPage = React.lazy(
+  () => import('./pages/manager/services/ServiceHistoryPage')
+);
+
 // Use regular relative imports
 const PurchaseFormPage = React.lazy(
   () => import('./pages/manager/warehouse/PurchaseFormPage')
@@ -270,6 +281,11 @@ export default function App() {
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="clients" element={<ClientsPage />} />
                   <Route path="invites" element={<ManagerInvitesPage />} />
+                  <Route path="services">
+                    <Route path="types" element={<ServiceTypesPage />} />
+                    <Route path="vehicles" element={<ClientVehiclesPage />} />
+                    <Route path="history" element={<ServiceHistoryPage />} />
+                  </Route>
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />
                   <Route path="analytics">
