@@ -107,13 +107,13 @@ const ProductPriceHistoryPage = React.lazy(
 
 // Страницы для услуг
 const ServiceTypesPage = React.lazy(
-  () => import('./pages/manager/services/ServiceTypesPage')
+  () => import('./pages/manager/services/servicetypes/ServiceTypesPage')
 );
 const ClientVehiclesPage = React.lazy(
-  () => import('./pages/manager/services/ClientVehiclesPage')
+  () => import('./pages/manager/services/vehicles/ClientVehiclesPage')
 );
 const ServiceHistoryPage = React.lazy(
-  () => import('./pages/manager/services/ServiceHistoryPage')
+  () => import('./pages/manager/services/history/ServiceHistoryPage')
 );
 
 // Use regular relative imports

@@ -49,6 +49,33 @@ export const formatNumber = (number: number) => {
 };
 
 /**
+ * Форматирует число как денежное значение без указания валюты
+ * @param value Число для форматирования
+ * @returns Отформатированная строка с числом
+ */
+export const formatCurrency = (value: number | string | null | undefined) => {
+  // Проверка на null/undefined
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  // Преобразуем строку в число при необходимости
+  let numValue = typeof value === 'string' ? parseFloat(value) : value;
+
+  // Проверка на NaN
+  if (isNaN(numValue)) {
+    return '—';
+  }
+
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'KZT',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numValue);
+};
+
+/**
  * Возвращает относительное время, прошедшее с указанной даты
  * @param date Дата для которой нужно вычислить относительное время
  * @returns Строка вида "2 дня назад", "только что", "3 месяца назад" и т.д.
