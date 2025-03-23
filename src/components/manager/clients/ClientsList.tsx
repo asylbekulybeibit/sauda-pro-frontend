@@ -122,6 +122,11 @@ export function ClientsList({ shopId }: ClientsListProps) {
   const handleFormSubmit = (values: any) => {
     const formattedValues = {
       ...values,
+      // Проверяем, что discountPercent - это число
+      discountPercent:
+        typeof values.discountPercent === 'number'
+          ? values.discountPercent
+          : parseFloat(String(values.discountPercent).replace('%', '')),
     };
 
     if (isEditMode && currentClient) {
@@ -291,6 +296,12 @@ export function ClientsList({ shopId }: ClientsListProps) {
                 min: 0,
                 max: 100,
                 message: 'Скидка должна быть от 0 до 100%',
+                transform: (value) => {
+                  if (typeof value === 'string') {
+                    return parseFloat(value.replace('%', ''));
+                  }
+                  return value;
+                },
               },
             ]}
           >
@@ -300,8 +311,9 @@ export function ClientsList({ shopId }: ClientsListProps) {
               step={1}
               formatter={(value) => `${value}%`}
               parser={(value) => {
-                const parsed = parseInt(value?.replace('%', '') || '0');
-                return parsed >= 0 && parsed <= 100 ? (parsed as any) : 0;
+                if (!value) return 0;
+                const parsed = parseFloat(value.replace('%', ''));
+                return isNaN(parsed) ? 0 : (parsed as any);
               }}
               style={{ width: '100%' }}
             />
