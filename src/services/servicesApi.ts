@@ -114,7 +114,9 @@ export const removeVehicle = async (
   shopId: string,
   id: string
 ): Promise<void> => {
-  const { data } = await api.delete(`/manager/vehicles/shop/${shopId}/${id}`);
+  const { data } = await api.patch(
+    `/manager/vehicles/shop/${shopId}/${id}/soft-remove`
+  );
   return data;
 };
 

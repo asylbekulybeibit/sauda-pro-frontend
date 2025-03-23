@@ -1,7 +1,7 @@
 export interface Vehicle {
   id: string;
   shopId: string;
-  clientId: string;
+  clientId?: string;
   make: string;
   model?: string;
   year?: number;
@@ -9,12 +9,13 @@ export interface Vehicle {
   engineVolume?: number;
   licensePlate: string;
   vin?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateVehicleDto {
-  clientId: string;
+  clientId?: string;
   make: string;
   model?: string;
   year?: number;
@@ -33,4 +34,5 @@ export interface UpdateVehicleDto {
   engineVolume?: number;
   licensePlate?: string;
   vin?: string;
+  isActive?: boolean;
 }

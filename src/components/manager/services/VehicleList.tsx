@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Table,
@@ -12,6 +12,7 @@ import {
   message,
   Select,
   Tag,
+  Checkbox,
 } from 'antd';
 import {
   EditOutlined,
@@ -53,6 +54,9 @@ export function VehicleList({ shopId }: VehicleListProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentVehicle, setCurrentVehicle] = useState<Vehicle | null>(null);
   const [form] = Form.useForm();
+
+  // Состояние для отслеживания статуса чекбокса "Без гос. номера"
+  const isWithoutLicensePlate = Form.useWatch('isWithoutLicensePlate', form);
 
   // Загрузка списка автомобилей
   const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
@@ -130,6 +134,10 @@ export function VehicleList({ shopId }: VehicleListProps) {
   const handleEditVehicle = (vehicle: Vehicle) => {
     setIsEditMode(true);
     setCurrentVehicle(vehicle);
+
+    // Определяем, является ли номер "Б/Н" (без номера)
+    const isWithoutLicensePlate = vehicle.licensePlate === 'Б/Н';
+
     form.setFieldsValue({
       clientId: vehicle.clientId,
       make: vehicle.make,
@@ -139,14 +147,26 @@ export function VehicleList({ shopId }: VehicleListProps) {
       engineVolume: vehicle.engineVolume,
       licensePlate: vehicle.licensePlate,
       vin: vehicle.vin,
+      isWithoutLicensePlate: isWithoutLicensePlate,
     });
+
     setIsModalVisible(true);
   };
 
   // Обработчик подтверждения формы
   const handleFormSubmit = (values: any) => {
+    // Обрабатываем случай "Без гос. номера"
+    if (
+      values.isWithoutLicensePlate &&
+      (!values.licensePlate || values.licensePlate === '')
+    ) {
+      values.licensePlate = 'Б/Н';
+    }
+
     const formattedValues = {
       ...values,
+      // Обработка пустого значения clientId
+      clientId: values.clientId || null,
       // Учитываем, что model может быть пустым
       model: values.model || null,
       // Учитываем, что engineVolume может быть пустым или нужно преобразовать в число
@@ -168,8 +188,9 @@ export function VehicleList({ shopId }: VehicleListProps) {
   };
 
   // Получение информации о клиенте по id
-  const getClientInfo = (clientId: string) => {
-    if (!clients) return { name: '-', discount: 0 };
+  const getClientInfo = (clientId?: string) => {
+    if (!clientId) return { name: 'Без владельца', discount: 0, phone: '' };
+    if (!clients) return { name: '-', discount: 0, phone: '' };
     const client = clients.find((c: Client) => c.id === clientId);
     return {
       name: client ? `${client.lastName} ${client.firstName}` : '-',
@@ -184,7 +205,7 @@ export function VehicleList({ shopId }: VehicleListProps) {
       title: 'Владелец',
       dataIndex: 'clientId',
       key: 'clientId',
-      render: (clientId: string) => {
+      render: (clientId?: string) => {
         const clientInfo = getClientInfo(clientId);
         return (
           <div>
@@ -192,7 +213,9 @@ export function VehicleList({ shopId }: VehicleListProps) {
             {clientInfo.discount > 0 && (
               <Tag color="green">Скидка: {clientInfo.discount}%</Tag>
             )}
-            <div className="text-xs text-gray-500">{clientInfo.phone}</div>
+            {clientInfo.phone && (
+              <div className="text-xs text-gray-500">{clientInfo.phone}</div>
+            )}
           </div>
         );
       },
@@ -229,6 +252,12 @@ export function VehicleList({ shopId }: VehicleListProps) {
       title: 'Гос. номер',
       dataIndex: 'licensePlate',
       key: 'licensePlate',
+      render: (licensePlate: string) => {
+        if (licensePlate === 'Б/Н') {
+          return <Tag color="orange">Без номера</Tag>;
+        }
+        return licensePlate;
+      },
     },
     {
       title: 'Дата регистрации',
@@ -291,24 +320,27 @@ export function VehicleList({ shopId }: VehicleListProps) {
         footer={null}
         width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
-          <Form.Item
-            label="Владелец"
-            name="clientId"
-            rules={[{ required: true, message: 'Выберите владельца' }]}
-          >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleFormSubmit}
+          initialValues={{ isWithoutLicensePlate: false }}
+        >
+          <Form.Item label="Владелец" name="clientId">
             <Select
               placeholder="Выберите клиента"
               loading={isLoadingClients}
               optionFilterProp="children"
               showSearch
+              allowClear
               filterOption={(input, option: any) =>
                 (option?.label as string)
                   ?.toLowerCase()
                   .indexOf(input.toLowerCase()) >= 0
               }
-              options={
-                clients?.map((client: Client) => ({
+              options={[
+                { value: '', label: 'Без владельца' },
+                ...(clients?.map((client: Client) => ({
                   value: client.id,
                   label: `${client.lastName} ${client.firstName} (${
                     client.phone
@@ -317,8 +349,8 @@ export function VehicleList({ shopId }: VehicleListProps) {
                       ? ` - Скидка: ${client.discountPercent}%`
                       : ''
                   }`,
-                })) || []
-              }
+                })) || []),
+              ]}
             />
           </Form.Item>
 
@@ -371,15 +403,36 @@ export function VehicleList({ shopId }: VehicleListProps) {
               />
             </Form.Item>
 
-            <Form.Item
-              label="Гос. номер"
-              name="licensePlate"
-              rules={[
-                { required: true, message: 'Введите гос. номер автомобиля' },
-              ]}
-            >
-              <Input />
-            </Form.Item>
+            <div>
+              <Form.Item
+                label="Гос. номер"
+                name="licensePlate"
+                rules={[
+                  { required: true, message: 'Введите гос. номер автомобиля' },
+                ]}
+                className="mb-0"
+              >
+                <Input disabled={isWithoutLicensePlate} />
+              </Form.Item>
+
+              <Form.Item
+                name="isWithoutLicensePlate"
+                valuePropName="checked"
+                className="mt-1"
+              >
+                <Checkbox
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      form.setFieldsValue({ licensePlate: 'Б/Н' });
+                    } else {
+                      form.setFieldsValue({ licensePlate: '' });
+                    }
+                  }}
+                >
+                  Без гос. номера
+                </Checkbox>
+              </Form.Item>
+            </div>
           </div>
 
           <Form.Item label="VIN-номер" name="vin">

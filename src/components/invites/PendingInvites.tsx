@@ -50,21 +50,11 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
   };
 
   const handleAccept = () => {
-    if (
-      window.confirm(
-        'Принять приглашение? Вы получите доступ к указанному проекту.'
-      )
-    ) {
-      acceptMutation.mutate();
-    }
+    acceptMutation.mutate();
   };
 
   const handleReject = () => {
-    if (
-      window.confirm('Отклонить приглашение? Это действие нельзя отменить.')
-    ) {
-      rejectMutation.mutate();
-    }
+    rejectMutation.mutate();
   };
 
   return (
