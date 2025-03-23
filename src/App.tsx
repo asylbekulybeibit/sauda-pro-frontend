@@ -65,6 +65,9 @@ const LabelsPage = React.lazy(
 const ManagerInvitesPage = React.lazy(
   () => import('./pages/manager/invites/ManagerInvitesPage')
 );
+const ClientsPage = React.lazy(
+  () => import('./pages/manager/clients/ClientsPage')
+);
 const TransfersPage = React.lazy(
   () => import('./pages/manager/warehouse/TransfersPage')
 );
@@ -265,6 +268,7 @@ export default function App() {
                   <Route path="sales" element={<SalesPage />} />
                   <Route path="sales/returns" element={<ReturnsPage />} />
                   <Route path="staff" element={<StaffPage />} />
+                  <Route path="clients" element={<ClientsPage />} />
                   <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="promotions" element={<PromotionsPage />} />
                   <Route path="labels" element={<LabelsPage />} />

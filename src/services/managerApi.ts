@@ -1606,3 +1606,46 @@ export const removeEmployee = async (shopId: string, employeeId: string) => {
   );
   return data;
 };
+
+// Clients API
+export const getClients = async (shopId: string) => {
+  const { data } = await api.get(`/manager/clients/shop/${shopId}`);
+  return data;
+};
+
+export const getActiveClients = async (shopId: string) => {
+  const { data } = await api.get(`/manager/clients/shop/${shopId}/active`);
+  return data;
+};
+
+export const getClient = async (shopId: string, clientId: string) => {
+  const { data } = await api.get(`/manager/clients/shop/${shopId}/${clientId}`);
+  return data;
+};
+
+export const createClient = async (shopId: string, clientData: any) => {
+  const { data } = await api.post(
+    `/manager/clients/shop/${shopId}`,
+    clientData
+  );
+  return data;
+};
+
+export const updateClient = async (
+  shopId: string,
+  clientId: string,
+  clientData: any
+) => {
+  const { data } = await api.patch(
+    `/manager/clients/shop/${shopId}/${clientId}`,
+    clientData
+  );
+  return data;
+};
+
+export const removeClient = async (shopId: string, clientId: string) => {
+  const { data } = await api.delete(
+    `/manager/clients/shop/${shopId}/${clientId}`
+  );
+  return data;
+};

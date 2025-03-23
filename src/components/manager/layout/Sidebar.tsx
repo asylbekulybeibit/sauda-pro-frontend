@@ -13,6 +13,7 @@ import {
   ArchiveBoxIcon,
   TruckIcon,
   CurrencyDollarIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline';
 import { Disclosure } from '@headlessui/react';
 
@@ -112,6 +113,12 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       href: `/manager/${shopId}/staff`,
       icon: UsersIcon,
       color: 'bg-orange-100 text-orange-600',
+    },
+    {
+      name: 'Клиенты',
+      href: `/manager/${shopId}/clients`,
+      icon: UserIcon,
+      color: 'bg-blue-100 text-blue-600',
     },
     {
       name: 'Приглашения',
