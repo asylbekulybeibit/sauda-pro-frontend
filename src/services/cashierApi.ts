@@ -656,3 +656,37 @@ export const createVehicle = async (
     throw handleApiError(error, 'Не удалось создать автомобиль');
   }
 };
+
+/**
+ * Получение всех автомобилей магазина
+ */
+export const getAllVehicles = async (shopId: string): Promise<any[]> => {
+  try {
+    console.log('[cashierApi] Fetching all vehicles for shop:', shopId);
+    console.log(
+      '[cashierApi] Request URL:',
+      `/manager/${shopId}/cashier/vehicles`
+    );
+
+    const { data } = await api.get(`/manager/${shopId}/cashier/vehicles`);
+    console.log('[cashierApi] All vehicles fetched successfully:', data);
+
+    // Преобразуем данные, чтобы добавить информацию о клиенте для отображения
+    const vehiclesWithClientInfo = data.map((vehicle: any) => ({
+      ...vehicle,
+      clientName: vehicle.client
+        ? `${vehicle.client.lastName} ${vehicle.client.firstName}`
+        : undefined,
+      clientId: vehicle.client ? vehicle.client.id : undefined, // Добавляем ID клиента если он есть
+    }));
+
+    return vehiclesWithClientInfo;
+  } catch (error) {
+    console.error('[cashierApi] Error fetching all vehicles:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[cashierApi] Response status:', error.response?.status);
+      console.error('[cashierApi] Response data:', error.response?.data);
+    }
+    throw handleApiError(error, 'Не удалось получить список автомобилей');
+  }
+};
