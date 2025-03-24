@@ -24,7 +24,7 @@ import {
   UserOutlined,
   CarOutlined,
   TagOutlined,
-  ClockOutlined,
+  FieldTimeOutlined,
   CommentOutlined,
 } from '@ant-design/icons';
 import { createService } from '@/services/cashierApi';
@@ -348,7 +348,7 @@ const ConfirmOrder: React.FC = () => {
 
         <Card className="mb-6">
           <Title level={5} className="flex items-center mb-4">
-            <ClockOutlined className="mr-2" /> Информация о заказе
+            <FieldTimeOutlined className="mr-2" /> Информация о заказе
           </Title>
           <Row gutter={[16, 16]}>
             <Col span={24} md={12}>

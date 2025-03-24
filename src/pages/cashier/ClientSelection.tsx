@@ -275,7 +275,8 @@ const ClientSelection: React.FC = () => {
                 optionFilterProp="children"
                 onChange={handleClientSelect}
                 filterOption={(input, option) =>
-                  option?.label?.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  typeof option?.label === 'string' &&
+                  option.label.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }
                 notFoundContent={
                   error ? (
@@ -321,11 +322,12 @@ const ClientSelection: React.FC = () => {
                 <Text strong>Выбранный клиент: </Text>
                 <Text>{`${selectedClient.lastName} ${selectedClient.firstName}`}</Text>
               </div>
-              {selectedClient.discountPercent > 0 && (
-                <Text type="success">
-                  Скидка: {selectedClient.discountPercent}%
-                </Text>
-              )}
+              {selectedClient.discountPercent !== undefined &&
+                selectedClient.discountPercent > 0 && (
+                  <Text type="success">
+                    Скидка: {selectedClient.discountPercent}%
+                  </Text>
+                )}
             </div>
             <div>
               <Text type="secondary">Телефон: {selectedClient.phone}</Text>

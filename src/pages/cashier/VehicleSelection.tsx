@@ -113,6 +113,9 @@ const VehicleSelection: React.FC = () => {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
+  // Добавляем новое состояние, чтобы отслеживать ситуацию, когда клиент был пропущен, а автомобиль привязан к клиенту
+  const [skipClient, setSkipClient] = useState<boolean>(false);
+
   // Загрузка всех автомобилей магазина
   useEffect(() => {
     const fetchAllVehicles = async () => {
@@ -151,59 +154,47 @@ const VehicleSelection: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Проверяем, был ли клиент выбран через автомобиль
-        const clientSelectedViaVehicle =
-          localStorage.getItem('clientSelectedViaVehicle') === 'true';
+        // Если есть выбранный автомобиль из селекта (handleVehicleSelectFromDropdown),
+        // показываем только его, независимо от того, есть ли у него привязка к клиенту
+        if (selectedVehicle && skipClient) {
+          setVehicles([selectedVehicle]);
+        }
+        // Если клиент выбран явно (через страницу выбора клиента)
+        else if (selectedClient && !skipClient) {
+          try {
+            // Загружаем все автомобили клиента
+            const vehiclesData = await getClientVehicles(
+              selectedClient.id,
+              shopId || ''
+            );
 
-        if (selectedClient) {
-          // Если клиент был выбран через автомобиль из селекта и есть выбранный автомобиль,
-          // показываем только этот автомобиль, а не все автомобили клиента
-          if (clientSelectedViaVehicle && selectedVehicle) {
-            // Очищаем флаг после использования
-            localStorage.removeItem('clientSelectedViaVehicle');
-            // Не загружаем все автомобили клиента, оставляем только выбранный автомобиль
-            setVehicles([selectedVehicle]);
-          } else {
-            // В противном случае загружаем все автомобили клиента
-            try {
-              // Если есть выбранный клиент, загружаем его автомобили
-              const vehiclesData = await getClientVehicles(
-                selectedClient.id,
-                shopId || ''
+            // Когда клиент выбран заранее, показываем все его автомобили
+            setVehicles(vehiclesData);
+
+            // Если выбрали клиента, очищаем неприязанные автомобили
+            setUnlinkedVehicles([]);
+          } catch (err) {
+            // Если получаем ошибку доступа (403), показываем более дружественное сообщение
+            console.error('Ошибка при загрузке автомобилей:', err);
+
+            if (axios.isAxiosError(err) && err.response?.status === 403) {
+              setError(
+                'У вас нет прав для просмотра автомобилей этого клиента. Вы можете добавить новый автомобиль.'
               );
-
-              // Когда клиент выбран заранее, всегда показываем все его автомобили
-              // и не скрываем их при выборе одного из них
-              setVehicles(vehiclesData);
-
-              // Если выбрали клиента, очищаем неприязанные автомобили
-              setUnlinkedVehicles([]);
-            } catch (err) {
-              // Если получаем ошибку доступа (403), показываем более дружественное сообщение
-              console.error('Ошибка при загрузке автомобилей:', err);
-
-              if (axios.isAxiosError(err) && err.response?.status === 403) {
-                setError(
-                  'У вас нет прав для просмотра автомобилей этого клиента. Вы можете добавить новый автомобиль.'
-                );
-              } else {
-                setError(
-                  'Не удалось загрузить список автомобилей. Пожалуйста, попробуйте позже или добавьте новый автомобиль.'
-                );
-              }
-              // Устанавливаем пустой список автомобилей, чтобы пользователь мог продолжить
-              setVehicles([]);
+            } else {
+              setError(
+                'Не удалось загрузить список автомобилей. Пожалуйста, попробуйте позже или добавьте новый автомобиль.'
+              );
             }
-          }
-        } else {
-          // Если клиент не выбран, устанавливаем пустой список автомобилей
-          // но если есть выбранный автомобиль, показываем только его
-          if (selectedVehicle) {
-            setVehicles([selectedVehicle]);
-          } else {
+            // Устанавливаем пустой список автомобилей, чтобы пользователь мог продолжить
             setVehicles([]);
           }
-          // Можно здесь добавить загрузку непривязанных автомобилей, если это разрешено API
+        } else if (!selectedClient && selectedVehicle) {
+          // Если клиент не выбран, но выбран автомобиль, показываем только его
+          setVehicles([selectedVehicle]);
+        } else {
+          // Если ни клиент, ни автомобиль не выбраны, устанавливаем пустой список
+          setVehicles([]);
         }
       } finally {
         setLoading(false);
@@ -211,7 +202,35 @@ const VehicleSelection: React.FC = () => {
     };
 
     fetchVehicles();
-  }, [selectedClient, shopId, selectedVehicle]);
+  }, [selectedClient, shopId, selectedVehicle, skipClient]);
+
+  // Загрузка данных из localStorage - модифицируем существующий useEffect
+  useEffect(() => {
+    // Загружаем выбранную услугу
+    const storedService = localStorage.getItem('selectedService');
+    if (storedService) {
+      try {
+        setSelectedService(JSON.parse(storedService));
+      } catch (e) {
+        console.error('Ошибка при чтении выбранной услуги:', e);
+      }
+    }
+
+    // Загружаем выбранного клиента
+    const storedClient = localStorage.getItem('selectedClient');
+    if (storedClient) {
+      try {
+        setSelectedClient(JSON.parse(storedClient));
+        // Клиент не был пропущен
+        setSkipClient(false);
+      } catch (e) {
+        console.error('Ошибка при чтении выбранного клиента:', e);
+      }
+    } else {
+      // Если клиент не был выбран (пропущен), устанавливаем флаг skipClient
+      setSkipClient(true);
+    }
+  }, []);
 
   // Обработчик выбора автомобиля из селекта
   const handleVehicleSelectFromDropdown = async (vehicleId: string) => {
@@ -239,15 +258,20 @@ const VehicleSelection: React.FC = () => {
               discountPercent: clientData.discountPercent,
             };
 
-            // Устанавливаем выбранного клиента
+            // Устанавливаем выбранного клиента, но только для внутреннего использования
             setSelectedClient(client);
 
-            // Сохраняем выбранного клиента в localStorage
-            localStorage.setItem('selectedClient', JSON.stringify(client));
+            // ВАЖНО: Сохраняем флаг skipClient как true, чтобы:
+            // 1. Селект оставался видимым даже после установки selectedClient
+            // 2. Отображался только выбранный автомобиль, а не все автомобили клиента
+            setSkipClient(true);
 
-            // Критическое изменение: Устанавливаем флаг, чтобы показать только
-            // выбранный автомобиль, а не все автомобили клиента
-            localStorage.setItem('clientSelectedViaVehicle', 'true');
+            // Не сохраняем клиента в localStorage, чтобы на следующем шаге
+            // он не был считан как выбранный пользователем
+            localStorage.removeItem('selectedClient');
+
+            // Устанавливаем только выбранный автомобиль для отображения
+            setVehicles([vehicle]);
           }
         } catch (error) {
           console.error('Ошибка при получении данных клиента:', error);
@@ -259,62 +283,58 @@ const VehicleSelection: React.FC = () => {
       } else if (!selectedClient) {
         // Если клиент не выбран и у автомобиля нет клиента, просто обновляем UI
         setVehicles([vehicle]);
+      } else {
+        // Если клиент уже выбран, всё равно показываем только выбранный автомобиль
+        setSelectedVehicle(vehicle);
       }
-      // Если клиент уже выбран, не меняем список автомобилей, просто обновляем выбранный
     }
   };
 
-  // Функция для отображения опции автомобиля в селекте
-  const renderVehicleOption = (vehicle: Vehicle) => {
-    const title = `${vehicle.make} ${vehicle.model} ${
-      vehicle.year ? `(${vehicle.year})` : ''
-    } - ${vehicle.licensePlate}`;
-    const description = vehicle.clientName
-      ? `Клиент: ${vehicle.clientName}`
-      : 'Без привязки к клиенту';
+  // Модифицируем renderVehicleOption, чтобы он возвращал строку для совместимости с label
+  const getVehicleDisplayText = (vehicle: Vehicle): string => {
+    let displayText = `${vehicle.make} ${vehicle.model}`;
 
-    // Сохраняем ID клиента, если есть привязка
-    if (vehicle.clientName && !vehicle.clientId) {
-      // Если в данных есть имя клиента, но нет ID,
-      // можно попробовать извлечь ID из других структур данных или сделать дополнительный запрос
-      // Это упрощенная реализация
+    if (vehicle.licensePlate) {
+      displayText += ` - ${vehicle.licensePlate}`;
     }
 
+    if (vehicle.clientId) {
+      displayText += ` (Клиент: ${vehicle.clientName || 'Привязан'})`;
+    } else {
+      displayText += ' (Без привязки)';
+    }
+
+    return displayText;
+  };
+
+  // Оставляем renderVehicleOption для обратной совместимости
+  const renderVehicleOption = (vehicle: Vehicle) => {
     return (
-      <Option key={vehicle.id} value={vehicle.id}>
-        <div className="flex items-center">
-          <CarOutlined className="mr-2" />
+      <div key={vehicle.id} className="flex justify-between">
+        <div>
           <div>
-            <div className="font-medium">{title}</div>
-            <div className="text-xs text-gray-500">{description}</div>
+            <Text strong>
+              {vehicle.make} {vehicle.model}
+            </Text>
+            {vehicle.year && <Text> ({vehicle.year})</Text>}
+            <Tag color="blue">{vehicle.licensePlate}</Tag>
+          </div>
+          <div className="text-gray-500 text-sm">
+            {vehicle.bodyType && `Кузов: ${vehicle.bodyType}`}
+            {vehicle.engineVolume && `, Двигатель: ${vehicle.engineVolume} л`}
+            {vehicle.color && `, Цвет: ${vehicle.color}`}
           </div>
         </div>
-      </Option>
+        <div>
+          {vehicle.clientId ? (
+            <Tag color="green">{vehicle.clientName || 'Клиент'}</Tag>
+          ) : (
+            <Tag color="orange">Без привязки</Tag>
+          )}
+        </div>
+      </div>
     );
   };
-
-  // Загрузка данных из localStorage
-  useEffect(() => {
-    // Загружаем выбранную услугу
-    const storedService = localStorage.getItem('selectedService');
-    if (storedService) {
-      try {
-        setSelectedService(JSON.parse(storedService));
-      } catch (e) {
-        console.error('Ошибка при чтении выбранной услуги:', e);
-      }
-    }
-
-    // Загружаем выбранного клиента
-    const storedClient = localStorage.getItem('selectedClient');
-    if (storedClient) {
-      try {
-        setSelectedClient(JSON.parse(storedClient));
-      } catch (e) {
-        console.error('Ошибка при чтении выбранного клиента:', e);
-      }
-    }
-  }, []);
 
   // Обработчик возврата к выбору клиента
   const handleBack = () => {
@@ -692,7 +712,7 @@ const VehicleSelection: React.FC = () => {
         </Card>
 
         {/* Селект для выбора автомобиля из всех доступных - только если клиент НЕ выбран */}
-        {!selectedClient && (
+        {(skipClient || !selectedClient) && (
           <div className="mb-4">
             <Card>
               <div className="mb-2">
@@ -700,28 +720,31 @@ const VehicleSelection: React.FC = () => {
                   Выберите автомобиль из всех доступных в магазине:
                 </Text>
                 <p className="text-gray-500 text-sm mt-1">
-                  Так как клиент не выбран, вы можете использовать любой
-                  автомобиль из базы магазина
+                  Если автомобиль принадлежит клиенту, будет загружена
+                  информация о клиенте.
                 </p>
               </div>
               <Select
                 showSearch
-                style={{ width: '100%' }}
-                placeholder="Поиск автомобиля по марке, модели или номеру"
+                placeholder="Введите номер или данные автомобиля..."
                 optionFilterProp="children"
+                value={selectedVehicle ? selectedVehicle.id : undefined}
                 onChange={handleVehicleSelectFromDropdown}
-                value={selectedVehicle?.id}
-                loading={loadingAllVehicles}
-                filterOption={(input, option: any) => {
-                  const children = option.children as React.ReactElement;
-                  return children.props.children[1].props.children[0].props.children
+                filterOption={(input, option) => {
+                  if (!option?.label || typeof option.label !== 'string') {
+                    return false;
+                  }
+                  return option.label
                     .toLowerCase()
                     .includes(input.toLowerCase());
                 }}
-                size="large"
-              >
-                {allShopVehicles.map(renderVehicleOption)}
-              </Select>
+                options={allShopVehicles.map((vehicle) => ({
+                  value: vehicle.id,
+                  label: getVehicleDisplayText(vehicle),
+                }))}
+                style={{ width: '100%' }}
+                loading={loading}
+              />
             </Card>
           </div>
         )}
