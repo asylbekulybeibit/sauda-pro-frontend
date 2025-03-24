@@ -42,6 +42,8 @@ export default function ProfilePage() {
       });
       if (role.type === RoleType.OWNER) {
         navigate(`/owner/${role.shop.id}`);
+      } else if (role.type === RoleType.CASHIER) {
+        navigate(`/cashier/${role.shop.id}`);
       } else {
         navigate(`/manager/${role.shop.id}`);
       }

@@ -125,6 +125,32 @@ const PurchaseDetailsPage = React.lazy(
   () => import('./pages/manager/warehouse/PurchaseDetailsPage')
 );
 
+// Ленивая загрузка компонентов кассира
+// Комментируем импорты, которые вызывают ошибки
+const CashierLayout = React.lazy(() => import('./pages/cashier/CashierLayout'));
+const CashRegisterSelection = React.lazy(
+  () => import('./pages/cashier/CashRegisterSelection')
+);
+const ServiceTypeSelection = React.lazy(
+  () => import('./pages/cashier/ServiceTypeSelection')
+);
+const ServiceSelection = React.lazy(
+  () => import('./pages/cashier/ServiceSelection')
+);
+const ClientSelection = React.lazy(
+  () => import('./pages/cashier/ClientSelection')
+);
+const VehicleSelection = React.lazy(
+  () => import('./pages/cashier/VehicleSelection')
+);
+const ConfirmOrder = React.lazy(() => import('./pages/cashier/ConfirmOrder'));
+const ShiftHistory = React.lazy(() => import('./pages/cashier/ShiftHistory'));
+const CloseShift = React.lazy(() => import('./pages/cashier/CloseShift'));
+const ShiftDetails = React.lazy(() => import('./pages/cashier/ShiftDetails'));
+const ReceiptDetails = React.lazy(
+  () => import('./pages/cashier/ReceiptDetails')
+);
+
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
   const location = useLocation();
@@ -326,6 +352,55 @@ export default function App() {
                       element={<ProductPriceHistoryPage />}
                     />
                   </Route>
+                </Route>
+
+                {/* Панель кассира */}
+                <Route
+                  path="/cashier/:shopId"
+                  element={
+                    <RoleGuard allowedRoles={[RoleType.CASHIER]}>
+                      <CashierLayout />
+                    </RoleGuard>
+                  }
+                >
+                  {/* Основной маршрут - страница выбора кассы */}
+                  <Route index element={<CashRegisterSelection />} />
+
+                  {/* Удаляем дашборд */}
+                  {/* <Route path="dashboard" element={<CashierDashboard />} /> */}
+
+                  {/* Оставляем остальные нужные маршруты */}
+                  <Route
+                    path="select-type"
+                    element={<ServiceTypeSelection />}
+                  />
+                  <Route path="shift-history" element={<ShiftHistory />} />
+                  <Route path="close-shift" element={<CloseShift />} />
+                  <Route path="close-shift/:shiftId" element={<CloseShift />} />
+                  <Route path="shift/:shiftId" element={<ShiftDetails />} />
+                  <Route
+                    path="receipt/:receiptId"
+                    element={<ReceiptDetails />}
+                  />
+
+                  {/* Новые маршруты для меню услуг */}
+                  <Route path="select-service" element={<ServiceSelection />} />
+                  <Route path="select-client" element={<ClientSelection />} />
+                  <Route path="select-vehicle" element={<VehicleSelection />} />
+                  <Route path="confirm-order" element={<ConfirmOrder />} />
+                  <Route
+                    path="service/select"
+                    element={<ServiceTypeSelection />}
+                  />
+                  <Route
+                    path="active-services"
+                    element={<ServiceSelection />}
+                  />
+                  <Route
+                    path="completed-services"
+                    element={<ServiceSelection />}
+                  />
+                  <Route path="service-prices" element={<ServiceSelection />} />
                 </Route>
               </Route>
 
