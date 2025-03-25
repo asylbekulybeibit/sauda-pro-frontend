@@ -31,7 +31,7 @@ export interface Purchase {
   id?: string;
   date: string;
   supplierId?: string;
-  shopId: string;
+  warehouseId: string;
   comment?: string;
   number?: string;
   items: PurchaseItem[];
@@ -40,14 +40,14 @@ export interface Purchase {
   updatedAt?: string;
   status?: 'draft' | 'completed' | 'cancelled';
   supplierName?: string;
-  shopName?: string;
+  warehouseName?: string;
   invoiceNumber?: string;
   supplier?: {
     name: string;
     address?: string;
     phone?: string;
   };
-  shop?: {
+  warehouse?: {
     name: string;
     id: string;
     address?: string;
@@ -63,7 +63,7 @@ export interface PurchaseSummary {
   date: string;
   number?: string;
   supplierName?: string;
-  shopName: string;
+  warehouseName: string;
   totalAmount: number;
   itemsCount: number;
   createdAt: string;

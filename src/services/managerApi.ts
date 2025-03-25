@@ -980,7 +980,7 @@ export const isApiError = (error: unknown): error is ApiError => {
 };
 
 export interface CreatePurchaseRequest {
-  shopId: string;
+  warehouseId: string;
   supplierId?: string | null;
   invoiceNumber?: string | null;
   date: string;
@@ -1029,165 +1029,129 @@ export interface PurchaseResponse {
 export const createPurchase = async (
   data: CreatePurchaseRequest
 ): Promise<PurchaseResponse> => {
-  console.log('[CREATE PURCHASE] Запрос на создание прихода с данными:', data);
+  console.log(
+    '[CREATE PURCHASE] Запрос на создание прихода:',
+    JSON.stringify(data, null, 2)
+  );
 
-  // Проверяем, что api определен
-  if (typeof api === 'undefined') {
-    console.error('[CREATE PURCHASE] КРИТИЧЕСКАЯ ОШИБКА: api не определен');
-    throw new Error(
-      'API клиент не инициализирован. Попробуйте перезагрузить страницу.'
-    );
+  // Создаем копию данных для возможной модификации
+  const purchaseData = { ...data };
+
+  // Обязательно проверим и установим warehouseId
+  if (!data.warehouseId) {
+    console.error('[CREATE PURCHASE] ОШИБКА: Отсутствует warehouseId');
+    throw new Error('Не указан ID склада (warehouseId)');
   }
 
-  // Обязательно проверим и установим shopId
-  if (!data.shopId) {
-    console.error('[CREATE PURCHASE] ОШИБКА: Отсутствует shopId');
-    throw new Error('Не указан ID магазина (shopId)');
+  // Если для товаров не указаны цены, добавим их
+  if (
+    Array.isArray(purchaseData.items) &&
+    purchaseData.items.length > 0 &&
+    !purchaseData.items.every((item) => item.price !== undefined)
+  ) {
+    console.log('[CREATE PURCHASE] Установка недостающих цен для товаров');
+    purchaseData.items = purchaseData.items.map((item) => ({
+      ...item,
+      price: item.price ?? 0,
+    }));
   }
-
-  // Убедимся, что базовые поля существуют
-  const purchaseData = {
-    ...data,
-    // Явно устанавливаем supplierId даже если он null, чтобы он всегда передавался в запросе
-    supplierId: data.supplierId === undefined ? null : data.supplierId,
-    invoiceNumber: data.invoiceNumber || null,
-    date: data.date || new Date().toISOString(),
-    items: data.items || [],
-    status: data.status || 'draft',
-  };
 
   // Дополнительное логирование для отладки
   console.log('[CREATE PURCHASE] Подготовленные данные:', {
-    shopId: purchaseData.shopId,
+    warehouseId: purchaseData.warehouseId,
     supplierId: purchaseData.supplierId,
     invoiceNumber: purchaseData.invoiceNumber,
-    itemsCount: purchaseData.items.length,
+    date: purchaseData.date,
+    itemsCount: purchaseData.items?.length || 0,
   });
 
-  // Проверим наличие хотя бы одного товара
-  if (!purchaseData.items || purchaseData.items.length === 0) {
-    console.log(
-      '[CREATE PURCHASE] Нет товаров в приходе, добавляем фиктивный товар'
-    );
-    purchaseData.items = [
-      {
-        productId: '00000000-0000-0000-0000-000000000000', // временный ID
-        quantity: 1,
-        price: 0,
-      },
-    ];
-  }
-
-  // Проверяем каждый товар на корректность цены
-  purchaseData.items.forEach((item, index) => {
-    if (typeof item.price !== 'number' || isNaN(item.price)) {
-      console.warn(
-        `[CREATE PURCHASE] Товар #${index} (${item.productId}) имеет невалидную цену: ${item.price}`
-      );
-      item.price = 0;
-    }
-  });
-
-  // Определим все возможные URL-пути для создания прихода
+  // Массив возможных URL для запроса
   const possibleUrls = [
     '/manager/purchases', // Сначала пробуем основной маршрут
-    `/manager/purchases/${purchaseData.shopId}`,
-    `/manager/purchases/shop/${purchaseData.shopId}`,
+    `/manager/purchases/${purchaseData.warehouseId}`,
+    `/manager/purchases/warehouse/${purchaseData.warehouseId}`,
     `/manager/warehouse/purchases`,
-    `/manager/warehouse/purchases/${purchaseData.shopId}`,
-    `/manager/shops/${purchaseData.shopId}/purchases`,
+    `/manager/warehouse/purchases/${purchaseData.warehouseId}`,
+    `/manager/warehouses/${purchaseData.warehouseId}/purchases`,
     `/manager/purchases/create`,
     '/manager/purchases/no-supplier', // Последним пробуем специальный маршрут для прихода без поставщика
   ];
 
-  // Определим варианты данных от полных до минимальных
+  // Варианты данных в порядке уменьшения полноты
   const dataVariants = [
-    // Полный набор данных
-    purchaseData,
+    purchaseData, // Полные данные
 
-    // Упрощенный набор с минимальными товарами
+    // Без поставщика
     {
       ...purchaseData,
-      items: purchaseData.items.slice(0, 1), // Только первый товар
+      supplierId: null,
+    },
+
+    // Без поставщика и номера накладной
+    {
+      ...purchaseData,
+      supplierId: null,
+      invoiceNumber: null,
+    },
+
+    // Без дополнительных опций
+    {
+      warehouseId: purchaseData.warehouseId,
+      supplierId: purchaseData.supplierId,
+      invoiceNumber: purchaseData.invoiceNumber,
+      date: purchaseData.date,
+      comment: purchaseData.comment,
+      items: purchaseData.items,
+    },
+
+    // Только основные данные
+    {
+      warehouseId: purchaseData.warehouseId,
+      date: purchaseData.date,
+      items: purchaseData.items,
     },
 
     // Без товаров, только обязательные поля
     {
-      shopId: purchaseData.shopId,
+      warehouseId: purchaseData.warehouseId,
       date: purchaseData.date,
       status: 'draft',
     },
 
     // Абсолютный минимум
     {
-      shopId: purchaseData.shopId,
+      warehouseId: purchaseData.warehouseId,
     },
   ];
 
-  // Журнал всех ошибок
-  const errors = [];
-
-  // Поочередно пробуем все возможные URL и варианты данных
+  // Попробуем все комбинации URL и данных
+  let lastError = null;
   for (const url of possibleUrls) {
-    for (
-      let variantIndex = 0;
-      variantIndex < dataVariants.length;
-      variantIndex++
-    ) {
-      const variant = dataVariants[variantIndex];
+    for (const dataVariant of dataVariants) {
       try {
         console.log(
-          `[CREATE PURCHASE] Попытка ${
-            possibleUrls.indexOf(url) * dataVariants.length + variantIndex + 1
-          }:`
+          `[CREATE PURCHASE] Trying URL: ${url} with data variant:`,
+          dataVariant
         );
-        console.log(`[CREATE PURCHASE] URL: ${url}`);
-        console.log(`[CREATE PURCHASE] Данные:`, variant);
-
-        const response = await api.post(url, variant);
-
-        console.log('[CREATE PURCHASE] УСПЕХ! Ответ сервера:', response.data);
-        console.log(
-          `[CREATE PURCHASE] Успешно создан приход с использованием URL: ${url}`
-        );
-
+        const response = await api.post(url, dataVariant);
+        console.log('[CREATE PURCHASE] Success response:', response.data);
         return response.data;
-      } catch (error: any) {
-        const errorDetails = {
-          url,
-          data: variant,
-          error: error.message,
-          status: error.response?.status,
-          responseData: error.response?.data,
-        };
-
-        errors.push(errorDetails);
-
-        console.error(
-          `[CREATE PURCHASE] Ошибка при URL ${url}:`,
-          error.message
-        );
-        if (error.response) {
-          console.error('Статус:', error.response.status);
-          console.error('Данные ответа:', error.response.data);
-        }
-
+      } catch (error) {
+        lastError = error;
+        console.log(`[CREATE PURCHASE] Error with URL ${url}:`, error);
         // Продолжаем со следующим вариантом
       }
     }
   }
 
-  // Если все попытки не удались, выводим подробный журнал ошибок и выбрасываем исключение
+  // Если все попытки не удались, выбрасываем ошибку с информацией
   console.error(
-    '[CREATE PURCHASE] КРИТИЧЕСКАЯ ОШИБКА: Все попытки создания прихода провалились'
-  );
-  console.error(
-    '[CREATE PURCHASE] Журнал ошибок:',
-    JSON.stringify(errors, null, 2)
+    '[CREATE PURCHASE] All attempts failed. Last error:',
+    lastError
   );
 
   throw new Error(
-    `Не удалось создать приход. Проверьте соединение с сервером и правильность данных магазина (shopId: ${purchaseData.shopId})`
+    `Не удалось создать приход. Проверьте соединение с сервером и правильность данных склада (warehouseId: ${purchaseData.warehouseId})`
   );
 };
 
@@ -1335,31 +1299,31 @@ export const updatePurchaseStatus = async (
 
 export const getPurchaseById = async (
   id: string,
-  shopId?: string
+  warehouseId?: string
 ): Promise<Purchase> => {
-  console.log('[getPurchaseById] ID:', id, 'shopId:', shopId);
+  console.log('[getPurchaseById] ID:', id, 'warehouseId:', warehouseId);
 
   if (!id) {
     console.error('[getPurchaseById] Missing required purchase ID');
     throw new Error('Missing required purchase ID');
   }
 
-  // Если shopId не передан, выбрасываем ошибку
-  if (!shopId) {
-    console.error('[getPurchaseById] Missing required shopId');
-    throw new Error('Missing required shopId parameter');
+  // Если warehouseId не передан, выбрасываем ошибку
+  if (!warehouseId) {
+    console.error('[getPurchaseById] Missing required warehouseId');
+    throw new Error('Missing required warehouseId parameter');
   }
 
   // Массив возможных форматов URL для запроса
   const possibleUrls = [
     // Основной формат маршрута из App.tsx
-    `/manager/${shopId}/warehouse/purchases/${id}`,
+    `/manager/${warehouseId}/warehouse/purchases/${id}`,
     // Альтернативные форматы для совместимости с API
-    `/manager/purchases/${id}?shopId=${shopId}`,
-    `/manager/purchases/shop/${shopId}/purchase/${id}`,
-    `/manager/shops/${shopId}/purchases/${id}`,
-    `/manager/purchases/${shopId}/${id}`,
-    `/manager/warehouse/purchases/${shopId}/${id}`,
+    `/manager/purchases/${id}?warehouseId=${warehouseId}`,
+    `/manager/purchases/warehouse/${warehouseId}/purchase/${id}`,
+    `/manager/warehouses/${warehouseId}/purchases/${id}`,
+    `/manager/purchases/${warehouseId}/${id}`,
+    `/manager/warehouse/purchases/${warehouseId}/${id}`,
   ];
 
   let lastError = null;
@@ -1389,24 +1353,26 @@ export const getPurchaseById = async (
   throw ApiErrorHandler.handle(lastError);
 };
 
-export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
+export const getPurchases = async (
+  warehouseId: string
+): Promise<Purchase[]> => {
   try {
-    console.log('Fetching purchases for shop ID:', shopId);
+    console.log('Fetching purchases for warehouse ID:', warehouseId);
 
-    if (!shopId) {
-      console.error('Missing shop ID for getPurchases call');
-      throw new Error('Missing shop ID for getPurchases call');
+    if (!warehouseId) {
+      console.error('Missing warehouse ID for getPurchases call');
+      throw new Error('Missing warehouse ID for getPurchases call');
     }
 
     // Validate UUID format
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(shopId)) {
-      console.error('Invalid shop ID format:', shopId);
-      throw new Error('Invalid shop ID format');
+    if (!uuidRegex.test(warehouseId)) {
+      console.error('Invalid warehouse ID format:', warehouseId);
+      throw new Error('Invalid warehouse ID format');
     }
 
-    const url = `/manager/purchases/${shopId}`;
+    const url = `/manager/purchases/${warehouseId}`;
     console.log('Purchases API request URL:', url);
 
     const response = await api.get(url);
@@ -1422,11 +1388,11 @@ export const getPurchases = async (shopId: string): Promise<Purchase[]> => {
 };
 
 export const deletePurchase = async (
-  shopId: string,
+  warehouseId: string,
   purchaseId: string
 ): Promise<void> => {
   try {
-    await api.delete(`/manager/purchases/${shopId}/${purchaseId}`);
+    await api.delete(`/manager/purchases/${warehouseId}/${purchaseId}`);
   } catch (error) {
     throw ApiErrorHandler.handle(error);
   }
@@ -1458,27 +1424,27 @@ export const deleteTransfer = async (id: number): Promise<void> => {
   await api.delete(`/manager/transfers/${id}`);
 };
 
-export const getSales = async (shopId: string) => {
+export const getSales = async (warehouseId: string) => {
   const response = await api.get<InventoryTransaction[]>(
-    `/manager/inventory/sales/${shopId}`
+    `/manager/inventory/sales/${warehouseId}`
   );
   return response.data;
 };
 
-export const getReturns = async (shopId: string) => {
+export const getReturns = async (warehouseId: string) => {
   const response = await api.get<InventoryTransaction[]>(
-    `/manager/inventory/returns/${shopId}`
+    `/manager/inventory/returns/${warehouseId}`
   );
   return response.data;
 };
 
 export const getWriteOffs = async (
-  shopId: string
+  warehouseId: string
 ): Promise<InventoryTransaction[]> => {
-  console.log('Calling getWriteOffs with shopId:', shopId);
+  console.log('Calling getWriteOffs with warehouseId:', warehouseId);
   try {
     const response = await api.get<InventoryTransaction[]>(
-      `/manager/inventory/write-offs/${shopId}`
+      `/manager/inventory/write-offs/${warehouseId}`
     );
     console.log('Write-offs API response:', response);
     return response.data;
@@ -1526,40 +1492,22 @@ export const createPurchaseWithoutSupplier = async (
     data
   );
 
-  // Проверяем, что api определен
-  if (typeof api === 'undefined') {
+  // Убедимся, что warehouseId указан
+  if (!data.warehouseId) {
     console.error(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] КРИТИЧЕСКАЯ ОШИБКА: api не определен'
+      '[CREATE PURCHASE WITHOUT SUPPLIER] ОШИБКА: Отсутствует warehouseId'
     );
-    throw new Error(
-      'API клиент не инициализирован. Попробуйте перезагрузить страницу.'
-    );
+    throw new Error('Не указан ID склада (warehouseId)');
   }
 
-  // Убедимся, что shopId указан
-  if (!data.shopId) {
-    console.error(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] ОШИБКА: Отсутствует shopId'
-    );
-    throw new Error('Не указан ID магазина (shopId)');
-  }
-
-  // Принудительно устанавливаем supplierId в null
-  const purchaseData = {
+  // Создаем модифицированные данные без поставщика
+  const modifiedData: CreatePurchaseRequest = {
     ...data,
-    supplierId: null, // Явно устанавливаем null
+    supplierId: null, // Явно указываем null для supplierId
   };
 
-  // Просто используем стандартный метод createPurchase с явно установленным supplierId=null
-  try {
-    console.log(
-      '[CREATE PURCHASE WITHOUT SUPPLIER] Передаем запрос в стандартный метод createPurchase'
-    );
-    return createPurchase(purchaseData);
-  } catch (error) {
-    console.error('[CREATE PURCHASE WITHOUT SUPPLIER] Ошибка:', error);
-    throw error;
-  }
+  // Используем существующую функцию createPurchase
+  return createPurchase(modifiedData);
 };
 
 // Employees (Service Staff) API
