@@ -519,14 +519,106 @@ export const createService = async (serviceData: {
   clientId: string;
   vehicleId: string;
   serviceTypeId: string;
+  originalPrice?: number;
+  finalPrice?: number;
+  discountPercent?: number;
+  staffIds?: string[];
   comment?: string;
 }): Promise<any> => {
   try {
-    console.log('[cashierApi] Creating new service:', serviceData);
-    const { data } = await api.post('/manager/services', serviceData);
-    return data;
+    console.log(
+      '[cashierApi] Creating service with original data:',
+      serviceData
+    );
+
+    // Проверяем наличие shopId
+    if (!serviceData.shopId) {
+      throw new Error('shopId обязателен для создания услуги');
+    }
+
+    // Проверяем типы числовых полей
+    if (
+      serviceData.originalPrice !== undefined &&
+      typeof serviceData.originalPrice !== 'number'
+    ) {
+      console.error(
+        '[cashierApi] originalPrice is not a number:',
+        serviceData.originalPrice,
+        typeof serviceData.originalPrice
+      );
+      serviceData.originalPrice = Number(serviceData.originalPrice);
+      console.log(
+        '[cashierApi] Converted originalPrice to number:',
+        serviceData.originalPrice
+      );
+    }
+
+    if (
+      serviceData.finalPrice !== undefined &&
+      typeof serviceData.finalPrice !== 'number'
+    ) {
+      console.error(
+        '[cashierApi] finalPrice is not a number:',
+        serviceData.finalPrice,
+        typeof serviceData.finalPrice
+      );
+      serviceData.finalPrice = Number(serviceData.finalPrice);
+      console.log(
+        '[cashierApi] Converted finalPrice to number:',
+        serviceData.finalPrice
+      );
+    }
+
+    if (
+      serviceData.discountPercent !== undefined &&
+      typeof serviceData.discountPercent !== 'number'
+    ) {
+      console.error(
+        '[cashierApi] discountPercent is not a number:',
+        serviceData.discountPercent,
+        typeof serviceData.discountPercent
+      );
+      serviceData.discountPercent = Number(serviceData.discountPercent);
+      console.log(
+        '[cashierApi] Converted discountPercent to number:',
+        serviceData.discountPercent
+      );
+    }
+
+    // Форматируем данные для запроса
+    const formattedData = {
+      ...serviceData,
+      // Убедимся, что staffIds всегда валидный массив UUID
+      staffIds: Array.isArray(serviceData.staffIds) ? serviceData.staffIds : [],
+    };
+
+    console.log(
+      '[cashierApi] Sending request with formatted data:',
+      formattedData
+    );
+    console.log('[cashierApi] shopId in request:', formattedData.shopId);
+    console.log('[cashierApi] Original price:', formattedData.originalPrice);
+    console.log('[cashierApi] Final price:', formattedData.finalPrice);
+    console.log(
+      '[cashierApi] Discount percent:',
+      formattedData.discountPercent
+    );
+    console.log('[cashierApi] staffIds in request:', formattedData.staffIds);
+
+    // Формируем URL с учетом shopId
+    const url = `/manager/${formattedData.shopId}/cashier/service/start`;
+    console.log('[cashierApi] Request URL:', url);
+
+    const response = await api.post(url, formattedData);
+    console.log('[cashierApi] Service created successfully:', response.data);
+    return response.data;
   } catch (error) {
     console.error('[cashierApi] Error creating service:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[cashierApi] Response status:', error.response?.status);
+      console.error('[cashierApi] Response data:', error.response?.data);
+      console.error('[cashierApi] Request config:', error.config);
+    }
     throw handleApiError(error, 'Не удалось создать услугу');
   }
 };
@@ -688,5 +780,151 @@ export const getAllVehicles = async (shopId: string): Promise<any[]> => {
       console.error('[cashierApi] Response data:', error.response?.data);
     }
     throw handleApiError(error, 'Не удалось получить список автомобилей');
+  }
+};
+
+/**
+ * Получение всех активных сотрудников-мастеров магазина для кассира
+ */
+export const getActiveTechnicians = async (shopId: string): Promise<any[]> => {
+  try {
+    if (!shopId) {
+      throw new Error('shopId обязателен для получения списка мастеров');
+    }
+
+    console.log('[cashierApi] Getting active technicians for shop:', shopId);
+
+    // Обновленный путь API для получения сотрудников магазина через кассирский эндпоинт
+    const apiUrl = `/manager/${shopId}/cashier/technicians`;
+    console.log('[cashierApi] Request URL:', apiUrl);
+
+    const { data } = await api.get(apiUrl);
+
+    console.log('[cashierApi] Retrieved technicians count:', data.length);
+    console.log(
+      '[cashierApi] First technician (sample):',
+      data.length > 0 ? data[0] : 'No technicians found'
+    );
+    console.log(
+      '[cashierApi] Technician fields:',
+      data.length > 0 ? Object.keys(data[0]) : 'No fields available'
+    );
+
+    // Убедимся, что каждый технический специалист имеет валидный ID
+    const formattedData = data.map((tech: any) => ({
+      ...tech,
+      id: tech.id, // Убедимся, что ID присутствует
+    }));
+
+    return formattedData;
+  } catch (error) {
+    console.error('[cashierApi] Error getting technicians:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[cashierApi] Response status:', error.response?.status);
+      console.error('[cashierApi] Response data:', error.response?.data);
+    }
+    throw handleApiError(error, 'Не удалось получить список мастеров');
+  }
+};
+
+/**
+ * Завершение услуги
+ */
+export const completeService = async (
+  shopId: string,
+  completeData: {
+    serviceId: string;
+    finalPrice: number;
+    paymentMethod: string;
+  }
+): Promise<any> => {
+  try {
+    // Валидация finalPrice перед отправкой на сервер
+    if (
+      typeof completeData.finalPrice !== 'number' ||
+      isNaN(completeData.finalPrice)
+    ) {
+      completeData.finalPrice = Number(completeData.finalPrice);
+      if (isNaN(completeData.finalPrice)) {
+        throw new Error('Итоговая цена услуги должна быть числом');
+      }
+    }
+
+    // Проверка на положительное значение
+    if (completeData.finalPrice < 0) {
+      throw new Error('Итоговая цена услуги не может быть отрицательной');
+    }
+
+    console.log('[cashierApi] Completing service with data:', completeData);
+    console.log('[cashierApi] Shop ID:', shopId);
+
+    const { data } = await api.post(
+      `/manager/${shopId}/cashier/service/complete`,
+      completeData
+    );
+
+    console.log('[cashierApi] Service completed successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[cashierApi] Error completing service:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[cashierApi] Response status:', error.response?.status);
+      console.error('[cashierApi] Response data:', error.response?.data);
+      console.error('[cashierApi] Request config:', error.config);
+    }
+    throw handleApiError(error, 'Не удалось завершить услугу');
+  }
+};
+
+/**
+ * Получение завершённых услуг
+ */
+export const getCompletedServices = async (shopId: string): Promise<any[]> => {
+  try {
+    console.log('[cashierApi] Getting completed services for shop:', shopId);
+    const { data } = await api.get(
+      `/manager/${shopId}/cashier/services/completed`
+    );
+    console.log('[cashierApi] Retrieved completed services:', data);
+    return data;
+  } catch (error) {
+    console.error('[cashierApi] Error getting completed services:', error);
+    throw handleApiError(error, 'Не удалось загрузить завершенные услуги');
+  }
+};
+
+/**
+ * Отмена услуги
+ */
+export const cancelService = async (
+  shopId: string,
+  serviceId: string,
+  reason: string
+): Promise<any> => {
+  try {
+    console.log('[cashierApi] Cancelling service with data:', {
+      shopId,
+      serviceId,
+      reason,
+    });
+
+    // Исправляем URL для использования эндпоинта менеджера для отмены услуги
+    const { data } = await api.post(
+      `/manager/services/shop/${shopId}/${serviceId}/cancel`,
+      {
+        notes: reason, // Сохраняем причину отмены в поле notes
+      }
+    );
+
+    console.log('[cashierApi] Service cancelled successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[cashierApi] Error cancelling service:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('[cashierApi] Response status:', error.response?.status);
+      console.error('[cashierApi] Response data:', error.response?.data);
+      console.error('[cashierApi] Request config:', error.config);
+    }
+    throw handleApiError(error, 'Не удалось отменить услугу');
   }
 };

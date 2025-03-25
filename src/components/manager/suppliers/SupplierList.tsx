@@ -1,7 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { getSuppliers, deleteSupplier } from '@/services/managerApi';
+import {
+  getSuppliers,
+  deleteSupplier,
+  getWarehouses,
+} from '@/services/managerApi';
 import { Supplier } from '@/types/supplier';
-import { Button, Table, Modal, message } from 'antd';
+import { Button, Table, Modal, message, Tag } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiErrorHandler } from '@/utils/error-handler';
@@ -10,8 +14,14 @@ interface SupplierListProps {
   shopId: string;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+}
+
 export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [warehouses, setWarehouses] = useState<Record<string, Warehouse>>({});
   const [loading, setLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
@@ -19,11 +29,22 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   );
   const navigate = useNavigate();
 
-  const fetchSuppliers = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getSuppliers(shopId);
-      setSuppliers(data);
+      const [suppliersData, warehousesData] = await Promise.all([
+        getSuppliers(shopId),
+        getWarehouses(shopId),
+      ]);
+
+      // Преобразуем массив складов в объект для быстрого доступа по id
+      const warehousesMap: Record<string, Warehouse> = {};
+      warehousesData.forEach((warehouse: Warehouse) => {
+        warehousesMap[warehouse.id] = warehouse;
+      });
+
+      setSuppliers(suppliersData);
+      setWarehouses(warehousesMap);
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
       message.error(apiError.message);
@@ -33,8 +54,8 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   }, [shopId]);
 
   useEffect(() => {
-    fetchSuppliers();
-  }, [fetchSuppliers]);
+    fetchData();
+  }, [fetchData]);
 
   const handleDelete = async (supplier: Supplier) => {
     setSelectedSupplier(supplier);
@@ -47,7 +68,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
     try {
       await deleteSupplier(selectedSupplier.id, shopId);
       message.success('Поставщик успешно удален');
-      fetchSuppliers();
+      fetchData();
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
       message.error(apiError.message);
@@ -77,6 +98,22 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
       title: 'Телефон',
       dataIndex: 'phone',
       key: 'phone',
+    },
+    {
+      title: 'Склад',
+      key: 'warehouse',
+      render: (supplier: Supplier) => {
+        if (!supplier.warehouseId) {
+          return <span>Все склады</span>;
+        }
+
+        const warehouse = warehouses[supplier.warehouseId];
+        return warehouse ? (
+          <Tag color="blue">{warehouse.name}</Tag>
+        ) : (
+          <span>Неизвестный склад</span>
+        );
+      },
     },
     {
       title: 'Статус',

@@ -125,7 +125,7 @@ const ServiceSelection: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col">
       {/* Верхнее навигационное меню */}
       <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
         <Menu
@@ -145,7 +145,7 @@ const ServiceSelection: React.FC = () => {
             key="active"
             icon={<DollarOutlined />}
             className="flex-1 justify-center"
-            onClick={() => navigate(`/cashier/${shopId}/active-services`)}
+            onClick={() => navigate(`/cashier/${shopId}/service/active`)}
           >
             Активные
           </Menu.Item>
@@ -169,13 +169,13 @@ const ServiceSelection: React.FC = () => {
       </div>
 
       {/* Основной контент */}
-      <div className="flex-1 overflow-auto p-4">
-        <div className="mb-6 flex items-center justify-between">
+      <div className="p-3">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center">
             <Button
               icon={<ArrowLeftOutlined />}
               onClick={handleBack}
-              className="mr-4"
+              className="mr-3"
             >
               Назад
             </Button>
@@ -196,48 +196,49 @@ const ServiceSelection: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex justify-center items-center h-48">
             <Spin size="large" tip="Загрузка услуг..." />
           </div>
         ) : error ? (
-          <div className="flex justify-center items-center h-64">
+          <div className="flex justify-center items-center h-48">
             <Empty description={error} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         ) : serviceCategories.length === 0 ? (
-          <Empty description="Нет доступных услуг" className="mt-8" />
+          <Empty description="Нет доступных услуг" className="mt-4" />
         ) : (
           serviceCategories.map((category) => (
-            <div key={category.name} className="mb-6">
-              <Title level={5} className="mb-3">
+            <div key={category.name} className="mb-4">
+              <Title level={5} className="mb-2">
                 {category.name}
               </Title>
-              <Row gutter={[16, 16]}>
+              <Row gutter={[12, 12]}>
                 {category.services.map((service) => (
                   <Col key={service.id} xs={24} sm={12} md={8} lg={6}>
                     <Card
                       hoverable
-                      className={`h-full transition-all ${
+                      className={`transition-all ${
                         selectedService?.id === service.id
                           ? 'border-blue-500 shadow-md'
                           : ''
                       }`}
                       onClick={() => handleServiceSelect(service)}
+                      bodyStyle={{ padding: '12px' }}
                     >
-                      <div className="flex flex-col h-full">
-                        <div className="flex-1">
+                      <div className="flex flex-col">
+                        <div>
                           <Title level={5} className="mb-1">
                             {service.name}
                           </Title>
                           {service.description && (
-                            <Text type="secondary" className="block mb-2">
+                            <Text type="secondary" className="block mb-1">
                               {service.description}
                             </Text>
                           )}
                         </div>
                         <div className="mt-2 flex justify-between items-center">
-                          <Text strong className="text-lg">
-                            {service.price} ₽
-                          </Text>
+                          <div className="text-green-600 font-medium">
+                            {service.price} ₸
+                          </div>
                           {service.duration && (
                             <Text type="secondary">
                               {service.duration} мин.
@@ -255,7 +256,7 @@ const ServiceSelection: React.FC = () => {
       </div>
 
       {/* Нижняя кнопка действия на мобильных устройствах */}
-      <div className="sticky bottom-0 bg-white shadow-lg p-4 border-t border-gray-200 md:hidden">
+      <div className="sticky bottom-0 bg-white shadow-lg p-3 border-t border-gray-200 md:hidden">
         <Button
           type="primary"
           size="large"
@@ -264,7 +265,7 @@ const ServiceSelection: React.FC = () => {
           disabled={!selectedService}
         >
           {selectedService
-            ? `Далее: ${selectedService.name} (${selectedService.price} ₽)`
+            ? `Далее: ${selectedService.name} (${selectedService.price} ₸)`
             : 'Выберите услугу для продолжения'}
         </Button>
       </div>

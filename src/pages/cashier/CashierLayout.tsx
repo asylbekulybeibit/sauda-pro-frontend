@@ -81,8 +81,6 @@ const CashierLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center">
-            
-
             {/* Профиль пользователя */}
             <div className="ml-4 relative flex-shrink-0" ref={menuRef}>
               <button

@@ -1,7 +1,11 @@
-import React from 'react';
-import { Form, Input, Button, Switch, message } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, Switch, message, Select } from 'antd';
 import { Supplier } from '@/types/supplier';
-import { createSupplier, updateSupplier } from '@/services/managerApi';
+import {
+  createSupplier,
+  updateSupplier,
+  getWarehouses,
+} from '@/services/managerApi';
 import { ApiErrorHandler } from '@/utils/error-handler';
 
 interface SupplierFormProps {
@@ -10,15 +14,37 @@ interface SupplierFormProps {
   onSuccess: () => void;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+}
+
 export const SupplierForm: React.FC<SupplierFormProps> = ({
   shopId,
   initialData,
   onSuccess,
 }) => {
   const [form] = Form.useForm();
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [loading, setLoading] = useState(false);
   const isEdit = !!initialData;
 
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const data = await getWarehouses(shopId);
+        setWarehouses(data);
+      } catch (error) {
+        console.error('Failed to fetch warehouses:', error);
+        message.error('Не удалось загрузить список складов');
+      }
+    };
+
+    fetchWarehouses();
+  }, [shopId]);
+
   const onFinish = async (values: any) => {
+    setLoading(true);
     try {
       if (isEdit && initialData) {
         await updateSupplier(
@@ -45,6 +71,8 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
       message.error(apiError.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,6 +115,19 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
         <Input.TextArea />
       </Form.Item>
 
+      <Form.Item
+        name="warehouseId"
+        label="Склад"
+        tooltip="Выберите склад, если поставщик работает только с конкретным складом"
+      >
+        <Select
+          placeholder="Выберите склад"
+          allowClear
+          loading={warehouses.length === 0}
+          options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+        />
+      </Form.Item>
+
       {isEdit && (
         <Form.Item name="isActive" label="Активен" valuePropName="checked">
           <Switch />
@@ -94,7 +135,12 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
       )}
 
       <Form.Item>
-        <Button type="primary" htmlType="submit" className="bg-blue-500">
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={loading}
+          className="bg-blue-500"
+        >
           {isEdit ? 'Сохранить' : 'Создать'}
         </Button>
       </Form.Item>

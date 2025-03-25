@@ -143,10 +143,19 @@ export const fetchSuppliers = async (
   }
 };
 
-export const createSupplier = async (supplierData: {
-  name: string;
-  shopId?: string;
-}): Promise<{ id: string; name: string }> => {
+export const createSupplier = async (
+  supplierData: {
+    name: string;
+    shopId: string;
+    warehouseId?: string;
+    contactPerson?: string;
+    phone?: string;
+    email?: string;
+    address?: string;
+    isActive?: boolean;
+  },
+  shopId: string
+): Promise<{ id: string; name: string }> => {
   try {
     const response = await apiClient.post('/suppliers', supplierData);
     return response.data;

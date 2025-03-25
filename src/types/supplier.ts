@@ -6,6 +6,8 @@ export interface Supplier {
   phone: string;
   address?: string;
   shopId: string;
+  warehouseId?: string;
+  isWarehouseSpecific?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

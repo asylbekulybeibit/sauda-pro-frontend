@@ -341,7 +341,7 @@ const VehicleSelection: React.FC = () => {
     navigate(`/cashier/${shopId}/select-client`);
   };
 
-  // Обработчик перехода к следующему шагу (создание заказа)
+  // Обработчик перехода к следующему шагу
   const handleNext = () => {
     if (!selectedVehicle) {
       message.warning('Пожалуйста, выберите автомобиль');
@@ -368,8 +368,8 @@ const VehicleSelection: React.FC = () => {
     // Сохраняем данные заказа
     localStorage.setItem('newOrder', JSON.stringify(orderData));
 
-    // Переход к странице подтверждения заказа
-    navigate(`/cashier/${shopId}/confirm-order`);
+    // Переход к странице выбора мастеров вместо подтверждения заказа
+    navigate(`/cashier/${shopId}/select-technician`);
   };
 
   // Открытие модального окна для добавления нового автомобиля
@@ -670,7 +670,7 @@ const VehicleSelection: React.FC = () => {
                 </div>
                 <div>
                   <Text strong>Стоимость: </Text>
-                  <Text>{selectedService.price} ₽</Text>
+                  <Text>{selectedService.price} ₸</Text>
                 </div>
               </Col>
             )}

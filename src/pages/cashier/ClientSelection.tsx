@@ -254,7 +254,7 @@ const ClientSelection: React.FC = () => {
                 <Text strong>Выбранная услуга: </Text>
                 <Text>{selectedService.name}</Text>
               </div>
-              <Text strong>{selectedService.price} ₽</Text>
+              <Text strong>{selectedService.price} ₸</Text>
             </div>
           </Card>
         )}

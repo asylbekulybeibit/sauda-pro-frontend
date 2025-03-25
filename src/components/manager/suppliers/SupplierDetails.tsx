@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Descriptions, Button, Spin, message, Tabs } from 'antd';
+import { Card, Descriptions, Button, Spin, message, Tabs, Tag } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Supplier } from '@/types/supplier';
-import { getSupplierById } from '@/services/managerApi';
+import { getSupplierById, getWarehouses } from '@/services/managerApi';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import { SupplierProducts } from './SupplierProducts';
 
@@ -11,19 +11,34 @@ interface SupplierDetailsProps {
   supplierId: string;
 }
 
+interface Warehouse {
+  id: string;
+  name: string;
+}
+
 export const SupplierDetails: React.FC<SupplierDetailsProps> = ({
   supplierId,
 }) => {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { shopId } = useParams<{ shopId: string }>();
 
-  const fetchSupplier = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getSupplierById(supplierId, shopId || '');
-      setSupplier(data);
+      const supplierData = await getSupplierById(supplierId, shopId || '');
+      setSupplier(supplierData);
+
+      // Если у поставщика есть привязка к складу, загружаем информацию о складе
+      if (supplierData.warehouseId) {
+        const warehousesData = await getWarehouses(shopId || '');
+        const supplierWarehouse = warehousesData.find(
+          (w: Warehouse) => w.id === supplierData.warehouseId
+        );
+        setWarehouse(supplierWarehouse || null);
+      }
     } catch (error) {
       const apiError = ApiErrorHandler.handle(error);
       if (ApiErrorHandler.isNotFoundError(apiError)) {
@@ -39,9 +54,9 @@ export const SupplierDetails: React.FC<SupplierDetailsProps> = ({
 
   useEffect(() => {
     if (shopId) {
-      fetchSupplier();
+      fetchData();
     }
-  }, [shopId, fetchSupplier]);
+  }, [shopId, fetchData]);
 
   if (loading) {
     return (
@@ -88,6 +103,17 @@ export const SupplierDetails: React.FC<SupplierDetailsProps> = ({
             </Descriptions.Item>
             <Descriptions.Item label="Адрес">
               {supplier.address || 'Не указан'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Склад">
+              {supplier.warehouseId ? (
+                warehouse ? (
+                  <Tag color="blue">{warehouse.name}</Tag>
+                ) : (
+                  'Склад не найден'
+                )
+              ) : (
+                'Все склады'
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="Статус">
               <span style={{ color: supplier.isActive ? 'green' : 'red' }}>

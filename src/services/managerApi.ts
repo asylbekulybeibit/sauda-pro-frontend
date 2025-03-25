@@ -1649,3 +1649,32 @@ export const removeClient = async (shopId: string, clientId: string) => {
   );
   return data;
 };
+
+// Добавляем функцию для получения списка складов магазина
+export const getWarehouses = async (shopId: string) => {
+  try {
+    console.log(
+      '[GET WAREHOUSES] Запрос на получение списка складов для магазина:',
+      shopId
+    );
+
+    // Проверка на api перед запросом
+    if (!api) {
+      console.error('[GET WAREHOUSES] КРИТИЧЕСКАЯ ОШИБКА: api не определен');
+      return [];
+    }
+
+    // Проверка на наличие shopId
+    if (!shopId) {
+      console.error('[GET WAREHOUSES] ОШИБКА: Отсутствует shopId');
+      return [];
+    }
+
+    const data = await api.get(`/warehouses/shop/${shopId}`);
+    console.log('[GET WAREHOUSES] Получены данные:', data);
+    return data;
+  } catch (error) {
+    console.error('[GET WAREHOUSES] Ошибка:', error);
+    throw error;
+  }
+};

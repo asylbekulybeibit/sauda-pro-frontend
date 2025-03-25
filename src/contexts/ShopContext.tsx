@@ -28,7 +28,7 @@ const extractShopIdFromPath = () => {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-      // Стратегия 1: Проверка стандартного формата /manager/{shopId}/...
+      // Стратегия 1а: Проверка стандартного формата /manager/{shopId}/...
       const managerPathMatch = path.match(/\/manager\/([^\/]+)/);
 
       if (managerPathMatch && managerPathMatch[1]) {
@@ -36,7 +36,20 @@ const extractShopIdFromPath = () => {
 
         // If it's a valid UUID, return it
         if (uuidRegex.test(possibleShopId)) {
-          console.log('Found valid shop UUID in path:', possibleShopId);
+          console.log('Found valid shop UUID in manager path:', possibleShopId);
+          return possibleShopId;
+        }
+      }
+
+      // Стратегия 1б: Проверка формата /cashier/{shopId}/...
+      const cashierPathMatch = path.match(/\/cashier\/([^\/]+)/);
+
+      if (cashierPathMatch && cashierPathMatch[1]) {
+        const possibleShopId = cashierPathMatch[1];
+
+        // If it's a valid UUID, return it
+        if (uuidRegex.test(possibleShopId)) {
+          console.log('Found valid shop UUID in cashier path:', possibleShopId);
           return possibleShopId;
         }
       }
@@ -51,10 +64,12 @@ const extractShopIdFromPath = () => {
       }
 
       // Стратегия 3: Последняя попытка - поиск любого UUID в URL
-      const anyUuid = path.match(uuidRegex);
-      if (anyUuid) {
-        console.log('Found UUID in URL path:', anyUuid[0]);
-        return anyUuid[0];
+      const parts = path.split('/');
+      for (const part of parts) {
+        if (uuidRegex.test(part)) {
+          console.log('Found UUID in URL path parts:', part);
+          return part;
+        }
       }
 
       console.log('No valid shop ID found in URL');

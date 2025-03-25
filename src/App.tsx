@@ -16,6 +16,19 @@ import { ShopProvider } from '@/contexts/ShopContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManagerHeader } from '@/components/manager/layout/Header';
 import './styles/price-analytics.css';
+import CashierDashboard from './pages/cashier/CashierDashboard';
+import ServiceTypeSelection from './pages/cashier/ServiceTypeSelection';
+import ServiceSelection from './pages/cashier/ServiceSelection';
+import ClientSelection from './pages/cashier/ClientSelection';
+import VehicleSelection from './pages/cashier/VehicleSelection';
+import TechnicianSelection from './pages/cashier/TechnicianSelection';
+import PriceConfirmation from './pages/cashier/PriceConfirmation';
+import ServicePrices from './pages/cashier/ServicePrices';
+import ActiveServices from './pages/cashier/service/ActiveServices';
+import CompletedServices from './pages/cashier/service/CompletedServices';
+import ServiceCompletion from './pages/cashier/service/ServiceCompletion';
+import PaymentMethodSelection from './pages/cashier/service/PaymentMethodSelection';
+import CompletedServiceDetails from './pages/cashier/service/CompletedServiceDetails';
 
 // Ленивая загрузка компонентов
 const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
@@ -131,19 +144,6 @@ const CashierLayout = React.lazy(() => import('./pages/cashier/CashierLayout'));
 const CashRegisterSelection = React.lazy(
   () => import('./pages/cashier/CashRegisterSelection')
 );
-const ServiceTypeSelection = React.lazy(
-  () => import('./pages/cashier/ServiceTypeSelection')
-);
-const ServiceSelection = React.lazy(
-  () => import('./pages/cashier/ServiceSelection')
-);
-const ClientSelection = React.lazy(
-  () => import('./pages/cashier/ClientSelection')
-);
-const VehicleSelection = React.lazy(
-  () => import('./pages/cashier/VehicleSelection')
-);
-const ConfirmOrder = React.lazy(() => import('./pages/cashier/ConfirmOrder'));
 const ShiftHistory = React.lazy(() => import('./pages/cashier/ShiftHistory'));
 const CloseShift = React.lazy(() => import('./pages/cashier/CloseShift'));
 const ShiftDetails = React.lazy(() => import('./pages/cashier/ShiftDetails'));
@@ -367,7 +367,7 @@ export default function App() {
                   <Route index element={<CashRegisterSelection />} />
 
                   {/* Удаляем дашборд */}
-                  {/* <Route path="dashboard" element={<CashierDashboard />} /> */}
+                  <Route path="dashboard" element={<CashierDashboard />} />
 
                   {/* Оставляем остальные нужные маршруты */}
                   <Route
@@ -387,20 +387,34 @@ export default function App() {
                   <Route path="select-service" element={<ServiceSelection />} />
                   <Route path="select-client" element={<ClientSelection />} />
                   <Route path="select-vehicle" element={<VehicleSelection />} />
-                  <Route path="confirm-order" element={<ConfirmOrder />} />
                   <Route
-                    path="service/select"
-                    element={<ServiceTypeSelection />}
+                    path="select-technician"
+                    element={<TechnicianSelection />}
                   />
                   <Route
-                    path="active-services"
-                    element={<ServiceSelection />}
+                    path="price-confirmation"
+                    element={<PriceConfirmation />}
                   />
+                  <Route path="service/active" element={<ActiveServices />} />
                   <Route
                     path="completed-services"
-                    element={<ServiceSelection />}
+                    element={<CompletedServices />}
                   />
-                  <Route path="service-prices" element={<ServiceSelection />} />
+                  <Route path="service-prices" element={<ServicePrices />} />
+
+                  {/* Маршруты для процесса завершения услуги */}
+                  <Route
+                    path="service/complete/:serviceId"
+                    element={<ServiceCompletion />}
+                  />
+                  <Route
+                    path="service/payment/:serviceId"
+                    element={<PaymentMethodSelection />}
+                  />
+                  <Route
+                    path="service/receipt/:serviceId"
+                    element={<CompletedServiceDetails />}
+                  />
                 </Route>
               </Route>
 

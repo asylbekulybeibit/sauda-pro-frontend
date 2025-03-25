@@ -53,12 +53,12 @@ export const formatDate = (
 /**
  * Форматирует число в денежный формат
  * @param amount Сумма для форматирования
- * @param currency Валюта (по умолчанию RUB)
+ * @param currency Валюта (по умолчанию KZT)
  * @returns Отформатированная строка с суммой
  */
 export const formatCurrency = (
   amount: number | undefined | null,
-  currency: string = 'RUB'
+  currency: string = 'KZT'
 ): string => {
   if (amount === undefined || amount === null) {
     return 'Н/Д';
@@ -76,7 +76,7 @@ export const formatCurrency = (
     return formatter.format(amount);
   } catch (error) {
     console.error('Ошибка при форматировании валюты:', error);
-    return `${amount} руб.`;
+    return `${amount} тенге`;
   }
 };
 
