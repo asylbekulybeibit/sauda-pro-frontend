@@ -1,12 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { RoleType } from '@/types/role';
-import { ShopType } from '@/types/shop';
 
 export interface Shop {
   id: string;
   name: string;
-  type: ShopType;
+  type: string;
   address?: string;
 }
 

@@ -7,7 +7,6 @@ import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
 import { getProfile } from '@/services/api';
 import { RoleType, UserRoleDetails } from '@/types/role';
-import { ShopType } from '@/types/shop';
 
 export default function ProfilePage() {
   const { setCurrentRole } = useRoleStore();
@@ -31,12 +30,7 @@ export default function ProfilePage() {
         shop: {
           id: role.shop.id,
           name: role.shop.name,
-          type:
-            role.shop.type === 'shop'
-              ? ShopType.SHOP
-              : role.shop.type === 'warehouse'
-              ? ShopType.WAREHOUSE
-              : ShopType.POINT_OF_SALE,
+          type: role.shop.type || 'shop',
           address: role.shop.address,
         },
       });

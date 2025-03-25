@@ -1,27 +1,41 @@
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateShop } from '@/services/api';
+import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { createWarehouse, getShops } from '@/services/api';
 import { Shop } from '@/types/shop';
 
-interface EditProjectFormProps {
-  project: Shop;
+interface CreateWarehouseFormProps {
   onClose: () => void;
 }
 
-export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
+export function CreateWarehouseForm({ onClose }: CreateWarehouseFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    name: project.name,
-    address: project.address || '',
-    phone: project.phone || '',
-    isActive: project.isActive,
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    isMain: false,
+    shopId: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const updateMutation = useMutation({
-    mutationFn: () => updateShop(project.id, formData),
+  // Получение списка магазинов
+  const { data: shops, isLoading: isLoadingShops } = useQuery({
+    queryKey: ['shops'],
+    queryFn: getShops,
+  });
+
+  // Устанавливаем первый магазин как магазин по умолчанию, если список магазинов загружен
+  useEffect(() => {
+    if (shops && shops.length > 0 && !formData.shopId) {
+      setFormData((prev) => ({ ...prev, shopId: shops[0].id }));
+    }
+  }, [shops]);
+
+  const createMutation = useMutation({
+    mutationFn: createWarehouse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       onClose();
     },
   });
@@ -33,8 +47,16 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
       newErrors.name = 'Название обязательно';
     }
 
+    if (!formData.shopId) {
+      newErrors.shopId = 'Магазин обязателен';
+    }
+
     if (formData.phone && !/^\+7\d{10}$/.test(formData.phone)) {
       newErrors.phone = 'Неверный формат телефона';
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Неверный формат email';
     }
 
     setErrors(newErrors);
@@ -48,11 +70,40 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
       return;
     }
 
-    updateMutation.mutate();
+    createMutation.mutate(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Магазин *
+        </label>
+        <select
+          value={formData.shopId}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, shopId: e.target.value }))
+          }
+          className={`mt-1 block w-full rounded-md border ${
+            errors.shopId ? 'border-red-500' : 'border-gray-300'
+          } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+          disabled={isLoadingShops}
+        >
+          {isLoadingShops ? (
+            <option>Загрузка магазинов...</option>
+          ) : (
+            shops?.map((shop: Shop) => (
+              <option key={shop.id} value={shop.id}>
+                {shop.name}
+              </option>
+            ))
+          )}
+        </select>
+        {errors.shopId && (
+          <p className="mt-1 text-sm text-red-500">{errors.shopId}</p>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700">
           Название *
@@ -104,18 +155,35 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
         )}
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Email</label>
+        <input
+          type="text"
+          value={formData.email}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, email: e.target.value }))
+          }
+          className={`mt-1 block w-full rounded-md border ${
+            errors.email ? 'border-red-500' : 'border-gray-300'
+          } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+        )}
+      </div>
+
       <div className="flex items-center">
         <input
           type="checkbox"
-          id="isActive"
-          checked={formData.isActive}
+          id="isMain"
+          checked={formData.isMain}
           onChange={(e) =>
-            setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
+            setFormData((prev) => ({ ...prev, isMain: e.target.checked }))
           }
           className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
         />
-        <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-          Активен
+        <label htmlFor="isMain" className="ml-2 text-sm text-gray-700">
+          Основной склад
         </label>
       </div>
 
@@ -129,10 +197,10 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
         </button>
         <button
           type="submit"
-          disabled={updateMutation.isPending}
+          disabled={createMutation.isPending}
           className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
+          {createMutation.isPending ? 'Создание...' : 'Создать'}
         </button>
       </div>
     </form>

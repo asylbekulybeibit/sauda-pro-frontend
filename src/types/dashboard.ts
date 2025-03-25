@@ -1,5 +1,4 @@
 import { RoleType } from '@/types/role';
-import { ShopType } from './shop';
 
 export interface UserStats {
   total: number;
@@ -12,7 +11,7 @@ export interface UserStats {
 export interface ShopStats {
   total: number;
   active: number;
-  byType: Record<ShopType, number>;
+  byType: Record<string, number>;
   growth: number;
 }
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createShop } from '@/services/api';
-import { ShopType } from '@/types/shop';
 
 interface CreateProjectFormProps {
   onClose: () => void;
@@ -13,7 +12,6 @@ export function CreateProjectForm({ onClose }: CreateProjectFormProps) {
     name: '',
     address: '',
     phone: '',
-    type: ShopType.SHOP,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -101,24 +99,6 @@ export function CreateProjectForm({ onClose }: CreateProjectFormProps) {
         {errors.phone && (
           <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
         )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Тип</label>
-        <select
-          value={formData.type}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              type: e.target.value as ShopType,
-            }))
-          }
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
-        >
-          <option value={ShopType.SHOP}>Магазин</option>
-          <option value={ShopType.WAREHOUSE}>Склад</option>
-          <option value={ShopType.POINT_OF_SALE}>Точка продаж</option>
-        </select>
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">

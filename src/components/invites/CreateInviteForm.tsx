@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { createInvite, getShops } from '@/services/api';
+import { createInvite, getShops, getWarehouses } from '@/services/api';
 import { RoleType } from '@/types/role';
 import { ErrorModal } from '@/components/ui/error-modal';
 import { normalizePhoneNumber } from '@/utils/phone';
@@ -21,6 +21,7 @@ export function CreateInviteForm({
     phone: '',
     role: (availableRoles && availableRoles[0]) || ('cashier' as RoleType),
     shopId: predefinedShopId || '',
+    warehouseId: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [errorModalOpen, setErrorModalOpen] = useState(false);
@@ -31,6 +32,13 @@ export function CreateInviteForm({
     queryKey: ['shops'],
     queryFn: getShops,
     enabled: !predefinedShopId, // Не делаем запрос, если магазин предопределен
+  });
+
+  // Добавляем запрос на получение складов
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => getWarehouses(),
+    enabled: !!formData.shopId, // Запрашиваем склады только если выбран магазин
   });
 
   const createMutation = useMutation({
@@ -112,7 +120,11 @@ export function CreateInviteForm({
             <select
               value={formData.shopId}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, shopId: e.target.value }))
+                setFormData((prev) => ({
+                  ...prev,
+                  shopId: e.target.value,
+                  warehouseId: '', // Сбрасываем выбранный склад при смене проекта
+                }))
               }
               className={`mt-1 block w-full rounded-md border ${
                 errors.shopId ? 'border-red-500' : 'border-gray-300'
@@ -128,6 +140,37 @@ export function CreateInviteForm({
             {errors.shopId && (
               <p className="mt-1 text-sm text-red-500">{errors.shopId}</p>
             )}
+          </div>
+        )}
+
+        {formData.shopId && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Склад
+            </label>
+            <select
+              value={formData.warehouseId}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  warehouseId: e.target.value,
+                }))
+              }
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+            >
+              <option value="">Без привязки к складу</option>
+              {warehouses
+                ?.filter((warehouse) => warehouse.shopId === formData.shopId)
+                .map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}{' '}
+                    {warehouse.address && `(${warehouse.address})`}
+                  </option>
+                ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Если склад не выбран, инвайт будет отправлен только на проект
+            </p>
           </div>
         )}
 

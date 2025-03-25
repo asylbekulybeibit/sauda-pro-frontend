@@ -1,38 +1,53 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Shop } from '@/types/shop';
-import { getShops, updateShop, deleteShop } from '@/services/api';
+import { Warehouse } from '@/types/warehouse';
+import {
+  getWarehouses,
+  updateWarehouse,
+  deleteWarehouse,
+  getShops,
+} from '@/services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '@/components/ui/modal';
-import { CreateProjectForm } from '@/components/projects/CreateProjectForm';
-import { EditProjectForm } from '@/components/projects/EditProjectForm';
+import { CreateWarehouseForm } from '@/components/warehouses/CreateWarehouseForm';
+import { EditWarehouseForm } from '@/components/warehouses/EditWarehouseForm';
 
-// Компонент карточки проекта
-const ProjectCard = ({ project }: { project: Shop }) => {
+// Компонент карточки склада
+const WarehouseCard = ({ warehouse }: { warehouse: Warehouse }) => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
+  // Получение данных о магазине
+  const { data: shops } = useQuery({
+    queryKey: ['shops'],
+    queryFn: getShops,
+  });
+
+  // Найти магазин по ID
+  const shop = shops?.find((s) => s.id === warehouse.shopId);
+
   const updateStatusMutation = useMutation({
-    mutationFn: (isActive: boolean) => updateShop(project.id, { isActive }),
+    mutationFn: (isActive: boolean) =>
+      updateWarehouse(warehouse.id, { isActive }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteShop(project.id),
+    mutationFn: () => deleteWarehouse(warehouse.id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
     },
   });
 
   const handleToggleStatus = () => {
-    updateStatusMutation.mutate(!project.isActive);
+    updateStatusMutation.mutate(!warehouse.isActive);
   };
 
   const handleDelete = () => {
-    if (window.confirm('Вы уверены, что хотите удалить этот проект?')) {
+    if (window.confirm('Вы уверены, что хотите удалить этот склад?')) {
       deleteMutation.mutate();
     }
   };
@@ -46,8 +61,11 @@ const ProjectCard = ({ project }: { project: Shop }) => {
       {/* Заголовок и действия */}
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="text-lg font-semibold">{project.name}</h3>
-          <div className="text-sm text-gray-500">🏪 Проект</div>
+          <h3 className="text-lg font-semibold">{warehouse.name}</h3>
+          <div className="text-sm text-gray-500">
+            🏭 Склад {warehouse.isMain && '(Основной)'}
+            {shop && ` | 🏪 Магазин: ${shop.name}`}
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -60,13 +78,13 @@ const ProjectCard = ({ project }: { project: Shop }) => {
           <button
             onClick={handleToggleStatus}
             className={`p-2 ${
-              project.isActive
+              warehouse.isActive
                 ? 'text-green-600 hover:text-green-700'
                 : 'text-gray-400 hover:text-gray-500'
             } transition-colors`}
-            title={project.isActive ? 'Деактивировать' : 'Активировать'}
+            title={warehouse.isActive ? 'Деактивировать' : 'Активировать'}
           >
-            {project.isActive ? '✅' : '❌'}
+            {warehouse.isActive ? '✅' : '❌'}
           </button>
           <button
             onClick={() => setIsDeleteModalOpen(true)}
@@ -80,16 +98,22 @@ const ProjectCard = ({ project }: { project: Shop }) => {
 
       {/* Информация */}
       <div className="space-y-4">
-        {project.address && (
+        {warehouse.address && (
           <div>
             <div className="text-sm text-gray-500">Адрес</div>
-            <div>{project.address}</div>
+            <div>{warehouse.address}</div>
           </div>
         )}
-        {project.phone && (
+        {warehouse.phone && (
           <div>
             <div className="text-sm text-gray-500">Телефон</div>
-            <div>{project.phone}</div>
+            <div>{warehouse.phone}</div>
+          </div>
+        )}
+        {warehouse.email && (
+          <div>
+            <div className="text-sm text-gray-500">Email</div>
+            <div>{warehouse.email}</div>
           </div>
         )}
       </div>
@@ -98,22 +122,22 @@ const ProjectCard = ({ project }: { project: Shop }) => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Редактирование проекта"
+        title="Редактирование склада"
       >
-        <EditProjectForm
-          project={project}
+        <EditWarehouseForm
+          warehouse={warehouse}
           onClose={() => setIsEditModalOpen(false)}
         />
       </Modal>
 
-      {/* Модальное окно удаления проекта */}
+      {/* Модальное окно удаления склада */}
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Удаление проекта"
+        title="Удаление склада"
       >
         <div className="space-y-4">
-          <p>Вы уверены, что хотите удалить этот проект?</p>
+          <p>Вы уверены, что хотите удалить этот склад?</p>
           <div className="flex justify-end space-x-4">
             <button
               onClick={handleDelete}
@@ -135,26 +159,26 @@ const ProjectCard = ({ project }: { project: Shop }) => {
 };
 
 // Основной компонент страницы
-export default function ProjectsPage() {
+export default function WarehousesPage() {
   const [filter, setFilter] = useState<{
     status?: boolean;
     search?: string;
   }>({});
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Запрос списка проектов
-  const { data: projects, isLoading } = useQuery({
-    queryKey: ['shops'],
-    queryFn: getShops,
+  // Запрос списка складов
+  const { data: warehouses, isLoading } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: getWarehouses,
   });
 
-  // Фильтрация проектов
-  const filteredProjects = projects?.filter((project) => {
-    if (filter.status !== undefined && project.isActive !== filter.status)
+  // Фильтрация складов
+  const filteredWarehouses = warehouses?.filter((warehouse) => {
+    if (filter.status !== undefined && warehouse.isActive !== filter.status)
       return false;
     if (
       filter.search &&
-      !project.name.toLowerCase().includes(filter.search.toLowerCase())
+      !warehouse.name.toLowerCase().includes(filter.search.toLowerCase())
     )
       return false;
     return true;
@@ -172,12 +196,12 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       {/* Заголовок и действия */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Проекты</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Склады</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
         >
-          + Создать проект
+          + Создать склад
         </button>
       </div>
 
@@ -224,20 +248,20 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Список проектов */}
+      {/* Список складов */}
       <div className="grid grid-cols-1 gap-6">
-        {filteredProjects?.map((project) => (
-          <ProjectCard key={project.id} project={project} />
+        {filteredWarehouses?.map((warehouse) => (
+          <WarehouseCard key={warehouse.id} warehouse={warehouse} />
         ))}
       </div>
 
-      {/* Модальное окно создания проекта */}
+      {/* Модальное окно создания склада */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Создание нового проекта"
+        title="Создание нового склада"
       >
-        <CreateProjectForm onClose={() => setIsCreateModalOpen(false)} />
+        <CreateWarehouseForm onClose={() => setIsCreateModalOpen(false)} />
       </Modal>
     </div>
   );

@@ -1,5 +1,3 @@
-import { ShopType } from './shop';
-
 export enum RoleType {
   SUPERADMIN = 'superadmin',
   OWNER = 'owner',
@@ -17,7 +15,7 @@ export interface User {
 export interface Shop {
   id: string;
   name: string;
-  type: ShopType;
+  type: string;
   address?: string;
 }
 

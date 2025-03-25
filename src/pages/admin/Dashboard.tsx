@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { getDashboardStats } from '@/services/api';
 import { DashboardStats } from '@/types/dashboard';
-import { ShopType } from '@/types/shop';
 import { RoleType } from '@/types/role';
 
 export default function Dashboard() {
@@ -160,26 +159,22 @@ export default function Dashboard() {
           Распределение магазинов
         </h3>
         <div className="space-y-4">
-          {Object.entries(stats.shops.byType).map(([type, count]) => (
-            <div key={type}>
-              <div className="flex justify-between text-sm text-gray-500 mb-1">
-                <span>
-                  {type === ShopType.SHOP && '🏪 Магазин'}
-                  {type === ShopType.WAREHOUSE && '🏭 Склад'}
-                  {type === ShopType.POINT_OF_SALE && '💰 Точка продаж'}
-                </span>
-                <span>{count}</span>
+          {stats.shops.byType &&
+            Object.entries(stats.shops.byType).map(([type, count]) => (
+              <div key={type}>
+                <div className="flex justify-between text-sm text-gray-500 mb-1">
+                  <span>{count}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 rounded-full"
+                    style={{
+                      width: `${(count / stats.shops.total) * 100}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full"
-                  style={{
-                    width: `${(count / stats.shops.total) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </motion.div>
 
@@ -194,26 +189,27 @@ export default function Dashboard() {
           Распределение пользователей
         </h3>
         <div className="space-y-4">
-          {Object.entries(stats.users.byRole).map(([role, count]) => (
-            <div key={role}>
-              <div className="flex justify-between text-sm text-gray-500 mb-1">
-                <span>
-                  {role === RoleType.OWNER && '👑 Владелец'}
-                  {role === RoleType.MANAGER && '👔 Менеджер'}
-                  {role === RoleType.CASHIER && '💰 Кассир'}
-                </span>
-                <span>{count}</span>
+          {stats.users.byRole &&
+            Object.entries(stats.users.byRole).map(([role, count]) => (
+              <div key={role}>
+                <div className="flex justify-between text-sm text-gray-500 mb-1">
+                  <span>
+                    {role === RoleType.OWNER && '👑 Владелец'}
+                    {role === RoleType.MANAGER && '👔 Менеджер'}
+                    {role === RoleType.CASHIER && '💰 Кассир'}
+                  </span>
+                  <span>{count}</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 rounded-full"
+                    style={{
+                      width: `${(count / stats.users.total) * 100}%`,
+                    }}
+                  />
+                </div>
               </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 rounded-full"
-                  style={{
-                    width: `${(count / stats.users.total) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
       </motion.div>
     </div>

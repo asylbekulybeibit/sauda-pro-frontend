@@ -1,27 +1,40 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateShop } from '@/services/api';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { updateWarehouse, getShops } from '@/services/api';
+import { Warehouse } from '@/types/warehouse';
 import { Shop } from '@/types/shop';
 
-interface EditProjectFormProps {
-  project: Shop;
+interface EditWarehouseFormProps {
+  warehouse: Warehouse;
   onClose: () => void;
 }
 
-export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
+export function EditWarehouseForm({
+  warehouse,
+  onClose,
+}: EditWarehouseFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    name: project.name,
-    address: project.address || '',
-    phone: project.phone || '',
-    isActive: project.isActive,
+    name: warehouse.name,
+    address: warehouse.address || '',
+    phone: warehouse.phone || '',
+    email: warehouse.email || '',
+    isMain: warehouse.isMain,
+    isActive: warehouse.isActive,
+    shopId: warehouse.shopId,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Получение списка магазинов
+  const { data: shops, isLoading: isLoadingShops } = useQuery({
+    queryKey: ['shops'],
+    queryFn: getShops,
+  });
+
   const updateMutation = useMutation({
-    mutationFn: () => updateShop(project.id, formData),
+    mutationFn: () => updateWarehouse(warehouse.id, formData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shops'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
       onClose();
     },
   });
@@ -33,8 +46,16 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
       newErrors.name = 'Название обязательно';
     }
 
+    if (!formData.shopId) {
+      newErrors.shopId = 'Магазин обязателен';
+    }
+
     if (formData.phone && !/^\+7\d{10}$/.test(formData.phone)) {
       newErrors.phone = 'Неверный формат телефона';
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Неверный формат email';
     }
 
     setErrors(newErrors);
@@ -53,6 +74,35 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">
+          Магазин *
+        </label>
+        <select
+          value={formData.shopId}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, shopId: e.target.value }))
+          }
+          className={`mt-1 block w-full rounded-md border ${
+            errors.shopId ? 'border-red-500' : 'border-gray-300'
+          } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+          disabled={isLoadingShops}
+        >
+          {isLoadingShops ? (
+            <option>Загрузка магазинов...</option>
+          ) : (
+            shops?.map((shop: Shop) => (
+              <option key={shop.id} value={shop.id}>
+                {shop.name}
+              </option>
+            ))
+          )}
+        </select>
+        {errors.shopId && (
+          <p className="mt-1 text-sm text-red-500">{errors.shopId}</p>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700">
           Название *
@@ -102,6 +152,38 @@ export function EditProjectForm({ project, onClose }: EditProjectFormProps) {
         {errors.phone && (
           <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
         )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Email</label>
+        <input
+          type="text"
+          value={formData.email}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, email: e.target.value }))
+          }
+          className={`mt-1 block w-full rounded-md border ${
+            errors.email ? 'border-red-500' : 'border-gray-300'
+          } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+        )}
+      </div>
+
+      <div className="flex items-center">
+        <input
+          type="checkbox"
+          id="isMain"
+          checked={formData.isMain}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, isMain: e.target.checked }))
+          }
+          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <label htmlFor="isMain" className="ml-2 text-sm text-gray-700">
+          Основной склад
+        </label>
       </div>
 
       <div className="flex items-center">

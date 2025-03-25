@@ -1,10 +1,16 @@
 import axios from 'axios';
 import { UserRoleDetails } from '@/types/role';
 import { Shop, CreateShopDto, UpdateShopDto } from '@/types/shop';
+import {
+  Warehouse,
+  CreateWarehouseDto,
+  UpdateWarehouseDto,
+} from '@/types/warehouse';
 import { Invite, CreateInviteDto } from '@/types/invite';
 import { User, UpdateUserDto } from '@/types/user';
 import { DashboardStats } from '@/types/dashboard';
 import { useAuthStore } from '@/store/authStore';
+import { cleanFormData } from '@/utils/form';
 
 export const api = axios.create({
   baseURL: 'http://localhost:3000',
@@ -164,6 +170,36 @@ export const deleteShop = async (id: string): Promise<void> => {
   await api.delete(`/shops/${id}`);
 };
 
+// Методы для работы со складами
+export const getWarehouses = async (): Promise<Warehouse[]> => {
+  const response = await api.get('/warehouses');
+  return response.data;
+};
+
+export const getWarehouse = async (id: string): Promise<Warehouse> => {
+  const response = await api.get(`/warehouses/${id}`);
+  return response.data;
+};
+
+export const createWarehouse = async (
+  data: CreateWarehouseDto
+): Promise<Warehouse> => {
+  const response = await api.post('/warehouses', data);
+  return response.data;
+};
+
+export const updateWarehouse = async (
+  id: string,
+  data: UpdateWarehouseDto
+): Promise<Warehouse> => {
+  const response = await api.patch(`/warehouses/${id}`, data);
+  return response.data;
+};
+
+export const deleteWarehouse = async (id: string): Promise<void> => {
+  await api.delete(`/warehouses/${id}`);
+};
+
 // Методы для работы с инвайтами
 export const getInvites = async (): Promise<Invite[]> => {
   const response = await api.get('/invites');
@@ -171,7 +207,8 @@ export const getInvites = async (): Promise<Invite[]> => {
 };
 
 export const createInvite = async (data: CreateInviteDto): Promise<Invite> => {
-  const response = await api.post('/invites', data);
+  const cleanedData = cleanFormData(data);
+  const response = await api.post('/invites', cleanedData);
   return response.data;
 };
 

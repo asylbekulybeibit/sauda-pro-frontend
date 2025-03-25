@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -31,125 +31,114 @@ import PaymentMethodSelection from './pages/cashier/service/PaymentMethodSelecti
 import CompletedServiceDetails from './pages/cashier/service/CompletedServiceDetails';
 
 // Ленивая загрузка компонентов
-const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
-const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout'));
-const Dashboard = React.lazy(() => import('./pages/admin/Dashboard'));
-const ProjectsPage = React.lazy(() => import('./pages/admin/ProjectsPage'));
-const UsersPage = React.lazy(() => import('./pages/admin/UsersPage'));
-const InvitesPage = React.lazy(() => import('./pages/admin/InvitesPage'));
-const OwnerLayout = React.lazy(() => import('./pages/owner/OwnerLayout'));
-const OwnerDashboard = React.lazy(() => import('./pages/owner/OwnerDashboard'));
-const OwnerInvitesPage = React.lazy(() => import('./pages/owner/InvitesPage'));
-const OwnerStaffPage = React.lazy(() => import('./pages/owner/StaffPage'));
-const AnalyticsPage = React.lazy(
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
+const ProjectsPage = lazy(() => import('./pages/admin/ProjectsPage'));
+const WarehousesPage = lazy(() => import('./pages/admin/WarehousesPage'));
+const UsersPage = lazy(() => import('./pages/admin/UsersPage'));
+const InvitesPage = lazy(() => import('./pages/admin/InvitesPage'));
+const OwnerLayout = lazy(() => import('./pages/owner/OwnerLayout'));
+const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'));
+const OwnerInvitesPage = lazy(() => import('./pages/owner/InvitesPage'));
+const OwnerStaffPage = lazy(() => import('./pages/owner/StaffPage'));
+const AnalyticsPage = lazy(
   () => import('./pages/manager/analytics/AnalyticsPage')
 );
-const BulkOperationsPage = React.lazy(
+const BulkOperationsPage = lazy(
   () => import('./pages/manager/BulkOperationsPage')
 );
-const ManagerDashboard = React.lazy(
-  () => import('./pages/manager/ManagerDashboard')
-);
-const ProductsPage = React.lazy(
+const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
+const ProductsPage = lazy(
   () => import('./pages/manager/products/ProductsPage')
 );
-const ProductDetailsPage = React.lazy(
+const ProductDetailsPage = lazy(
   () => import('./pages/manager/products/ProductDetailsPage')
 );
-const CategoriesPage = React.lazy(
+const CategoriesPage = lazy(
   () => import('./pages/manager/categories/CategoriesPage')
 );
-const ReportsPage = React.lazy(
-  () => import('./pages/manager/reports/ReportsPage')
-);
+const ReportsPage = lazy(() => import('./pages/manager/reports/ReportsPage'));
 
-const SalesPage = React.lazy(() => import('./pages/manager/sales/SalesPage'));
-const ReturnsPage = React.lazy(
-  () => import('./pages/manager/sales/ReturnsPage')
-);
-const StaffPage = React.lazy(() => import('./pages/manager/staff/StaffPage'));
-const PromotionsPage = React.lazy(
+const SalesPage = lazy(() => import('./pages/manager/sales/SalesPage'));
+const ReturnsPage = lazy(() => import('./pages/manager/sales/ReturnsPage'));
+const StaffPage = lazy(() => import('./pages/manager/staff/StaffPage'));
+const PromotionsPage = lazy(
   () => import('./pages/manager/promotions/PromotionsPage')
 );
-const LabelsPage = React.lazy(
-  () => import('./pages/manager/labels/LabelsPage')
-);
+const LabelsPage = lazy(() => import('./pages/manager/labels/LabelsPage'));
 
-const ManagerInvitesPage = React.lazy(
+const ManagerInvitesPage = lazy(
   () => import('./pages/manager/invites/ManagerInvitesPage')
 );
-const ClientsPage = React.lazy(
-  () => import('./pages/manager/clients/ClientsPage')
-);
-const TransfersPage = React.lazy(
+const ClientsPage = lazy(() => import('./pages/manager/clients/ClientsPage'));
+const TransfersPage = lazy(
   () => import('./pages/manager/warehouse/TransfersPage')
 );
-const WriteOffsPage = React.lazy(
+const WriteOffsPage = lazy(
   () => import('./pages/manager/warehouse/WriteOffsPage')
 );
-const WarehouseReportsPage = React.lazy(
+const WarehouseReportsPage = lazy(
   () => import('./pages/manager/warehouse/ReportsPage')
 );
-const WarehousePage = React.lazy(
+const WarehousePage = lazy(
   () => import('./pages/manager/warehouse/WarehousePage')
 );
-const IncomingPage = React.lazy(
+const IncomingPage = lazy(
   () => import('./pages/manager/warehouse/IncomingPage')
 );
-const InventoryPage = React.lazy(
+const InventoryPage = lazy(
   () => import('./pages/manager/warehouse/InventoryPage')
 );
-const CashRegistersPage = React.lazy(
+const CashRegistersPage = lazy(
   () => import('./pages/manager/cash-registers/cash-registers')
 );
-const SuppliersPage = React.lazy(
+const SuppliersPage = lazy(
   () => import('./pages/manager/suppliers/SuppliersPage')
 );
-const SupplierDetailsPage = React.lazy(
+const SupplierDetailsPage = lazy(
   () => import('./pages/manager/suppliers/SupplierDetailsPage')
 );
-const SupplierFormPage = React.lazy(
+const SupplierFormPage = lazy(
   () => import('./pages/manager/suppliers/SupplierFormPage')
 );
-const PriceAnalyticsPage = React.lazy(
+const PriceAnalyticsPage = lazy(
   () => import('./pages/manager/prices/PriceAnalyticsPage')
 );
-const ProductPriceHistoryPage = React.lazy(
+const ProductPriceHistoryPage = lazy(
   () => import('./pages/manager/prices/ProductPriceHistoryPage')
 );
 
 // Страницы для услуг
-const ServiceTypesPage = React.lazy(
+const ServiceTypesPage = lazy(
   () => import('./pages/manager/services/servicetypes/ServiceTypesPage')
 );
-const ClientVehiclesPage = React.lazy(
+const ClientVehiclesPage = lazy(
   () => import('./pages/manager/services/vehicles/ClientVehiclesPage')
 );
-const ServiceHistoryPage = React.lazy(
+const ServiceHistoryPage = lazy(
   () => import('./pages/manager/services/history/ServiceHistoryPage')
 );
 
 // Use regular relative imports
-const PurchaseFormPage = React.lazy(
+const PurchaseFormPage = lazy(
   () => import('./pages/manager/warehouse/PurchaseFormPage')
 );
 
-const PurchaseDetailsPage = React.lazy(
+const PurchaseDetailsPage = lazy(
   () => import('./pages/manager/warehouse/PurchaseDetailsPage')
 );
 
 // Ленивая загрузка компонентов кассира
 // Комментируем импорты, которые вызывают ошибки
-const CashierLayout = React.lazy(() => import('./pages/cashier/CashierLayout'));
-const CashRegisterSelection = React.lazy(
+const CashierLayout = lazy(() => import('./pages/cashier/CashierLayout'));
+const CashRegisterSelection = lazy(
   () => import('./pages/cashier/CashRegisterSelection')
 );
-const ShiftHistory = React.lazy(() => import('./pages/cashier/ShiftHistory'));
-const CloseShift = React.lazy(() => import('./pages/cashier/CloseShift'));
-const ShiftDetails = React.lazy(() => import('./pages/cashier/ShiftDetails'));
-const ReceiptDetails = React.lazy(
-  () => import('./pages/cashier/ReceiptDetails')
-);
+const ShiftHistory = lazy(() => import('./pages/cashier/ShiftHistory'));
+const CloseShift = lazy(() => import('./pages/cashier/CloseShift'));
+const ShiftDetails = lazy(() => import('./pages/cashier/ShiftDetails'));
+const ReceiptDetails = lazy(() => import('./pages/cashier/ReceiptDetails'));
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -260,6 +249,7 @@ export default function App() {
                 >
                   <Route index element={<Dashboard />} />
                   <Route path="projects" element={<ProjectsPage />} />
+                  <Route path="warehouses" element={<WarehousesPage />} />
                   <Route path="users" element={<UsersPage />} />
                   <Route path="invites" element={<InvitesPage />} />
                 </Route>

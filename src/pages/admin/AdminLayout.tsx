@@ -113,6 +113,13 @@ export default function AdminLayout() {
               <span>Проекты</span>
             </Link>
             <Link
+              to="/admin/warehouses"
+              className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+            >
+              <span>🏭</span>
+              <span>Склады</span>
+            </Link>
+            <Link
               to="/admin/users"
               className="flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors duration-200"
             >

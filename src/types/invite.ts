@@ -48,4 +48,5 @@ export interface CreateInviteDto {
   email?: string;
   role: RoleType;
   shopId: string;
+  warehouseId?: string;
 }
