@@ -101,8 +101,15 @@ export function CreateInviteForm({
         errorMessage =
           'Не удалось отправить приглашение. Пожалуйста, обновите страницу и попробуйте снова.';
       } else if (error.response?.status === 403) {
-        errorMessage =
-          'У вас нет доступа к этому складу или недостаточно прав для отправки приглашений.';
+        // Для ошибок 403 проверяем наличие сообщения о существующем инвайте
+        const errorMsg = error.response?.data?.message;
+        if (errorMsg && errorMsg.includes('активное приглашение на роль')) {
+          // Для динамических сообщений об уже существующих инвайтах
+          errorMessage = errorMsg;
+        } else {
+          errorMessage =
+            'У вас нет доступа к этому складу или недостаточно прав для отправки приглашений.';
+        }
       } else if (error.response?.data?.message) {
         // Map backend error messages to user-friendly Russian messages
         const errorMessageMap: Record<string, string> = {
