@@ -99,6 +99,9 @@ export interface RegisterPaymentMethod {
   createdAt: string;
   currentBalance: number;
   accountDetails?: string;
+  cashRegisterId?: string;
+  warehouseId: string;
+  isShared: boolean;
 }
 
 export interface PaymentMethodDto {
@@ -109,13 +112,14 @@ export interface PaymentMethodDto {
   description?: string;
   isActive?: boolean;
   status: PaymentMethodStatus;
+  isShared?: boolean;
 }
 
 export interface CreateCashRegisterDto {
   name: string;
   type: CashRegisterType;
   location?: string;
-  paymentMethods: PaymentMethodDto[];
+  paymentMethods?: PaymentMethodDto[];
 }
 
 export enum PaymentMethodTransactionType {

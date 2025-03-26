@@ -6,6 +6,7 @@ import {
   PaymentMethodDto,
   PaymentMethodTransactionType,
 } from '../types/cash-register';
+import axios from 'axios';
 
 export const cashRegistersApi = {
   // Получить все кассы склада
@@ -60,12 +61,19 @@ export const cashRegistersApi = {
     id: string,
     paymentMethods: PaymentMethodDto[]
   ): Promise<CashRegister> => {
+    console.log(
+      `API call: updatePaymentMethods(${warehouseId}, ${id})`,
+      paymentMethods
+    );
+
     const { data } = await api.put(
       `/manager/${warehouseId}/cash-registers/${id}/payment-methods`,
       {
         paymentMethods,
       }
     );
+
+    console.log('API response:', data);
     return data;
   },
 
@@ -128,6 +136,14 @@ export const cashRegistersApi = {
         note,
         shiftId,
       }
+    );
+    return data;
+  },
+
+  // Получение общих методов оплаты для склада
+  getSharedPaymentMethods: async (warehouseId: string) => {
+    const { data } = await api.get(
+      `/manager/${warehouseId}/cash-registers/shared-payment-methods`
     );
     return data;
   },

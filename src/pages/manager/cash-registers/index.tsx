@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button, Card, Typography, Empty } from 'antd';
+import { useState, useEffect } from 'react';
+import { Button, Card, Typography, Empty, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +16,14 @@ export default function CashRegisters() {
   const { warehouseId } = useParams<{ warehouseId: string }>();
   const [createModalVisible, setCreateModalVisible] = useState(false);
 
+  // Добавляем проверку и логирование warehouseId
+  useEffect(() => {
+    console.log('CashRegisters page warehouseId:', warehouseId);
+    if (!warehouseId) {
+      message.error('ID склада не найден. Проверьте URL.');
+    }
+  }, [warehouseId]);
+
   // Запрос на получение списка касс
   const {
     data: cashRegisters,
@@ -29,6 +37,10 @@ export default function CashRegisters() {
 
   // Обработчик открытия модального окна создания кассы
   const handleOpenCreateModal = () => {
+    if (!warehouseId) {
+      message.error('ID склада не найден. Невозможно создать кассу.');
+      return;
+    }
     setCreateModalVisible(true);
   };
 
@@ -42,6 +54,22 @@ export default function CashRegisters() {
     refetch();
     setCreateModalVisible(false);
   };
+
+  // Если warehouseId не найден, показываем сообщение об ошибке
+  if (!warehouseId) {
+    return (
+      <ManagerLayout>
+        <div className="p-8">
+          <Typography.Title level={4} type="danger">
+            Ошибка: ID склада не найден в URL
+          </Typography.Title>
+          <Typography.Text>
+            Пожалуйста, проверьте URL или попробуйте перезагрузить страницу.
+          </Typography.Text>
+        </div>
+      </ManagerLayout>
+    );
+  }
 
   return (
     <ManagerLayout>
@@ -64,7 +92,7 @@ export default function CashRegisters() {
           <CashRegisterList
             cashRegisters={cashRegisters}
             loading={isLoading}
-            warehouseId={warehouseId!}
+            warehouseId={warehouseId}
           />
         ) : (
           <Empty
@@ -74,12 +102,14 @@ export default function CashRegisters() {
         )}
       </Card>
 
-      <CreateCashRegisterModal
-        isOpen={createModalVisible}
-        onClose={handleCloseCreateModal}
-        onSuccess={handleCreateSuccess}
-        warehouseId={warehouseId!}
-      />
+      {createModalVisible && (
+        <CreateCashRegisterModal
+          isOpen={createModalVisible}
+          onClose={handleCloseCreateModal}
+          onSuccess={handleCreateSuccess}
+          warehouseId={warehouseId}
+        />
+      )}
     </ManagerLayout>
   );
 }

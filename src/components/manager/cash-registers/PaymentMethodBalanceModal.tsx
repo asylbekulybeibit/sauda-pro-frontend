@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   Button,
@@ -23,6 +23,7 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   HistoryOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -39,7 +40,7 @@ const { RangePicker } = DatePicker;
 export function PaymentMethodBalanceModal({
   isOpen,
   onClose,
-  paymentMethod,
+  paymentMethod: initialPaymentMethod,
   warehouseId,
 }: PaymentMethodBalanceModalProps) {
   const queryClient = useQueryClient();
@@ -49,9 +50,36 @@ export function PaymentMethodBalanceModal({
   const [depositForm] = Form.useForm();
   const [withdrawForm] = Form.useForm();
   const [activeTab, setActiveTab] = useState('history');
+  const [paymentMethod, setPaymentMethod] =
+    useState<RegisterPaymentMethod>(initialPaymentMethod);
+
+  // Получение актуальных данных о методе оплаты
+  const { data: currentCashRegister, refetch: refetchCashRegister } = useQuery({
+    queryKey: [
+      'cash-register-detail',
+      warehouseId,
+      initialPaymentMethod.cashRegisterId,
+    ],
+    queryFn: () => {
+      // Проверяем, есть ли у метода оплаты привязка к кассе
+      if (!initialPaymentMethod.cashRegisterId) {
+        // Для общих методов оплаты нет привязки к конкретной кассе
+        return Promise.resolve(null);
+      }
+      return cashRegistersApi.getOne(
+        warehouseId,
+        initialPaymentMethod.cashRegisterId
+      );
+    },
+    enabled: isOpen && !!initialPaymentMethod.cashRegisterId,
+  });
 
   // Получение истории транзакций
-  const { data: transactions, isLoading } = useQuery({
+  const {
+    data: transactions,
+    isLoading,
+    refetch: refetchTransactions,
+  } = useQuery({
     queryKey: ['paymentMethodTransactions', paymentMethod.id, dateRange],
     queryFn: () =>
       cashRegistersApi.getPaymentMethodTransactions(
@@ -67,6 +95,31 @@ export function PaymentMethodBalanceModal({
     enabled: isOpen,
   });
 
+  // Обновляем состояние paymentMethod при изменении данных
+  useEffect(() => {
+    if (currentCashRegister) {
+      const updatedMethod = currentCashRegister.paymentMethods.find(
+        (method) => method.id === initialPaymentMethod.id
+      );
+      if (updatedMethod) {
+        setPaymentMethod(updatedMethod);
+      }
+    } else if (initialPaymentMethod.isShared) {
+      // Для общих методов оплаты обновляем данные только при изменении initialPaymentMethod
+      // и при получении данных о транзакциях
+      if (transactions && transactions.length > 0) {
+        // Если есть транзакции, обновляем баланс из последней транзакции
+        const latestTransaction = transactions[0];
+        if (latestTransaction) {
+          setPaymentMethod((prevMethod) => ({
+            ...prevMethod,
+            currentBalance: latestTransaction.balanceAfter,
+          }));
+        }
+      }
+    }
+  }, [currentCashRegister, initialPaymentMethod.id, transactions]);
+
   // Мутация для пополнения баланса
   const depositMutation = useMutation({
     mutationFn: (values: { amount: number; note?: string }) =>
@@ -76,15 +129,17 @@ export function PaymentMethodBalanceModal({
         values.amount,
         values.note
       ),
-    onSuccess: () => {
+    onSuccess: (data) => {
       message.success('Баланс успешно пополнен');
       depositForm.resetFields();
-      // Обновляем данные о методе оплаты и историю транзакций
+
+      // Обновляем данные
+      refetchCashRegister();
+      refetchTransactions();
+
+      // Также инвалидируем запрос общего списка касс для обновления на других страницах
       queryClient.invalidateQueries({
         queryKey: ['cash-registers', warehouseId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['paymentMethodTransactions', paymentMethod.id],
       });
     },
     onError: (error: any) => {
@@ -105,15 +160,17 @@ export function PaymentMethodBalanceModal({
         values.amount,
         values.note
       ),
-    onSuccess: () => {
+    onSuccess: (data) => {
       message.success('Средства успешно изъяты');
       withdrawForm.resetFields();
-      // Обновляем данные о методе оплаты и историю транзакций
+
+      // Обновляем данные
+      refetchCashRegister();
+      refetchTransactions();
+
+      // Также инвалидируем запрос общего списка касс для обновления на других страницах
       queryClient.invalidateQueries({
         queryKey: ['cash-registers', warehouseId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['paymentMethodTransactions', paymentMethod.id],
       });
     },
     onError: (error: any) => {
@@ -246,6 +303,11 @@ export function PaymentMethodBalanceModal({
                 ) : (
                   <Tag color="green">Кастомный</Tag>
                 )}
+                {paymentMethod.isShared && (
+                  <Tag color="geekblue" className="ml-2">
+                    Общий
+                  </Tag>
+                )}
               </div>
             </div>
             {paymentMethod.accountDetails && (
@@ -255,6 +317,18 @@ export function PaymentMethodBalanceModal({
               </div>
             )}
           </div>
+
+          {paymentMethod.isShared && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <div className="text-sm bg-blue-50 p-2 rounded border border-blue-200">
+                <InfoCircleOutlined className="mr-2 text-blue-500" />
+                <span className="font-medium">Общий метод оплаты:</span> Этот
+                метод доступен во всех кассах склада. Баланс отслеживается
+                централизованно, и все операции пополнения или изъятия средств,
+                выполненные из любой кассы, будут отражены здесь.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

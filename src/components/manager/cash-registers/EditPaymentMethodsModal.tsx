@@ -1,35 +1,44 @@
+import { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
   Select,
-  Button,
-  Divider,
-  Space,
   Input,
-  Popconfirm,
+  Button,
+  Switch,
+  message,
+  Divider,
+  Tabs,
+  Checkbox,
+  Tooltip,
+  Typography,
 } from 'antd';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import {
+  MinusCircleOutlined,
+  PlusOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import {
   CashRegister,
   PaymentMethodType,
   PaymentMethodSource,
   PaymentMethodStatus,
+  RegisterPaymentMethod,
 } from '@/types/cash-register';
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { cashRegistersApi } from '@/services/cashRegistersApi';
-import { message } from 'antd';
+
+const { Option } = Select;
+const { TabPane } = Tabs;
+const { Text } = Typography;
 
 interface EditPaymentMethodsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   register: CashRegister;
+  warehouseId: string;
 }
-
-const systemPaymentMethods = [
-  { value: PaymentMethodType.CASH, label: 'Наличные' },
-  { value: PaymentMethodType.CARD, label: 'Банковская карта' },
-  { value: PaymentMethodType.QR, label: 'QR-код' },
-];
 
 interface FormValues {
   systemPaymentMethods: PaymentMethodType[];
@@ -40,6 +49,7 @@ interface FormValues {
     description?: string;
     isActive: boolean;
     status: PaymentMethodStatus;
+    isShared?: boolean;
   }>;
 }
 
@@ -48,296 +58,310 @@ export default function EditPaymentMethodsModal({
   onClose,
   onSuccess,
   register,
+  warehouseId,
 }: EditPaymentMethodsModalProps) {
-  const [form] = Form.useForm<FormValues>();
+  const [form] = Form.useForm();
+  const [activeTab, setActiveTab] = useState('1');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Подготавливаем начальные значения формы
-  const initialValues = {
-    systemPaymentMethods: register.paymentMethods
-      .filter(
-        (method) =>
-          method.source === PaymentMethodSource.SYSTEM &&
-          method.systemType &&
-          method.status === PaymentMethodStatus.ACTIVE &&
-          method.isActive === true
-      )
-      .map((method) => method.systemType!),
-    customPaymentMethods: register.paymentMethods
-      .filter(
-        (method) =>
-          method.source === PaymentMethodSource.CUSTOM &&
-          method.isActive === true
-      )
-      .map((method) => ({
-        id: method.id,
-        name: method.name!,
-        code: method.code!,
-        description: method.description,
-        isActive: method.isActive,
-        status: method.status,
-      })),
-  };
+  // Получаем общие методы оплаты для склада
+  const { data: sharedPaymentMethods = [] } = useQuery({
+    queryKey: ['shared-payment-methods', warehouseId],
+    queryFn: () => cashRegistersApi.getSharedPaymentMethods(warehouseId),
+    enabled: !!warehouseId && isOpen,
+  });
 
-  const handleSubmit = async (values: FormValues) => {
-    try {
-      // Преобразуем значения формы в формат API
-      const paymentMethods = [
-        // Системные методы - активные
-        ...values.systemPaymentMethods.map((type) => {
-          return {
+  // При открытии модального окна устанавливаем начальные значения формы
+  useEffect(() => {
+    if (isOpen && register) {
+      // Разделяем методы оплаты по источнику (системные/кастомные)
+      const systemMethods = register.paymentMethods
+        .filter(
+          (method) =>
+            method.source === PaymentMethodSource.SYSTEM &&
+            method.cashRegisterId === register.id
+        )
+        .map((method) => method.systemType);
+
+      const customMethods = register.paymentMethods
+        .filter(
+          (method) =>
+            method.source === PaymentMethodSource.CUSTOM &&
+            method.cashRegisterId === register.id
+        )
+        .map((method) => ({
+          id: method.id,
+          name: method.name || '',
+          code: method.code || '',
+          description: method.description || '',
+          isActive: method.isActive,
+          status: method.status,
+          isShared: false,
+        }));
+
+      form.setFieldsValue({
+        systemPaymentMethods: systemMethods,
+        customPaymentMethods: customMethods,
+      });
+    }
+  }, [isOpen, register, form]);
+
+  const updateMutation = useMutation({
+    mutationFn: (values: any) => {
+      // Проверка наличия warehouseId
+      if (!warehouseId) {
+        console.error('warehouseId is undefined in EditPaymentMethodsModal');
+        throw new Error(
+          'ID склада не определен. Пожалуйста, перезагрузите страницу.'
+        );
+      }
+
+      console.log(
+        'Updating payment methods with warehouseId:',
+        warehouseId,
+        'registerId:',
+        register.id
+      );
+
+      // Трансформируем данные для API
+      const paymentMethods = [];
+
+      // Обрабатываем системные методы оплаты, если они есть
+      if (
+        values.systemPaymentMethods &&
+        values.systemPaymentMethods.length > 0
+      ) {
+        const systemMethods = values.systemPaymentMethods.map(
+          (type: PaymentMethodType) => ({
             source: PaymentMethodSource.SYSTEM,
             systemType: type,
-            // Имя необязательно для системных методов, бэкенд сам его определит
-            isActive: true,
             status: PaymentMethodStatus.ACTIVE,
-          };
-        }),
-        // Системные методы - неактивные
-        ...register.paymentMethods
-          .filter(
-            (method) =>
-              method.source === PaymentMethodSource.SYSTEM &&
-              method.systemType &&
-              !values.systemPaymentMethods.includes(method.systemType)
-          )
-          .map((method) => {
-            return {
-              source: PaymentMethodSource.SYSTEM,
-              systemType: method.systemType,
-              // Имя необязательно для системных методов, бэкенд сам его определит
-              isActive: true,
-              status: PaymentMethodStatus.INACTIVE,
-            };
-          }),
-        // Кастомные методы с их статусами
-        ...values.customPaymentMethods.map((method) => ({
-          source: PaymentMethodSource.CUSTOM,
-          name: method.name, // Для кастомных методов имя обязательно
-          code: method.code,
-          description: method.description,
-          isActive: true,
-          status: method.status,
-        })),
-      ];
+            isActive: true,
+          })
+        );
+        paymentMethods.push(...systemMethods);
+      }
 
-      await cashRegistersApi.updatePaymentMethods(
-        register.warehouseId,
+      // Обрабатываем кастомные методы оплаты, если они есть
+      if (
+        values.customPaymentMethods &&
+        values.customPaymentMethods.length > 0
+      ) {
+        const customMethods = values.customPaymentMethods.map(
+          (method: any) => ({
+            source: PaymentMethodSource.CUSTOM,
+            id: method.id,
+            name: method.name,
+            code: method.code,
+            description: method.description,
+            isActive: method.isActive,
+            status: method.status || PaymentMethodStatus.ACTIVE,
+            isShared: method.isShared || false,
+          })
+        );
+        paymentMethods.push(...customMethods);
+      }
+
+      console.log(
+        'Отправка методов оплаты на сервер:',
+        JSON.stringify(paymentMethods, null, 2)
+      );
+
+      return cashRegistersApi.updatePaymentMethods(
+        warehouseId,
         register.id,
         paymentMethods
       );
-      message.success('Методы оплаты обновлены');
+    },
+    onSuccess: (data) => {
+      console.log('Успешное обновление методов оплаты:', data);
+    },
+    onError: (error) => {
+      console.error('Ошибка при обновлении методов оплаты:', error);
+    },
+  });
+
+  const handleSubmit = async (values: FormValues) => {
+    setSubmitting(true);
+    try {
+      await updateMutation.mutateAsync(values);
+      message.success('Методы оплаты успешно обновлены');
       onSuccess();
       onClose();
-    } catch (error) {
-      message.error('Не удалось обновить методы оплаты');
+    } catch (error: any) {
+      message.error(
+        `Ошибка при обновлении методов оплаты: ${
+          error.response?.data?.message || 'Неизвестная ошибка'
+        }`
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <Modal
-      title="Редактирование методов оплаты"
+      title={`Редактирование методов оплаты кассы: ${register?.name || ''}`}
       open={isOpen}
       onCancel={onClose}
       footer={null}
-      width={800}
+      width={700}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        initialValues={initialValues}
-      >
-        <Form.Item
-          name="systemPaymentMethods"
-          label="Стандартные методы оплаты"
-          rules={[
-            {
-              required: true,
-              type: 'array',
-              min: 1,
-              message: 'Выберите хотя бы один метод оплаты',
-            },
-          ]}
-        >
-          <Select
-            mode="multiple"
-            placeholder="Выберите методы оплаты"
-            options={systemPaymentMethods}
-          />
-        </Form.Item>
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Tabs activeKey={activeTab} onChange={setActiveTab}>
+          <TabPane tab="Системные методы" key="1">
+            <Form.Item
+              name="systemPaymentMethods"
+              label="Системные методы оплаты"
+            >
+              <Select
+                mode="multiple"
+                placeholder="Выберите методы оплаты"
+                style={{ width: '100%' }}
+              >
+                <Option value={PaymentMethodType.CASH}>Наличные</Option>
+                <Option value={PaymentMethodType.CARD}>Карта</Option>
+                <Option value={PaymentMethodType.QR}>QR-код</Option>
+              </Select>
+            </Form.Item>
+          </TabPane>
 
-        <Divider>Кастомные методы оплаты</Divider>
+          <TabPane tab="Кастомные методы" key="2">
+            <div className="mb-4">
+              <Text>
+                Кастомные методы оплаты позволяют создать дополнительные способы
+                оплаты, которые не входят в стандартные системные методы. Вы
+                можете сделать их общими для всех касс склада или ограничить
+                доступ только этой кассой.
+                <Tooltip title="Метод с флагом 'Общий' будет доступен во всех кассах склада с единым балансом">
+                  <InfoCircleOutlined style={{ marginLeft: 8 }} />
+                </Tooltip>
+              </Text>
+            </div>
 
-        <Form.List name="customPaymentMethods">
-          {(fields, { add, remove }) => (
-            <>
-              {fields.map(({ key, name, ...restField }) => (
-                <Space key={key} align="baseline">
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'name']}
-                    rules={[{ required: true, message: 'Введите название' }]}
-                  >
-                    <Input placeholder="Название" />
-                  </Form.Item>
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'code']}
-                    rules={[{ required: true, message: 'Введите код' }]}
-                  >
-                    <Input placeholder="Код" />
-                  </Form.Item>
-                  <Form.Item {...restField} name={[name, 'description']}>
-                    <Input placeholder="Описание" />
-                  </Form.Item>
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'status']}
-                    initialValue={PaymentMethodStatus.ACTIVE}
-                  >
-                    <Popconfirm
-                      title={
-                        form.getFieldValue([
-                          'customPaymentMethods',
-                          name,
-                          'status',
-                        ]) === PaymentMethodStatus.ACTIVE
-                          ? 'Отключить метод оплаты?'
-                          : 'Включить метод оплаты?'
-                      }
-                      description={
-                        form.getFieldValue([
-                          'customPaymentMethods',
-                          name,
-                          'status',
-                        ]) === PaymentMethodStatus.ACTIVE
-                          ? 'Вы уверены, что хотите отключить этот метод оплаты?'
-                          : 'Вы уверены, что хотите включить этот метод оплаты?'
-                      }
-                      onConfirm={() => {
-                        const currentStatus = form.getFieldValue([
-                          'customPaymentMethods',
-                          name,
-                          'status',
-                        ]);
+            {/* Список существующих общих методов оплаты */}
+            {sharedPaymentMethods.length > 0 && (
+              <div className="mb-4">
+                <Text strong>Существующие общие методы оплаты:</Text>
+                <div>
+                  <Text type="secondary">
+                    Эти методы оплаты уже созданы и являются общими для всего
+                    склада. Они автоматически доступны во всех кассах, включая
+                    текущую. Редактировать и удалять эти методы можно только
+                    через создание новой кассы или редактирование другой кассы.
+                  </Text>
+                </div>
+                <div className="bg-gray-50 p-2 mt-2 rounded">
+                  {sharedPaymentMethods.map((method) => (
+                    <div key={method.id} className="py-1">
+                      <Text>
+                        {method.name}{' '}
+                        <Text type="success">(общий для всех касс склада)</Text>
+                      </Text>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                        // Получаем все текущие методы
-                        const methods = form.getFieldValue(
-                          'customPaymentMethods'
-                        );
-
-                        // Создаем новый массив с обновленным значением
-                        const updatedMethods = methods.map(
-                          (
-                            method: FormValues['customPaymentMethods'][0],
-                            index: number
-                          ) =>
-                            index === name
-                              ? {
-                                  ...method,
-                                  status:
-                                    currentStatus === PaymentMethodStatus.ACTIVE
-                                      ? PaymentMethodStatus.INACTIVE
-                                      : PaymentMethodStatus.ACTIVE,
-                                }
-                              : method
-                        );
-
-                        // Обновляем значение в форме
-                        form.setFieldsValue({
-                          customPaymentMethods: updatedMethods,
-                        });
-
-                        // Заставляем форму обновиться
-                        form.validateFields(['customPaymentMethods']);
-                      }}
-                      okText="Да"
-                      cancelText="Нет"
-                      okButtonProps={{
-                        className: 'bg-blue-500 hover:bg-blue-500',
-                      }}
-                      cancelButtonProps={{
-                        className: 'bg-blue-500 hover:bg-blue-500',
-                      }}
-                    >
-                      <Button
-                        type="primary"
-                        className={
-                          form.getFieldValue([
-                            'customPaymentMethods',
-                            name,
-                            'status',
-                          ]) === PaymentMethodStatus.ACTIVE
-                            ? 'bg-blue-500 hover:bg-blue-500'
-                            : 'bg-gray-500 hover:bg-gray-500'
-                        }
+            <Form.List name="customPaymentMethods">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(({ key, name, fieldKey, ...restField }) => (
+                    <div key={key} className="bg-gray-50 p-3 mb-3 rounded">
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'name']}
+                        fieldKey={[fieldKey, 'name']}
+                        label="Название"
+                        rules={[
+                          { required: true, message: 'Введите название' },
+                        ]}
                       >
-                        {form.getFieldValue([
-                          'customPaymentMethods',
-                          name,
-                          'status',
-                        ]) === PaymentMethodStatus.ACTIVE
-                          ? 'Активен'
-                          : 'Неактивен'}
+                        <Input placeholder="Название метода оплаты" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'code']}
+                        fieldKey={[fieldKey, 'code']}
+                        label="Код"
+                        rules={[{ required: true, message: 'Введите код' }]}
+                      >
+                        <Input placeholder="Уникальный код метода оплаты" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'description']}
+                        fieldKey={[fieldKey, 'description']}
+                        label="Описание"
+                      >
+                        <Input.TextArea placeholder="Описание метода оплаты" />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'isActive']}
+                        fieldKey={[fieldKey, 'isActive']}
+                        label="Активен"
+                        valuePropName="checked"
+                        initialValue={true}
+                      >
+                        <Switch />
+                      </Form.Item>
+
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'isShared']}
+                        fieldKey={[fieldKey, 'isShared']}
+                        valuePropName="checked"
+                      >
+                        <Checkbox>
+                          Сделать общим для всех касс
+                          <Tooltip title="Общий метод оплаты будет доступен во всех кассах склада, а его баланс будет общим. Вы сможете вносить и снимать средства через любую кассу, а баланс будет изменяться централизованно для всего склада.">
+                            <InfoCircleOutlined style={{ marginLeft: 8 }} />
+                          </Tooltip>
+                        </Checkbox>
+                      </Form.Item>
+
+                      <Button
+                        type="text"
+                        danger
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => remove(name)}
+                      >
+                        Удалить
                       </Button>
-                    </Popconfirm>
+                    </div>
+                  ))}
+
+                  <Form.Item>
+                    <Button
+                      type="dashed"
+                      onClick={() =>
+                        add({
+                          isActive: true,
+                          status: PaymentMethodStatus.ACTIVE,
+                        })
+                      }
+                      block
+                      icon={<PlusOutlined />}
+                    >
+                      Добавить кастомный метод оплаты
+                    </Button>
                   </Form.Item>
-                  <MinusCircleOutlined
-                    onClick={() => {
-                      // Получаем все текущие методы
-                      const methods = form.getFieldValue(
-                        'customPaymentMethods'
-                      );
+                </>
+              )}
+            </Form.List>
+          </TabPane>
+        </Tabs>
 
-                      // Создаем новый массив с обновленным значением
-                      const updatedMethods = methods.map(
-                        (
-                          method: FormValues['customPaymentMethods'][0],
-                          index: number
-                        ) =>
-                          index === name
-                            ? {
-                                ...method,
-                                isActive: false,
-                                status: PaymentMethodStatus.INACTIVE,
-                              }
-                            : method
-                      );
-
-                      // Обновляем значение в форме перед удалением
-                      form.setFieldsValue({
-                        customPaymentMethods: updatedMethods,
-                      });
-
-                      // Удаляем метод из формы
-                      remove(name);
-                    }}
-                  />
-                </Space>
-              ))}
-              <Form.Item>
-                <Button
-                  type="dashed"
-                  onClick={() => {
-                    add({ status: PaymentMethodStatus.ACTIVE });
-                  }}
-                  block
-                  icon={<PlusOutlined />}
-                >
-                  Добавить метод оплаты
-                </Button>
-              </Form.Item>
-            </>
-          )}
-        </Form.List>
+        <Divider />
 
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Отмена</Button>
-          <Button
-            type="primary"
-            htmlType="submit"
-            className="bg-blue-500 hover:bg-blue-500"
-          >
+          <Button type="primary" htmlType="submit" loading={submitting}>
             Сохранить
           </Button>
         </div>

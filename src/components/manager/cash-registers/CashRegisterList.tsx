@@ -1,11 +1,21 @@
 import { useState, useMemo } from 'react';
-import { Table, Button, Popconfirm, Typography, Space, Tag, Modal } from 'antd';
+import {
+  Table,
+  Button,
+  Popconfirm,
+  Typography,
+  Space,
+  Tag,
+  Modal,
+  Tooltip,
+} from 'antd';
 import {
   ExclamationCircleOutlined,
   EditOutlined,
   DeleteOutlined,
   SettingOutlined,
   WalletOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -145,26 +155,51 @@ export default function CashRegisterList({
   };
 
   const renderPaymentMethod = (method: RegisterPaymentMethod) => {
-    if (method.status !== PaymentMethodStatus.ACTIVE || !method.isActive)
-      return null;
+    const getLabel = () => {
+      if (method.source === PaymentMethodSource.SYSTEM) {
+        if (method.systemType === PaymentMethodType.CASH) return 'Наличные';
+        if (method.systemType === PaymentMethodType.CARD) return 'Карта';
+        if (method.systemType === PaymentMethodType.QR) return 'QR-код';
+        return method.systemType;
+      } else {
+        return method.name;
+      }
+    };
 
-    if (method.source === PaymentMethodSource.SYSTEM && method.systemType) {
-      return (
-        <Tag key={method.id} color="blue">
-          {systemPaymentMethodLabels[method.systemType]}
+    const getColor = () => {
+      if (method.isShared) {
+        return 'geekblue'; // Общие методы оплаты
+      }
+      if (method.source === PaymentMethodSource.SYSTEM) {
+        if (method.systemType === PaymentMethodType.CASH) return 'gold';
+        if (method.systemType === PaymentMethodType.CARD) return 'blue';
+        if (method.systemType === PaymentMethodType.QR) return 'purple';
+        return 'green';
+      } else {
+        return 'cyan';
+      }
+    };
+
+    return (
+      <Tooltip
+        title={
+          method.isShared
+            ? 'Общий метод оплаты для всех касс склада. Баланс отслеживается централизованно.'
+            : ''
+        }
+      >
+        <Tag
+          color={getColor()}
+          className="cursor-pointer"
+          onClick={() => handleOpenBalanceModal(method)}
+          style={method.isShared ? { borderStyle: 'dashed' } : {}}
+        >
+          {method.isShared && <ShareAltOutlined style={{ marginRight: 4 }} />}
+          {getLabel()}
+          {method.status === PaymentMethodStatus.INACTIVE && ' [отключен]'}
         </Tag>
-      );
-    }
-
-    if (method.source === PaymentMethodSource.CUSTOM && method.name) {
-      return (
-        <Tag key={method.id} color="green">
-          {method.name}
-        </Tag>
-      );
-    }
-
-    return null;
+      </Tooltip>
+    );
   };
 
   const columns: ColumnsType<CashRegister> = [
@@ -223,16 +258,7 @@ export default function CashRegisterList({
           ) : (
             paymentMethods.map((method) => (
               <Space key={method.id} size="small">
-                <Tag color={method.isActive ? 'blue' : 'gray'}>
-                  {method.name}
-                </Tag>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<WalletOutlined />}
-                  onClick={() => handleOpenBalanceModal(method)}
-                  title="Управление балансом"
-                />
+                {renderPaymentMethod(method)}
               </Space>
             ))
           )}
@@ -278,6 +304,7 @@ export default function CashRegisterList({
           onClose={handleCloseEditModal}
           onSuccess={handlePaymentMethodsSuccess}
           register={editingRegister}
+          warehouseId={warehouseId}
         />
       )}
 
