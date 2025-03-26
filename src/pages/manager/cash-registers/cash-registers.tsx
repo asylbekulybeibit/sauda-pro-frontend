@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Spin, message } from 'antd';
@@ -8,6 +8,7 @@ import CreateCashRegisterModal from '@/components/manager/cash-registers/CreateC
 import { BanknotesIcon } from '@heroicons/react/24/outline';
 import { PaymentMethodSource } from '@/types/cash-register';
 import { CashRegisterType, PaymentMethodType } from '@/types/cash-register';
+import { useRoleStore } from '@/store/roleStore';
 
 interface CustomPaymentMethod {
   name: string;
@@ -26,15 +27,29 @@ interface FormValues {
 export default function CashRegistersPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+
+  // Получаем ID склада из текущей роли менеджера
+  useEffect(() => {
+    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
+      setWarehouseId(currentRole.warehouse.id);
+      console.log(
+        '[CashRegistersPage] Установлен ID склада:',
+        currentRole.warehouse.id
+      );
+    }
+  }, [currentRole]);
 
   const {
     data: registers,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['cash-registers', shopId],
-    queryFn: () => cashRegistersApi.getAll(shopId!),
-    enabled: !!shopId,
+    queryKey: ['cash-registers', warehouseId],
+    queryFn: () =>
+      warehouseId ? cashRegistersApi.getAll(warehouseId) : Promise.resolve([]),
+    enabled: !!warehouseId,
   });
 
   const handleCreateSuccess = async (values: FormValues) => {
@@ -46,6 +61,14 @@ export default function CashRegistersPage() {
       message.error('Не удалось создать кассу');
     }
   };
+
+  if (!warehouseId) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spin size="large" tip="Загрузка данных о складе..." />
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -75,7 +98,7 @@ export default function CashRegistersPage() {
           isLoading={isLoading}
           onStatusChange={refetch}
           onDelete={refetch}
-          shopId={shopId!}
+          warehouseId={warehouseId}
         />
       )}
 
@@ -83,7 +106,7 @@ export default function CashRegistersPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={handleCreateSuccess}
-        shopId={shopId!}
+        warehouseId={warehouseId}
       />
     </div>
   );

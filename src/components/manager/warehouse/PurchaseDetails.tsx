@@ -23,6 +23,7 @@ import { formatDate, formatPrice } from '@/utils/format';
 import { ShopContext } from '@/contexts/ShopContext';
 import { PurchaseItem, User } from '@/types/purchase';
 import * as XLSX from 'xlsx';
+import { useRoleStore } from '@/store/roleStore';
 
 const { Title, Text } = Typography;
 
@@ -45,6 +46,8 @@ const PurchaseDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const shopContext = useContext(ShopContext);
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>();
 
   // Пробуем получить shopId разными способами в порядке приоритета:
   // 1. Из параметров URL
@@ -54,12 +57,25 @@ const PurchaseDetails: React.FC = () => {
   const shopId =
     shopIdFromParams || shopIdFromPath || shopContext?.currentShop?.id;
 
-  console.log('PurchaseDetails rendered. ID:', id, 'shopId sources:', {
-    fromParams: shopIdFromParams,
-    fromPath: shopIdFromPath,
-    fromContext: shopContext?.currentShop?.id,
-    used: shopId,
-  });
+  // Получаем ID склада из текущей роли менеджера
+  useEffect(() => {
+    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
+      setWarehouseId(currentRole.warehouse.id);
+      console.log(
+        '[PurchaseDetails] Установлен ID склада:',
+        currentRole.warehouse.id
+      );
+    }
+  }, [currentRole]);
+
+  console.log(
+    'PurchaseDetails rendered. ID:',
+    id,
+    'shopId:',
+    shopId,
+    'warehouseId:',
+    warehouseId
+  );
 
   // Fetch purchase data
   const {
@@ -67,25 +83,25 @@ const PurchaseDetails: React.FC = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['purchase', id, shopId],
+    queryKey: ['purchase', id, warehouseId],
     queryFn: () => {
       console.log(
         'Fetching purchase data for purchase ID:',
         id,
-        'with shopId:',
-        shopId
+        'with warehouseId:',
+        warehouseId
       );
       if (!id) {
         console.error('Missing required purchase ID');
         throw new Error('Missing required purchase ID');
       }
 
-      if (!shopId) {
-        console.error('Missing required shopId');
-        throw new Error('Missing required shopId');
+      if (!warehouseId) {
+        console.error('Missing required warehouseId');
+        throw new Error('Missing required warehouseId');
       }
 
-      return getPurchaseById(id, shopId).then((data) => {
+      return getPurchaseById(id, warehouseId).then((data) => {
         console.log(
           'Purchase data received (full object):',
           JSON.stringify(data, null, 2)
@@ -93,19 +109,32 @@ const PurchaseDetails: React.FC = () => {
         return data;
       });
     },
-    enabled: !!id && !!shopId,
+    enabled: !!id && !!warehouseId,
   });
 
   // Загружаем полную информацию о всех товарах для дополнения данных прихода
   const { data: allProducts } = useQuery({
-    queryKey: ['products', shopId],
-    queryFn: () => (shopId ? getProducts(shopId) : Promise.resolve([])),
-    enabled: !!shopId,
+    queryKey: ['products', warehouseId],
+    queryFn: () =>
+      warehouseId ? getProducts(warehouseId) : Promise.resolve([]),
+    enabled: !!warehouseId,
   });
 
   if (error) {
     console.error('Error fetching purchase details:', error);
     message.error('Ошибка при загрузке данных прихода');
+  }
+
+  // Если warehouseId не определен, показываем загрузку
+  if (!warehouseId) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <Spin size="large" />
+          <p className="ml-2 text-gray-500">Загрузка данных о складе...</p>
+        </div>
+      </div>
+    );
   }
 
   console.log('Purchase data received:', purchase);
@@ -550,14 +579,16 @@ const PurchaseDetails: React.FC = () => {
             <Button
               icon={<EditOutlined />}
               onClick={() => {
-                if (shopId) {
+                if (shopId && warehouseId) {
                   navigate(
-                    `/manager/${shopId}/warehouse/purchases/edit/${enhancedPurchase.id}`
+                    `/manager/${shopId}/warehouse/purchases/edit/${enhancedPurchase.id}?warehouseId=${warehouseId}`
+                  );
+                } else if (warehouseId) {
+                  navigate(
+                    `/manager/warehouse/purchases/edit/${enhancedPurchase.id}?warehouseId=${warehouseId}`
                   );
                 } else {
-                  navigate(
-                    `/manager/warehouse/purchases/edit/${enhancedPurchase.id}`
-                  );
+                  message.error('Не удалось определить ID склада');
                 }
               }}
             >

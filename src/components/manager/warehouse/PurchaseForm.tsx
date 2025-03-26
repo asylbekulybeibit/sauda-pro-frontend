@@ -44,6 +44,7 @@ import {
 import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
 import { Purchase, PurchaseItem } from '@/types/purchase';
+import { useRoleStore } from '@/store/roleStore';
 
 const { Option } = Select;
 const { Title, Text } = Typography;
@@ -51,17 +52,39 @@ const { Title, Text } = Typography;
 interface PurchaseFormProps {
   shopId: string;
   id?: string;
+  warehouseId?: string;
 }
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
   shopId: propShopId,
   id: externalId,
+  warehouseId: propWarehouseId,
 }) => {
   const { purchaseId } = useParams<{ purchaseId: string }>();
   const effectiveId = externalId || purchaseId;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const shopContext = useContext(ShopContext);
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>(
+    propWarehouseId
+  );
+
+  // Получаем ID склада из текущей роли менеджера, если он не передан в props
+  useEffect(() => {
+    if (
+      !warehouseId &&
+      currentRole &&
+      currentRole.type === 'shop' &&
+      currentRole.warehouse
+    ) {
+      setWarehouseId(currentRole.warehouse.id);
+      console.log(
+        '[PurchaseForm] Установлен ID склада из роли:',
+        currentRole.warehouse.id
+      );
+    }
+  }, [currentRole, warehouseId]);
 
   // Генерируем временный ID для нового прихода, если нет effectiveId
   const [tempId] = useState(() => {
@@ -205,31 +228,38 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   const [newProductForm] = Form.useForm();
   const [isCreatingProduct, setIsCreatingProduct] = useState<boolean>(false);
 
-  // Fetch the necessary data
+  // Загрузка данных
   const {
     data: products,
-    isLoading: productsLoading,
+    isLoading: isLoadingProducts,
     error: productsError,
   } = useQuery({
-    queryKey: ['products', shopId],
+    queryKey: ['products', warehouseId],
     queryFn: () => {
-      console.log('Fetching products for shopId:', shopId);
-      return getProducts(shopId);
+      if (!warehouseId) {
+        throw new Error('warehouseId не определен');
+      }
+      return getProducts(warehouseId);
     },
-    enabled: !!shopId,
+    enabled: !!warehouseId,
+    staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
 
+  // Загрузка поставщиков
   const {
     data: suppliers,
-    isLoading: suppliersLoading,
+    isLoading: isLoadingSuppliers,
     error: suppliersError,
   } = useQuery({
-    queryKey: ['suppliers', shopId],
+    queryKey: ['suppliers', warehouseId],
     queryFn: () => {
-      console.log('Fetching suppliers for shopId:', shopId);
-      return getSuppliers(shopId);
+      if (!warehouseId) {
+        throw new Error('warehouseId не определен');
+      }
+      return getSuppliers(warehouseId);
     },
-    enabled: !!shopId,
+    enabled: !!warehouseId,
+    staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
 
   const {
@@ -248,15 +278,18 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // Получаем список категорий
   const {
     data: categories,
-    isLoading: categoriesLoading,
+    isLoading: isLoadingCategories,
     error: categoriesError,
   } = useQuery({
-    queryKey: ['categories', shopId],
+    queryKey: ['categories', warehouseId],
     queryFn: () => {
-      console.log('Fetching categories for shopId:', shopId);
-      return getCategories(shopId);
+      if (!warehouseId) {
+        throw new Error('warehouseId не определен');
+      }
+      return getCategories(warehouseId);
     },
-    enabled: !!shopId,
+    enabled: !!warehouseId,
+    staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
 
   // Fetch existing purchase data for edit mode
@@ -296,59 +329,72 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   }, [purchaseData, effectiveId, shopId, navigate]);
 
   // Log errors more visibly
-  if (productsError) {
-    console.error('Products error:', productsError);
-    setErrorMessages((prev) => [
-      ...prev,
-      `Ошибка загрузки товаров: ${
-        productsError instanceof Error
-          ? productsError.message
-          : 'Неизвестная ошибка'
-      }`,
-    ]);
-  }
-  if (suppliersError) {
-    console.error('Suppliers error:', suppliersError);
-    setErrorMessages((prev) => [
-      ...prev,
-      `Ошибка загрузки поставщиков: ${
-        suppliersError instanceof Error
-          ? suppliersError.message
-          : 'Неизвестная ошибка'
-      }`,
-    ]);
-  }
-  if (shopError) {
-    console.error('Shop error:', shopError);
-    setErrorMessages((prev) => [
-      ...prev,
-      `Ошибка загрузки данных магазина: ${
-        shopError instanceof Error ? shopError.message : 'Неизвестная ошибка'
-      }`,
-    ]);
-  }
-  if (purchaseError) {
-    console.error('Purchase error:', purchaseError);
-    setErrorMessages((prev) => [
-      ...prev,
-      `Ошибка загрузки данных прихода: ${
-        purchaseError instanceof Error
-          ? purchaseError.message
-          : 'Неизвестная ошибка'
-      }`,
-    ]);
-  }
-  if (categoriesError) {
-    console.error('Categories error:', categoriesError);
-    setErrorMessages((prev) => [
-      ...prev,
-      `Ошибка загрузки категорий: ${
-        categoriesError instanceof Error
-          ? categoriesError.message
-          : 'Неизвестная ошибка'
-      }`,
-    ]);
-  }
+  useEffect(() => {
+    const newErrorMessages = [];
+
+    if (productsError) {
+      console.error('Products error:', productsError);
+      newErrorMessages.push(
+        `Ошибка загрузки товаров: ${
+          productsError instanceof Error
+            ? productsError.message
+            : 'Неизвестная ошибка'
+        }`
+      );
+    }
+
+    if (suppliersError) {
+      console.error('Suppliers error:', suppliersError);
+      newErrorMessages.push(
+        `Ошибка загрузки поставщиков: ${
+          suppliersError instanceof Error
+            ? suppliersError.message
+            : 'Неизвестная ошибка'
+        }`
+      );
+    }
+
+    if (shopError) {
+      console.error('Shop error:', shopError);
+      newErrorMessages.push(
+        `Ошибка загрузки данных магазина: ${
+          shopError instanceof Error ? shopError.message : 'Неизвестная ошибка'
+        }`
+      );
+    }
+
+    if (purchaseError) {
+      console.error('Purchase error:', purchaseError);
+      newErrorMessages.push(
+        `Ошибка загрузки данных прихода: ${
+          purchaseError instanceof Error
+            ? purchaseError.message
+            : 'Неизвестная ошибка'
+        }`
+      );
+    }
+
+    if (categoriesError) {
+      console.error('Categories error:', categoriesError);
+      newErrorMessages.push(
+        `Ошибка загрузки категорий: ${
+          categoriesError instanceof Error
+            ? categoriesError.message
+            : 'Неизвестная ошибка'
+        }`
+      );
+    }
+
+    if (newErrorMessages.length > 0) {
+      setErrorMessages((prev) => [...prev, ...newErrorMessages]);
+    }
+  }, [
+    productsError,
+    suppliersError,
+    shopError,
+    purchaseError,
+    categoriesError,
+  ]);
 
   // Мутация для создания прихода
   const createPurchaseMutation = useMutation({
@@ -413,11 +459,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   // Расчет состояния загрузки всех данных
   const isFormLoading =
-    productsLoading ||
-    suppliersLoading ||
+    isLoadingProducts ||
+    isLoadingSuppliers ||
     shopLoading ||
     isPurchaseLoading ||
-    categoriesLoading;
+    isLoadingCategories;
 
   // Функция для сохранения данных формы в localStorage
   const saveFormStateToLocalStorage = () => {
@@ -1173,20 +1219,20 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   // При изменении статуса загрузки сбрасываем ошибки
   useEffect(() => {
     const isLoading =
-      productsLoading ||
-      suppliersLoading ||
+      isLoadingProducts ||
+      isLoadingSuppliers ||
       shopLoading ||
       isPurchaseLoading ||
-      categoriesLoading;
+      isLoadingCategories;
     if (isLoading) {
       setErrorMessages([]);
     }
   }, [
-    productsLoading,
-    suppliersLoading,
+    isLoadingProducts,
+    isLoadingSuppliers,
     shopLoading,
     isPurchaseLoading,
-    categoriesLoading,
+    isLoadingCategories,
   ]);
 
   useEffect(() => {
@@ -1654,7 +1700,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                   allowClear
                   showSearch
                   style={{ width: '100%' }}
-                  loading={categoriesLoading}
+                  loading={isLoadingCategories}
                   optionFilterProp="children"
                   filterOption={(input, option) =>
                     (option?.label ?? '')
@@ -1666,7 +1712,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                     label: category.name,
                   }))}
                   notFoundContent={
-                    categoriesLoading ? <Spin size="small" /> : null
+                    isLoadingCategories ? <Spin size="small" /> : null
                   }
                   dropdownRender={(menu) => (
                     <>
@@ -1803,13 +1849,13 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             >
               <Select
                 placeholder={
-                  suppliersLoading
+                  isLoadingSuppliers
                     ? 'Загрузка поставщиков...'
                     : 'Выберите поставщика'
                 }
                 allowClear
-                loading={suppliersLoading}
-                disabled={isLoading || suppliersLoading}
+                loading={isLoadingSuppliers}
+                disabled={isLoading || isLoadingSuppliers}
               >
                 {suppliers?.map((supplier) => (
                   <Option key={supplier.id} value={supplier.id}>
@@ -1855,7 +1901,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                   value={selectedProduct}
                   onChange={setSelectedProduct}
                   style={{ width: 400 }}
-                  loading={productsLoading}
+                  loading={isLoadingProducts}
                   filterOption={(input, option: any) => {
                     const productId = option?.value;
                     const product = products?.find((p) => p.id === productId);
@@ -1930,7 +1976,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             rowKey="id"
             pagination={false}
             locale={{
-              emptyText: productsLoading
+              emptyText: isLoadingProducts
                 ? 'Загрузка товаров...'
                 : 'Товары не добавлены',
             }}

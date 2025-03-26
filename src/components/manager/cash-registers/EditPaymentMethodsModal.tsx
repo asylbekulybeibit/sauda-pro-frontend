@@ -38,6 +38,9 @@ interface FormValues {
     name: string;
     code: string;
     description?: string;
+    receiverName?: string;
+    receiverPhone?: string;
+    accountInfo?: string;
     isActive: boolean;
     status: PaymentMethodStatus;
   }>;
@@ -73,6 +76,9 @@ export default function EditPaymentMethodsModal({
         name: method.name!,
         code: method.code!,
         description: method.description,
+        receiverName: method.receiverName,
+        receiverPhone: method.receiverPhone,
+        accountInfo: method.accountInfo,
         isActive: method.isActive,
         status: method.status,
       })),
@@ -83,12 +89,15 @@ export default function EditPaymentMethodsModal({
       // Преобразуем значения формы в формат API
       const paymentMethods = [
         // Системные методы - активные
-        ...values.systemPaymentMethods.map((type) => ({
-          source: PaymentMethodSource.SYSTEM,
-          systemType: type,
-          isActive: true,
-          status: PaymentMethodStatus.ACTIVE,
-        })),
+        ...values.systemPaymentMethods.map((type) => {
+          return {
+            source: PaymentMethodSource.SYSTEM,
+            systemType: type,
+            // Имя необязательно для системных методов, бэкенд сам его определит
+            isActive: true,
+            status: PaymentMethodStatus.ACTIVE,
+          };
+        }),
         // Системные методы - неактивные
         ...register.paymentMethods
           .filter(
@@ -97,25 +106,31 @@ export default function EditPaymentMethodsModal({
               method.systemType &&
               !values.systemPaymentMethods.includes(method.systemType)
           )
-          .map((method) => ({
-            source: PaymentMethodSource.SYSTEM,
-            systemType: method.systemType,
-            isActive: true,
-            status: PaymentMethodStatus.INACTIVE,
-          })),
+          .map((method) => {
+            return {
+              source: PaymentMethodSource.SYSTEM,
+              systemType: method.systemType,
+              // Имя необязательно для системных методов, бэкенд сам его определит
+              isActive: true,
+              status: PaymentMethodStatus.INACTIVE,
+            };
+          }),
         // Кастомные методы с их статусами
         ...values.customPaymentMethods.map((method) => ({
           source: PaymentMethodSource.CUSTOM,
-          name: method.name,
+          name: method.name, // Для кастомных методов имя обязательно
           code: method.code,
           description: method.description,
+          receiverName: method.receiverName,
+          receiverPhone: method.receiverPhone,
+          accountInfo: method.accountInfo,
           isActive: true,
           status: method.status,
         })),
       ];
 
       await cashRegistersApi.updatePaymentMethods(
-        register.shopId,
+        register.warehouseId,
         register.id,
         paymentMethods
       );

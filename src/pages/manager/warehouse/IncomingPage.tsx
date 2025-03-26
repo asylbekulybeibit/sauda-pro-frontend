@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -17,6 +17,7 @@ import { formatDate, formatPrice } from '@/utils/format';
 import { useContext } from 'react';
 import { ShopContext } from '@/contexts/ShopContext';
 import { Purchase } from '@/types/purchase';
+import { useRoleStore } from '@/store/roleStore';
 
 const { Title } = Typography;
 
@@ -24,6 +25,19 @@ function IncomingPage() {
   const navigate = useNavigate();
   const shopContext = useContext(ShopContext);
   const shopId = shopContext?.currentShop?.id || '';
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+
+  // Получаем ID склада из текущей роли менеджера
+  useEffect(() => {
+    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
+      setWarehouseId(currentRole.warehouse.id);
+      console.log(
+        '[IncomingPage] Установлен ID склада:',
+        currentRole.warehouse.id
+      );
+    }
+  }, [currentRole]);
 
   // Fetch purchase data
   const {
@@ -31,9 +45,9 @@ function IncomingPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['purchases', shopId],
-    queryFn: () => getPurchases(shopId),
-    enabled: !!shopId,
+    queryKey: ['purchases', warehouseId],
+    queryFn: () => getPurchases(warehouseId!),
+    enabled: !!warehouseId,
   });
 
   useEffect(() => {
@@ -131,6 +145,17 @@ function IncomingPage() {
     console.log('Create Purchase button clicked, navigating to:', targetUrl);
     navigate(targetUrl);
   };
+
+  if (!warehouseId) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <Spin size="large" />
+          <p className="ml-2 text-gray-500">Загрузка данных о складе...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">

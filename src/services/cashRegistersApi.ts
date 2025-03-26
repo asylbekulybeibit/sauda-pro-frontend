@@ -7,35 +7,40 @@ import {
 } from '../types/cash-register';
 
 export const cashRegistersApi = {
-  // Получить все кассы магазина
-  getAll: async (shopId: string): Promise<CashRegister[]> => {
-    const { data } = await api.get(`/manager/${shopId}/cash-registers`);
+  // Получить все кассы склада
+  getAll: async (warehouseId: string): Promise<CashRegister[]> => {
+    const { data } = await api.get(`/manager/${warehouseId}/cash-registers`);
     return data;
   },
 
   // Получить одну кассу
-  getOne: async (shopId: string, id: string): Promise<CashRegister> => {
-    const { data } = await api.get(`/manager/${shopId}/cash-registers/${id}`);
+  getOne: async (warehouseId: string, id: string): Promise<CashRegister> => {
+    const { data } = await api.get(
+      `/manager/${warehouseId}/cash-registers/${id}`
+    );
     return data;
   },
 
   // Создать новую кассу
   create: async (
-    shopId: string,
+    warehouseId: string,
     dto: CreateCashRegisterDto
   ): Promise<CashRegister> => {
-    const { data } = await api.post(`/manager/${shopId}/cash-registers`, dto);
+    const { data } = await api.post(
+      `/manager/${warehouseId}/cash-registers`,
+      dto
+    );
     return data;
   },
 
   // Обновить статус кассы
   updateStatus: async (
-    shopId: string,
+    warehouseId: string,
     id: string,
     status: CashRegisterStatus
   ): Promise<CashRegister> => {
     const { data } = await api.put(
-      `/manager/${shopId}/cash-registers/${id}/status`,
+      `/manager/${warehouseId}/cash-registers/${id}/status`,
       {
         status,
       }
@@ -44,18 +49,18 @@ export const cashRegistersApi = {
   },
 
   // Удалить кассу
-  remove: async (shopId: string, id: string): Promise<void> => {
-    await api.delete(`/manager/${shopId}/cash-registers/${id}`);
+  remove: async (warehouseId: string, id: string): Promise<void> => {
+    await api.delete(`/manager/${warehouseId}/cash-registers/${id}`);
   },
 
   // Обновить методы оплаты кассы
   updatePaymentMethods: async (
-    shopId: string,
+    warehouseId: string,
     id: string,
     paymentMethods: PaymentMethodDto[]
   ): Promise<CashRegister> => {
     const { data } = await api.put(
-      `/manager/${shopId}/cash-registers/${id}/payment-methods`,
+      `/manager/${warehouseId}/cash-registers/${id}/payment-methods`,
       {
         paymentMethods,
       }

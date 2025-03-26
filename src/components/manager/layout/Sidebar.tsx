@@ -44,6 +44,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
   if (!currentRole || currentRole.type !== 'shop') return null;
 
   const shopId = currentRole.shop.id;
+  const warehouseId = currentRole.warehouse?.id || shopId;
 
   const navigation: NavigationItem[] = [
     {
@@ -59,11 +60,13 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       children: [
         { name: 'Товары', href: `/manager/${shopId}/products` },
         { name: 'Категории', href: `/manager/${shopId}/categories` },
+        { name: 'Штрих-коды', href: `/manager/${shopId}/barcodes` },
+        { name: 'Склад', href: `/manager/${shopId}/warehouse` },
       ],
     },
     {
       name: 'Кассы',
-      href: `/manager/${shopId}/cash-registers`,
+      href: `/manager/${warehouseId}/cash-registers`,
       icon: CashIcon,
       color: 'bg-yellow-100 text-yellow-600',
     },

@@ -55,6 +55,9 @@ const ProductsPage = lazy(
 const ProductDetailsPage = lazy(
   () => import('./pages/manager/products/ProductDetailsPage')
 );
+const BarcodesPage = lazy(
+  () => import('./pages/manager/products/BarcodesPage')
+);
 const CategoriesPage = lazy(
   () => import('./pages/manager/categories/CategoriesPage')
 );
@@ -287,6 +290,7 @@ export default function App() {
                     path="products/:productId"
                     element={<ProductDetailsPage />}
                   />
+                  <Route path="barcodes" element={<BarcodesPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route
                     path="cash-registers"

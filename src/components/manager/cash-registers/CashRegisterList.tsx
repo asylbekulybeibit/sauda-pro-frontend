@@ -18,7 +18,7 @@ interface CashRegisterListProps {
   isLoading: boolean;
   onStatusChange: () => void;
   onDelete: () => void;
-  shopId: string;
+  warehouseId: string;
 }
 
 const registerTypeLabels = {
@@ -51,7 +51,7 @@ export default function CashRegisterList({
   isLoading,
   onStatusChange,
   onDelete,
-  shopId,
+  warehouseId,
 }: CashRegisterListProps) {
   const [editingRegister, setEditingRegister] = useState<CashRegister | null>(
     null
@@ -59,7 +59,7 @@ export default function CashRegisterList({
 
   const handleStatusChange = async (id: string, status: CashRegisterStatus) => {
     try {
-      await cashRegistersApi.updateStatus(shopId, id, status);
+      await cashRegistersApi.updateStatus(warehouseId, id, status);
       onStatusChange();
       message.success('Статус кассы обновлен');
     } catch (error) {
@@ -69,7 +69,7 @@ export default function CashRegisterList({
 
   const handleDelete = async (id: string) => {
     try {
-      await cashRegistersApi.remove(shopId, id);
+      await cashRegistersApi.remove(warehouseId, id);
       onDelete();
       message.success('Касса удалена');
     } catch (error) {

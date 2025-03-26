@@ -23,7 +23,7 @@ export type PaymentMethod = {
  */
 export interface CashRegister {
   id: string;
-  shopId: string;
+  warehouseId: string;
   name: string;
   type: RegisterType;
   location?: string;
@@ -43,7 +43,7 @@ export type ShiftStatus = 'open' | 'closed' | 'paused';
  */
 export interface Shift {
   id: string;
-  shopId: string;
+  warehouseId: string;
   registerId: string;
   registerName: string;
   cashierId: string;

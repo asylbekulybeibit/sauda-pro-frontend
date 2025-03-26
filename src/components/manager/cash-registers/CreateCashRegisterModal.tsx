@@ -1,4 +1,13 @@
-import { Modal, Form, Input, Select, Button, Divider, Space } from 'antd';
+import {
+  Modal,
+  Form,
+  Input,
+  Select,
+  Button,
+  Divider,
+  Space,
+  message,
+} from 'antd';
 import {
   CashRegisterType,
   PaymentMethodType,
@@ -13,7 +22,7 @@ interface CreateCashRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (values: FormValues) => void;
-  shopId: string;
+  warehouseId: string;
 }
 
 const registerTypes = [
@@ -45,7 +54,7 @@ export default function CreateCashRegisterModal({
   isOpen,
   onClose,
   onSuccess,
-  shopId,
+  warehouseId,
 }: CreateCashRegisterModalProps) {
   const [form] = Form.useForm<FormValues>();
 
@@ -53,14 +62,22 @@ export default function CreateCashRegisterModal({
     try {
       // Преобразуем значения формы в формат DTO
       const paymentMethods: PaymentMethodDto[] = [
-        // Системные методы оплаты
-        ...values.systemPaymentMethods.map((type) => ({
-          source: PaymentMethodSource.SYSTEM,
-          systemType: type,
-          isActive: true,
-          status: PaymentMethodStatus.ACTIVE,
-        })),
-        // Кастомные методы оплаты
+        // Системные методы оплаты (если они выбраны)
+        ...(values.systemPaymentMethods || []).map((type) => {
+          // Получаем соответствующее название из списка системных методов
+          const methodName =
+            systemPaymentMethods.find((method) => method.value === type)
+              ?.label || '';
+
+          return {
+            source: PaymentMethodSource.SYSTEM,
+            systemType: type,
+            name: methodName, // Добавляем название метода оплаты
+            isActive: true,
+            status: PaymentMethodStatus.ACTIVE,
+          };
+        }),
+        // Кастомные методы оплаты (если они указаны)
         ...(values.customPaymentMethods || []).map((method) => ({
           source: PaymentMethodSource.CUSTOM,
           name: method.name,
@@ -71,7 +88,13 @@ export default function CreateCashRegisterModal({
         })),
       ];
 
-      await cashRegistersApi.create(shopId, {
+      // Проверяем, что есть хотя бы один метод оплаты
+      if (paymentMethods.length === 0) {
+        message.warning('Необходимо указать хотя бы один метод оплаты');
+        return;
+      }
+
+      await cashRegistersApi.create(warehouseId, {
         name: values.name,
         type: values.type,
         location: values.location,
@@ -126,14 +149,6 @@ export default function CreateCashRegisterModal({
         <Form.Item
           name="systemPaymentMethods"
           label="Стандартные методы оплаты"
-          rules={[
-            {
-              required: true,
-              type: 'array',
-              min: 1,
-              message: 'Выберите хотя бы один метод оплаты',
-            },
-          ]}
         >
           <Select
             mode="multiple"

@@ -1,10 +1,11 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Card, Alert, Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import PurchaseForm from '../../../components/manager/warehouse/PurchaseForm';
 import { ShopContext } from '@/contexts/ShopContext';
 import { getPurchaseById } from '@/services/managerApi';
+import { useRoleStore } from '@/store/roleStore';
 
 const PurchaseFormPage: React.FC = () => {
   // Получаем параметры из URL, включая shopId из пути
@@ -15,6 +16,19 @@ const PurchaseFormPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const shopContext = useContext(ShopContext);
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+
+  // Получаем ID склада из текущей роли менеджера
+  useEffect(() => {
+    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
+      setWarehouseId(currentRole.warehouse.id);
+      console.log(
+        '[PurchaseFormPage] Установлен ID склада:',
+        currentRole.warehouse.id
+      );
+    }
+  }, [currentRole]);
 
   // Для обратной совместимости также получаем shopId из URL query параметра
   const searchParams = new URLSearchParams(location.search);
@@ -26,6 +40,7 @@ const PurchaseFormPage: React.FC = () => {
     fromQuery: shopIdFromQuery,
     fromContext: shopContext?.currentShop?.id,
   });
+  console.log('PurchaseFormPage warehouseId:', warehouseId);
 
   // Приоритет: 1) shopId из пути URL, 2) shopId из query параметра, 3) shopId из контекста
   const shopId =
@@ -161,67 +176,103 @@ const PurchaseFormPage: React.FC = () => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['purchase', id, shopId],
-    queryFn: () => getPurchaseById(id!, shopId),
-    enabled: !!id && !!shopId,
+    queryKey: ['purchase', id, warehouseId],
+    queryFn: () => {
+      if (!warehouseId) {
+        throw new Error('warehouseId не определен');
+      }
+      return getPurchaseById(id!, warehouseId);
+    },
+    enabled: !!id && !!warehouseId,
   });
 
-  // Если загружаем существующий приход
-  if (id) {
-    // Показываем индикатор загрузки
-    if (isLoading) {
-      return (
-        <Card className="max-w-6xl mx-auto p-6">
-          <div className="text-center py-8">
-            <Spin tip="Загрузка данных прихода..." />
-          </div>
-        </Card>
-      );
-    }
+  // Если не загружен warehouseId, показываем индикатор загрузки
+  if (!warehouseId) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <Spin size="large" />
+          <p className="ml-2 text-gray-500">Загрузка данных о складе...</p>
+        </div>
+      </div>
+    );
+  }
 
-    // Обрабатываем ошибку
-    if (error) {
-      return (
-        <Card className="max-w-6xl mx-auto p-6">
+  // Если нет shopId, также показываем ошибку
+  if (!shopId) {
+    return (
+      <div className="p-6">
+        <Card>
           <Alert
-            message="Ошибка загрузки"
-            description="Не удалось загрузить данные прихода. Пожалуйста, попробуйте позже."
+            message="Ошибка"
+            description="Не удалось определить магазин для работы с приходом товара"
             type="error"
             showIcon
           />
         </Card>
-      );
-    }
+      </div>
+    );
+  }
 
-    // Проверяем статус прихода
-    if (purchase && purchase.status === 'completed') {
-      return (
-        <Card className="max-w-6xl mx-auto p-6">
+  // Если есть ошибка загрузки существующего прихода
+  if (error && id) {
+    return (
+      <div className="p-6">
+        <Card>
           <Alert
-            message="Редактирование невозможно"
-            description="Этот приход уже завершен и не может быть отредактирован."
+            message="Ошибка при загрузке прихода"
+            description={`Не удалось загрузить данные прихода. ${
+              error instanceof Error ? error.message : 'Неизвестная ошибка'
+            }`}
+            type="error"
+            showIcon
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  // После успешной загрузки прихода в режиме редактирования проверяем его статус
+  if (purchase && purchase.status === 'completed' && id) {
+    return (
+      <div className="p-6">
+        <Card>
+          <Alert
+            message="Доступ запрещен"
+            description="Этот приход уже завершен и не может быть отредактирован"
             type="warning"
             showIcon
             action={
-              <a
-                onClick={() => {
-                  if (shopId) {
-                    navigate(`/manager/${shopId}/warehouse/purchases/${id}`);
-                  } else {
-                    navigate(`/manager/warehouse/purchases/${id}`);
+              <div className="mt-4">
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2"
+                  onClick={() =>
+                    navigate(`/manager/${shopId}/warehouse/purchases/${id}`)
                   }
-                }}
-              >
-                Вернуться к деталям прихода
-              </a>
+                >
+                  Просмотреть приход
+                </button>
+                <button
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded"
+                  onClick={() =>
+                    navigate(`/manager/${shopId}/warehouse/incoming`)
+                  }
+                >
+                  К списку приходов
+                </button>
+              </div>
             }
           />
         </Card>
-      );
-    }
+      </div>
+    );
   }
 
-  return <PurchaseForm id={id} shopId={shopId} />;
+  return (
+    <div className="p-6">
+      <PurchaseForm shopId={shopId} id={id} warehouseId={warehouseId} />
+    </div>
+  );
 };
 
 export default PurchaseFormPage;
