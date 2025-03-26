@@ -1,59 +1,81 @@
 import { useState } from 'react';
-import { Product } from '@/types/product';
-import { Category } from '@/types/category';
-import { ProductForm } from './ProductForm';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { deleteProduct } from '@/services/managerApi';
+import { Category } from '@/types/category';
+import { deleteWarehouseService } from '@/services/servicesApi';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatPrice } from '@/utils/format';
 import { Modal, Button } from 'antd';
 
-interface ProductListProps {
-  products: Product[];
-  categories: Category[];
-  shopId: string;
+// Interface for warehouse service
+interface WarehouseService {
+  id: string;
+  barcodeId: string;
+  warehouseId: string;
+  price: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  barcode: {
+    id: string;
+    code: string;
+    productName: string;
+    description?: string;
+    categoryId?: string;
+    isService: boolean;
+  };
 }
 
-export function ProductList({
-  products,
+interface ServiceListProps {
+  services: WarehouseService[];
+  categories: Category[];
+  shopId: string;
+  onServiceCreate: () => void;
+  onServiceEdit?: (service: WarehouseService) => void;
+}
+
+export function ServiceList({
+  services,
   categories,
   shopId,
-}: ProductListProps) {
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  onServiceCreate,
+  onServiceEdit,
+}: ServiceListProps) {
+  const [deletingService, setDeletingService] =
+    useState<WarehouseService | null>(null);
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: deleteProduct,
+    mutationFn: deleteWarehouseService,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouseServices'] });
     },
   });
 
-  const showDeleteConfirm = (product: Product) => {
-    setDeletingProduct(product);
+  const showDeleteConfirm = (service: WarehouseService) => {
+    setDeletingService(service);
   };
 
   const handleDeleteConfirm = async () => {
-    if (deletingProduct) {
-      await deleteMutation.mutateAsync(deletingProduct.id);
-      setDeletingProduct(null);
+    if (deletingService) {
+      await deleteMutation.mutateAsync(deletingService.id);
+      setDeletingService(null);
     }
   };
 
   const handleDeleteCancel = () => {
-    setDeletingProduct(null);
+    setDeletingService(null);
+  };
+
+  const handleEditService = (service: WarehouseService) => {
+    if (onServiceEdit) {
+      onServiceEdit(service);
+    }
   };
 
   const getCategoryName = (categoryId: string | undefined) => {
     if (!categoryId) return 'Без категории';
     const category = categories.find((c) => c.id === categoryId);
     return category ? category.name : 'Неизвестная категория';
-  };
-
-  // Calculate total value (quantity * selling price)
-  const calculateTotalValue = (product: Product) => {
-    return product.quantity * product.sellingPrice;
   };
 
   return (
@@ -72,7 +94,7 @@ export function ProductList({
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Название
+                Наименование
               </th>
               <th
                 scope="col"
@@ -84,25 +106,13 @@ export function ProductList({
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Закупочная цена
+                Комментарий
               </th>
               <th
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Продажная цена
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Количество
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                Общая сумма
+                Цена
               </th>
               <th scope="col" className="relative px-6 py-3">
                 <span className="sr-only">Действия</span>
@@ -110,58 +120,45 @@ export function ProductList({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {products.map((product) => (
-              <tr key={product.id} className="hover:bg-gray-50">
+            {services.map((service) => (
+              <tr key={service.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {Array.isArray(product.barcodes) &&
-                    product.barcodes.length > 0
-                      ? product.barcodes[0]
-                      : product.barcode || '—'}
+                    {service.barcode?.code || '—'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="text-sm font-medium text-gray-900">
-                      {product.name}
+                      {service.barcode?.productName}
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {getCategoryName(product.categoryId)}
+                    {getCategoryName(service.barcode?.categoryId)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {formatPrice(product.purchasePrice)}
+                    {service.barcode?.description || '—'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {formatPrice(product.sellingPrice)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {product.quantity}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {formatPrice(calculateTotalValue(product))}
+                    {formatPrice(service.price)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end space-x-3">
                     <button
-                      onClick={() => setEditingProduct(product)}
+                      onClick={() => handleEditService(service)}
                       className="text-indigo-600 hover:text-indigo-900"
                     >
                       <PencilIcon className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => showDeleteConfirm(product)}
+                      onClick={() => showDeleteConfirm(service)}
                       className="text-red-600 hover:text-red-900"
                     >
                       <TrashIcon className="h-5 w-5" />
@@ -174,24 +171,16 @@ export function ProductList({
         </table>
       </div>
 
-      {editingProduct && (
-        <ProductForm
-          product={editingProduct}
-          categories={categories}
-          onClose={() => setEditingProduct(null)}
-          shopId={shopId}
-        />
-      )}
-
       <Modal
         title="Подтвердите действие"
-        open={!!deletingProduct}
+        open={!!deletingService}
         onCancel={handleDeleteCancel}
         footer={null}
         centered
       >
         <p className="mb-4">
-          Вы уверены, что хотите удалить товар "{deletingProduct?.name}"?
+          Вы уверены, что хотите удалить услугу "
+          {deletingService?.barcode?.productName}"?
         </p>
         <div className="flex justify-end space-x-3">
           <Button onClick={handleDeleteCancel}>Отмена</Button>

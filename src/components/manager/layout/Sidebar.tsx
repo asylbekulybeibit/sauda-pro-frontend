@@ -90,10 +90,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: ArchiveBoxIcon,
       color: 'bg-orange-100 text-orange-600',
       children: [
-        {
-          name: 'Обзор',
-          href: `/manager/${shopId}/warehouse`,
-        },
+        
         {
           name: 'Приход товара',
           href: `/manager/${shopId}/warehouse/incoming`,
@@ -138,34 +135,25 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: UserPlusIcon,
       color: 'bg-pink-100 text-pink-600',
     },
-    {
-      name: 'Услуги',
-      icon: WrenchScrewdriverIcon,
-      color: 'bg-teal-100 text-teal-600',
-      children: [
-        { name: 'Типы услуг', href: `/manager/${shopId}/services/types` },
-
-        { name: 'История услуг', href: `/manager/${shopId}/services/history` },
-      ],
-    },
-    {
-      name: 'Маркетинг',
-      icon: ChartBarIcon,
-      color: 'bg-indigo-100 text-indigo-600',
-      children: [
-        { name: 'Акции', href: `/manager/${shopId}/promotions` },
-        { name: 'Этикетки', href: `/manager/${shopId}/labels` },
-      ],
-    },
-    {
-      name: 'Аналитика',
-      icon: ChartPieIcon,
-      color: 'bg-cyan-100 text-cyan-600',
-      children: [
-        { name: 'Статистика', href: `/manager/${shopId}/analytics` },
-        { name: 'Отчеты', href: `/manager/${shopId}/analytics/reports` },
-      ],
-    },
+    
+    // {
+    //   name: 'Маркетинг',
+    //   icon: ChartBarIcon,
+    //   color: 'bg-indigo-100 text-indigo-600',
+    //   children: [
+    //     { name: 'Акции', href: `/manager/${shopId}/promotions` },
+    //     { name: 'Этикетки', href: `/manager/${shopId}/labels` },
+    //   ],
+    // },
+    // {
+    //   name: 'Аналитика',
+    //   icon: ChartPieIcon,
+    //   color: 'bg-cyan-100 text-cyan-600',
+    //   children: [
+    //     { name: 'Статистика', href: `/manager/${shopId}/analytics` },
+    //     { name: 'Отчеты', href: `/manager/${shopId}/analytics/reports` },
+    //   ],
+    // },
   ];
 
   return (
@@ -253,7 +241,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
                 } mr-3 flex-shrink-0 h-6 w-6 p-1 rounded-lg transition-all duration-150`}
                 aria-hidden="true"
               />
-              {item.name}
+              <span>{item.name}</span>
             </Link>
           );
         })}

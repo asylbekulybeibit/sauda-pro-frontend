@@ -16,6 +16,18 @@ import axios from 'axios';
 import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
 
+// Simple error handler for API requests
+const handleApiError = (
+  error: unknown,
+  fallbackMessage = 'Ошибка при выполнении запроса'
+) => {
+  if (axios.isAxiosError(error) && error.response) {
+    const message = error.response.data?.message || fallbackMessage;
+    return { message, statusCode: error.response.status };
+  }
+  return { message: fallbackMessage };
+};
+
 interface ApiError {
   response: {
     data: {
@@ -156,7 +168,6 @@ export const deleteProduct = async (id: string): Promise<void> => {
 export const getCategories = async (shopId: string): Promise<Category[]> => {
   try {
     console.log(`Fetching categories for shop ${shopId}`);
-    // Используем правильный эндпоинт с shopId
     const response = await api.get(`/manager/categories/shop/${shopId}`);
     return response.data;
   } catch (error) {
@@ -1797,29 +1808,11 @@ export const createClientFromWarehouse = async (
 // Добавляем функцию для получения списка складов магазина
 export const getWarehouses = async (shopId: string) => {
   try {
-    console.log(
-      '[GET WAREHOUSES] Запрос на получение списка складов для магазина:',
-      shopId
-    );
-
-    // Проверка на api перед запросом
-    if (!api) {
-      console.error('[GET WAREHOUSES] КРИТИЧЕСКАЯ ОШИБКА: api не определен');
-      return [];
-    }
-
-    // Проверка на наличие shopId
-    if (!shopId) {
-      console.error('[GET WAREHOUSES] ОШИБКА: Отсутствует shopId');
-      return [];
-    }
-
-    const data = await api.get(`/warehouses/shop/${shopId}`);
-    console.log('[GET WAREHOUSES] Получены данные:', data);
-    return data;
+    const response = await api.get(`/manager/warehouses/shop/${shopId}`);
+    return response.data;
   } catch (error) {
-    console.error('[GET WAREHOUSES] Ошибка:', error);
-    throw error;
+    console.error('Error fetching warehouses:', error);
+    throw handleApiError(error, 'Не удалось загрузить список складов');
   }
 };
 
@@ -1891,5 +1884,21 @@ export const createEmployeeForWarehouse = async (
   } catch (error) {
     console.error(`[managerApi.createEmployeeForWarehouse] Ошибка:`, error);
     throw error;
+  }
+};
+
+// Функция для получения штрих-кодов (баркодов)
+export const getBarcodes = async (
+  shopId: string,
+  isService: boolean = false
+): Promise<any[]> => {
+  try {
+    const response = await api.get(`/manager/barcodes/shop/${shopId}`, {
+      params: { isService },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching barcodes:', error);
+    throw handleApiError(error, 'Не удалось загрузить штрих-коды');
   }
 };

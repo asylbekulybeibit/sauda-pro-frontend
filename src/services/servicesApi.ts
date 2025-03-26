@@ -183,3 +183,57 @@ export const removeServiceHistory = async (
   const { data } = await api.delete(`/manager/services/shop/${shopId}/${id}`);
   return data;
 };
+
+export const getWarehouseServices = async (shopId: string): Promise<any[]> => {
+  try {
+    const { data } = await api.get(
+      `/manager/warehouse-services/shop/${shopId}`
+    );
+    return data;
+  } catch (error) {
+    console.error('Error fetching warehouse services:', error);
+    throw handleApiError(error, 'Не удалось загрузить услуги');
+  }
+};
+
+export const createWarehouseService = async (
+  serviceData: any
+): Promise<any> => {
+  try {
+    const { data } = await api.post('/manager/warehouse-services', serviceData);
+    return data;
+  } catch (error) {
+    console.error('Error creating warehouse service:', error);
+    throw handleApiError(error, 'Не удалось создать услугу');
+  }
+};
+
+export const updateWarehouseService = async ({
+  id,
+  ...serviceData
+}: {
+  id: string;
+  [key: string]: any;
+}): Promise<any> => {
+  try {
+    const { data } = await api.patch(
+      `/manager/warehouse-services/${id}`,
+      serviceData
+    );
+    return data;
+  } catch (error) {
+    console.error('Error updating warehouse service:', error);
+    throw handleApiError(error, 'Не удалось обновить услугу');
+  }
+};
+
+export const deleteWarehouseService = async (
+  serviceId: string
+): Promise<void> => {
+  try {
+    await api.delete(`/manager/warehouse-services/${serviceId}`);
+  } catch (error) {
+    console.error('Error deleting warehouse service:', error);
+    throw handleApiError(error, 'Не удалось удалить услугу');
+  }
+};
