@@ -151,6 +151,9 @@ export default function InvitesPage() {
                 Проект
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Склад
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Статус
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -214,6 +217,24 @@ export default function InvitesPage() {
                       <div className="text-gray-500 text-xs">
                         {invite.shop.address}
                       </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm">
+                    {invite.warehouse ? (
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {invite.warehouse.name}
+                        </div>
+                        {invite.warehouse.address && (
+                          <div className="text-gray-500 text-xs">
+                            {invite.warehouse.address}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">—</span>
                     )}
                   </div>
                 </td>

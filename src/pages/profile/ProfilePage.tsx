@@ -101,20 +101,6 @@ export default function ProfilePage() {
     </motion.div>
   );
 
-  // Группировка ролей по проектам (shopId)
-  const groupRolesByShop = (roles: UserRoleDetails[]) => {
-    const groupedRoles: { [shopId: string]: UserRoleDetails[] } = {};
-
-    roles.forEach((role) => {
-      if (!groupedRoles[role.shop.id]) {
-        groupedRoles[role.shop.id] = [];
-      }
-      groupedRoles[role.shop.id].push(role);
-    });
-
-    return groupedRoles;
-  };
-
   // Отображение проекта и его ролей
   const renderShopWithRoles = (shopId: string, roles: UserRoleDetails[]) => {
     // Получаем информацию о магазине из первой роли
@@ -134,9 +120,12 @@ export default function ProfilePage() {
         key={shopId}
         className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4"
       >
-        <h3 className="text-lg font-semibold mb-4">{shopInfo.name}</h3>
+        {/* Показываем название проекта только если есть роль владельца */}
+        {ownerRole && (
+          <h3 className="text-lg font-semibold mb-4">{shopInfo.name}</h3>
+        )}
 
-        <div className="space-y-4">
+        <div className={`space-y-4 ${!ownerRole ? 'mt-0' : ''}`}>
           {/* Сначала отображаем роли без склада (например, владелец) */}
           {shopRoles.map((role) => renderRole(role))}
 
@@ -147,6 +136,54 @@ export default function ProfilePage() {
     );
   };
 
+  // Подготовка данных для отображения ролей
+  const prepareRolesForDisplay = (roles: UserRoleDetails[]) => {
+    // Группируем роли по проектам
+    const groupedByShop: { [shopId: string]: UserRoleDetails[] } = {};
+
+    roles.forEach((role) => {
+      if (!groupedByShop[role.shop.id]) {
+        groupedByShop[role.shop.id] = [];
+      }
+      groupedByShop[role.shop.id].push(role);
+    });
+
+    // Роли для отображения
+    const displayItems: React.ReactNode[] = [];
+
+    // Обработка каждого проекта
+    Object.keys(groupedByShop).forEach((shopId) => {
+      const rolesInShop = groupedByShop[shopId];
+      const ownerRole = rolesInShop.find(
+        (role) => role.type === RoleType.OWNER
+      );
+
+      // Если есть роль владельца, группируем в общую карточку
+      if (ownerRole) {
+        displayItems.push(
+          <div
+            key={shopId}
+            className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4"
+          >
+            <h3 className="text-lg font-semibold mb-4">
+              {ownerRole.shop.name}
+            </h3>
+            <div className="space-y-4">
+              {rolesInShop.map((role) => renderRole(role))}
+            </div>
+          </div>
+        );
+      } else {
+        // Если нет роли владельца, показываем каждую роль отдельно
+        rolesInShop.forEach((role) => {
+          displayItems.push(renderRole(role));
+        });
+      }
+    });
+
+    return displayItems;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -155,9 +192,10 @@ export default function ProfilePage() {
     );
   }
 
-  // Группируем активные роли по проектам
+  // Получаем активные роли
   const activeRoles = profile?.roles?.filter((role) => role.isActive) || [];
-  const groupedRoles = groupRolesByShop(activeRoles);
+  // Подготавливаем роли для отображения
+  const rolesToDisplay = prepareRolesForDisplay(activeRoles);
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
@@ -217,9 +255,7 @@ export default function ProfilePage() {
                 <h2 className="text-xl font-semibold mb-4">Мои проекты</h2>
                 <div className="space-y-4">
                   {/* Отображаем карточки проектов с сгруппированными ролями */}
-                  {Object.keys(groupedRoles).map((shopId) =>
-                    renderShopWithRoles(shopId, groupedRoles[shopId])
-                  )}
+                  {rolesToDisplay}
                 </div>
               </div>
             )}

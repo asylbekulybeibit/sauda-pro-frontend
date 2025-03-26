@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { createInvite, getShops, getWarehouses } from '@/services/api';
 import { RoleType } from '@/types/role';
@@ -41,6 +41,21 @@ export function CreateInviteForm({
     enabled: !!formData.shopId, // Запрашиваем склады только если выбран магазин
   });
 
+  // Устанавливаем роль в зависимости от выбора склада
+  useEffect(() => {
+    if (availableRoles) return; // Не изменяем роль, если роли предопределены
+
+    if (formData.warehouseId) {
+      // Если выбран склад, устанавливаем роль Кассир или Менеджер (если текущая роль - Владелец)
+      if (formData.role === RoleType.OWNER) {
+        setFormData((prev) => ({ ...prev, role: RoleType.CASHIER }));
+      }
+    } else {
+      // Если склад не выбран, устанавливаем роль Владелец
+      setFormData((prev) => ({ ...prev, role: RoleType.OWNER }));
+    }
+  }, [formData.warehouseId, availableRoles]);
+
   const createMutation = useMutation({
     mutationFn: createInvite,
     onSuccess: () => {
@@ -75,7 +90,8 @@ export function CreateInviteForm({
       newErrors.shopId = 'Выберите сеть';
     }
 
-    if (!formData.warehouseId) {
+    // Проверяем warehouseId только если выбрана роль не Owner
+    if (formData.role !== RoleType.OWNER && !formData.warehouseId) {
       newErrors.warehouseId = 'Выберите склад';
     }
 
@@ -90,12 +106,41 @@ export function CreateInviteForm({
       return;
     }
 
-    createMutation.mutate(formData);
+    // Если роль - владелец, убираем warehouseId из запроса
+    if (formData.role === RoleType.OWNER) {
+      const requestData = { ...formData, warehouseId: '' };
+      createMutation.mutate(requestData);
+    } else {
+      createMutation.mutate(formData);
+    }
   };
 
   const filteredWarehouses = warehouses?.filter(
     (warehouse) => warehouse.shopId === formData.shopId
   );
+
+  // Определяем доступные роли в зависимости от выбора склада
+  const getAvailableRolesOptions = () => {
+    if (availableRoles) {
+      // Если роли предопределены извне, используем их
+      return availableRoles.map((role) => (
+        <option key={role} value={role}>
+          {role === RoleType.MANAGER ? 'Менеджер' : 'Кассир'}
+        </option>
+      ));
+    } else if (!formData.warehouseId) {
+      // Если склад не выбран, показываем только роль "Владелец"
+      return <option value={RoleType.OWNER}>Владелец</option>;
+    } else {
+      // Если склад выбран, показываем "Менеджер" и "Кассир"
+      return (
+        <>
+          <option value={RoleType.MANAGER}>Менеджер</option>
+          <option value={RoleType.CASHIER}>Кассир</option>
+        </>
+      );
+    }
+  };
 
   return (
     <>
@@ -154,7 +199,7 @@ export function CreateInviteForm({
         {formData.shopId && (
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Склад *
+              Склад {formData.role !== RoleType.OWNER && '*'}
             </label>
             <select
               value={formData.warehouseId}
@@ -180,7 +225,9 @@ export function CreateInviteForm({
               <p className="mt-1 text-sm text-red-500">{errors.warehouseId}</p>
             )}
             <p className="mt-1 text-xs text-gray-500">
-              Сотрудник будет привязан к выбранному складу
+              {formData.role === RoleType.OWNER
+                ? 'Выбор склада для владельца не обязателен'
+                : 'Сотрудник будет привязан к выбранному складу'}
             </p>
           </div>
         )}
@@ -199,19 +246,7 @@ export function CreateInviteForm({
             }
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
           >
-            {availableRoles ? (
-              availableRoles.map((role) => (
-                <option key={role} value={role}>
-                  {role === RoleType.MANAGER ? 'Менеджер' : 'Кассир'}
-                </option>
-              ))
-            ) : (
-              <>
-                <option value={RoleType.OWNER}>Владелец</option>
-                <option value={RoleType.MANAGER}>Менеджер</option>
-                <option value={RoleType.CASHIER}>Кассир</option>
-              </>
-            )}
+            {getAvailableRolesOptions()}
           </select>
         </div>
 
