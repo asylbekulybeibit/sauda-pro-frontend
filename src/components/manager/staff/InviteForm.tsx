@@ -95,21 +95,10 @@ export function CreateInviteForm({
       onClose();
     },
     onError: (error: any) => {
-      let errorMessage = 'Произошла ошибка при отправке приглашения';
-
       if (error.response?.status === 404) {
-        errorMessage =
-          'Не удалось отправить приглашение. Пожалуйста, обновите страницу и попробуйте снова.';
       } else if (error.response?.status === 403) {
         // Для ошибок 403 проверяем наличие сообщения о существующем инвайте
         const errorMsg = error.response?.data?.message;
-        if (errorMsg && errorMsg.includes('активное приглашение на роль')) {
-          // Для динамических сообщений об уже существующих инвайтах
-          errorMessage = errorMsg;
-        } else {
-          errorMessage =
-            'У вас нет доступа к этому складу или недостаточно прав для отправки приглашений.';
-        }
       } else if (error.response?.data?.message) {
         // Map backend error messages to user-friendly Russian messages
         const errorMessageMap: Record<string, string> = {
@@ -129,10 +118,6 @@ export function CreateInviteForm({
           'У вас нет прав менеджера для этого склада':
             'У вас нет прав менеджера для этого склада',
         };
-
-        errorMessage =
-          errorMessageMap[error.response.data.message] ||
-          error.response.data.message;
       }
 
       setErrorMessage(errorMessage);
