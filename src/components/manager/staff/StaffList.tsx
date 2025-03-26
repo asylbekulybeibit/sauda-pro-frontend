@@ -13,6 +13,7 @@ import { UserRoleDetails } from '@/types/role';
 interface StaffListProps {
   roles: UserRoleDetails[];
   shopId: string;
+  warehouseId?: string | null;
 }
 
 interface GroupedStaff {
@@ -24,7 +25,7 @@ interface GroupedStaff {
   history: UserRoleDetails[];
 }
 
-export function StaffList({ roles, shopId }: StaffListProps) {
+export function StaffList({ roles, shopId, warehouseId }: StaffListProps) {
   const queryClient = useQueryClient();
   const [selectedRole, setSelectedRole] = useState<UserRoleDetails | null>(
     null

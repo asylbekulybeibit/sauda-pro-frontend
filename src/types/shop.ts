@@ -7,6 +7,12 @@ export interface Shop {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  warehouse?: {
+    id: string;
+    name: string;
+    address?: string;
+  } | null;
+  type?: string;
 }
 
 export interface CreateShopDto {

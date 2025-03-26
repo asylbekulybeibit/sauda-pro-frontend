@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Table,
@@ -21,8 +21,9 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
-  getEmployees,
+  getEmployeesByWarehouse,
   createEmployee,
+  createEmployeeForWarehouse,
   updateEmployee,
   removeEmployee,
 } from '@/services/managerApi';
@@ -35,33 +36,76 @@ import { formatDate } from '@/utils/format';
 
 interface EmployeesListProps {
   shopId: string;
+  warehouseId?: string | null;
 }
 
-export function EmployeesList({ shopId }: EmployeesListProps) {
+export function EmployeesList({ shopId, warehouseId }: EmployeesListProps) {
   const queryClient = useQueryClient();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [form] = Form.useForm();
 
-  // Загрузка списка сотрудников
-  const { data: employees, isLoading } = useQuery({
-    queryKey: ['employees', shopId],
-    queryFn: () => getEmployees(shopId),
-    enabled: !!shopId,
+  // Загрузка списка сотрудников - используем warehouseId из пропсов
+  const {
+    data: employees,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['employees', shopId, warehouseId],
+    queryFn: async () => {
+      console.log(
+        `[EmployeesList] Запрос данных о сотрудниках-мастерах. shopId=${shopId}, warehouseId=${warehouseId}`
+      );
+
+      if (!warehouseId) {
+        console.error('[EmployeesList] Ошибка: warehouseId не определен');
+        return [];
+      }
+
+      try {
+        const result = await getEmployeesByWarehouse(shopId, warehouseId);
+        console.log(
+          `[EmployeesList] Получены данные о сотрудниках-мастерах:`,
+          result
+        );
+        return result;
+      } catch (error) {
+        console.error(`[EmployeesList] Ошибка при получении данных:`, error);
+        throw error;
+      }
+    },
+    enabled: !!shopId && !!warehouseId,
   });
+
+  // Для отладки
+  useEffect(() => {
+    console.log(`[EmployeesList] Компонент обновлен с данными:`, employees);
+    console.log(`[EmployeesList] warehouseId из props:`, warehouseId);
+    console.log(`[EmployeesList] shopId:`, shopId);
+    console.log(`[EmployeesList] isLoading:`, isLoading);
+    console.log(`[EmployeesList] error:`, error);
+  }, [employees, warehouseId, shopId, isLoading, error]);
 
   // Мутация для создания нового сотрудника
   const createMutation = useMutation({
-    mutationFn: (employeeData: CreateEmployeeDto) =>
-      createEmployee(shopId, employeeData),
+    mutationFn: (employeeData: CreateEmployeeDto) => {
+      if (!warehouseId) {
+        throw new Error('warehouseId не определен');
+      }
+      // Используем метод создания сотрудника для конкретного склада
+      return createEmployeeForWarehouse(shopId, warehouseId, employeeData);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees', shopId] });
+      queryClient.invalidateQueries({
+        queryKey: ['employees', shopId, warehouseId],
+      });
       setIsModalVisible(false);
       form.resetFields();
-      message.success('Сотрудник успешно добавлен');
+      message.success('Сотрудник успешно добавлен на текущий склад');
     },
     onError: (error: any) => {
+      console.error('[EmployeesList] Ошибка при создании сотрудника:', error);
       message.error(
         error.response?.data?.message || 'Ошибка при добавлении сотрудника'
       );
@@ -73,7 +117,9 @@ export function EmployeesList({ shopId }: EmployeesListProps) {
     mutationFn: ({ id, data }: { id: string; data: UpdateEmployeeDto }) =>
       updateEmployee(shopId, id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees', shopId] });
+      queryClient.invalidateQueries({
+        queryKey: ['employees', shopId, warehouseId],
+      });
       setIsModalVisible(false);
       setCurrentEmployee(null);
       form.resetFields();
@@ -91,7 +137,9 @@ export function EmployeesList({ shopId }: EmployeesListProps) {
   const removeMutation = useMutation({
     mutationFn: (id: string) => removeEmployee(shopId, id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees', shopId] });
+      queryClient.invalidateQueries({
+        queryKey: ['employees', shopId, warehouseId],
+      });
       message.success('Сотрудник удален');
     },
     onError: (error: any) => {

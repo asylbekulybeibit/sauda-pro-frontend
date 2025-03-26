@@ -309,6 +309,21 @@ export const getStaff = async (shopId: string): Promise<UserRoleDetails[]> => {
   }
 };
 
+// Метод для получения системных пользователей для конкретного склада
+export const getStaffByWarehouse = async (
+  shopId: string,
+  warehouseId: string
+): Promise<UserRoleDetails[]> => {
+  try {
+    const response = await api.get(
+      `/manager/staff/shop/${shopId}/warehouse/${warehouseId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
 export const deactivateStaff = async (
   staffId: string,
   shopId: string
@@ -1570,6 +1585,10 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
         // Добавляем остальные поля с значениями по умолчанию или из данных
         type: '',
         address: '',
+        phone: '',
+        email: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         isActive: true,
       };
     } catch (error) {
@@ -1581,7 +1600,7 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
       // Попробуем получить данные текущего склада из роли менеджера
       const roleResponse = await api.get('/profile');
       const managerRole = roleResponse.data.roles.find(
-        (r) => r.type === 'manager' && r.isActive
+        (r: any) => r.type === 'manager' && r.isActive
       );
 
       if (managerRole && managerRole.warehouse) {
@@ -1601,6 +1620,10 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
           },
           type: '',
           address: '',
+          phone: '',
+          email: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           isActive: true,
         };
       }
@@ -1612,6 +1635,10 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
         warehouse: null,
         type: '',
         address: '',
+        phone: '',
+        email: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         isActive: true,
       };
     }
@@ -1625,6 +1652,10 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
       warehouse: null,
       type: '',
       address: '',
+      phone: '',
+      email: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       isActive: true,
     };
   }
@@ -1770,6 +1801,77 @@ export const getWarehouses = async (shopId: string) => {
     return data;
   } catch (error) {
     console.error('[GET WAREHOUSES] Ошибка:', error);
+    throw error;
+  }
+};
+
+// Новые методы для получения сотрудников по warehouseId
+export const getEmployeesByWarehouse = async (
+  shopId: string,
+  warehouseId: string
+) => {
+  console.log(
+    `[managerApi.getEmployeesByWarehouse] Запрос сотрудников для склада. shopId=${shopId}, warehouseId=${warehouseId}`
+  );
+  try {
+    const response = await api.get(
+      `/manager/employees/shop/${shopId}/warehouse/${warehouseId}`
+    );
+    console.log(
+      `[managerApi.getEmployeesByWarehouse] Получен ответ:`,
+      response.data
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`[managerApi.getEmployeesByWarehouse] Ошибка:`, error);
+    throw error;
+  }
+};
+
+export const getActiveEmployeesByWarehouse = async (
+  shopId: string,
+  warehouseId: string
+) => {
+  console.log(
+    `[managerApi.getActiveEmployeesByWarehouse] Запрос активных сотрудников для склада. shopId=${shopId}, warehouseId=${warehouseId}`
+  );
+  try {
+    const response = await api.get(
+      `/manager/employees/shop/${shopId}/warehouse/${warehouseId}/active`
+    );
+    console.log(
+      `[managerApi.getActiveEmployeesByWarehouse] Получен ответ:`,
+      response.data
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`[managerApi.getActiveEmployeesByWarehouse] Ошибка:`, error);
+    throw error;
+  }
+};
+
+// Метод для создания сотрудника для конкретного склада
+export const createEmployeeForWarehouse = async (
+  shopId: string,
+  warehouseId: string,
+  employeeData: any
+) => {
+  console.log(
+    `[managerApi.createEmployeeForWarehouse] Создание сотрудника для склада. shopId=${shopId}, warehouseId=${warehouseId}`,
+    employeeData
+  );
+  try {
+    const response = await api.post(
+      `/manager/employees/warehouse/${warehouseId}`,
+      employeeData
+    );
+    console.log(
+      `[managerApi.createEmployeeForWarehouse] Сотрудник создан:`,
+      response.data
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`[managerApi.createEmployeeForWarehouse] Ошибка:`, error);
     throw error;
   }
 };
