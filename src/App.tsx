@@ -307,7 +307,6 @@ export default function App() {
                     element={<BulkOperationsPage />}
                   />
                   <Route path="warehouse">
-                    
                     <Route path="incoming" element={<IncomingPage />} />
                     <Route path="purchases">
                       <Route path="create" element={<PurchaseFormPage />} />
@@ -325,9 +324,17 @@ export default function App() {
                   </Route>
                   <Route path="suppliers">
                     <Route index element={<SuppliersPage />} />
+                    <Route
+                      path="warehouse/:warehouseId"
+                      element={<SuppliersPage />}
+                    />
                     <Route path=":id" element={<SupplierDetailsPage />} />
                     <Route path=":id/edit" element={<SupplierFormPage />} />
                     <Route path="new" element={<SupplierFormPage />} />
+                    <Route
+                      path="warehouse/:warehouseId/new"
+                      element={<SupplierFormPage />}
+                    />
                   </Route>
                   <Route path="prices">
                     <Route index element={<PriceAnalyticsPage />} />

@@ -8,6 +8,14 @@ import {
 } from '@/services/servicesApi';
 import { getBarcodes, getWarehouses } from '@/services/managerApi';
 
+// Определяем интерфейс для warehouse
+interface Warehouse {
+  id: string;
+  name: string;
+  isMain?: boolean;
+  [key: string]: any;
+}
+
 interface ServiceFormProps {
   service?: any; // Use proper type if available
   categories: Category[];
@@ -43,7 +51,8 @@ export function ServiceForm({
   useEffect(() => {
     if (warehouses && warehouses.length > 0) {
       // Find main warehouse or use the first one
-      const mainWarehouse = warehouses.find((w) => w.isMain) || warehouses[0];
+      const mainWarehouse =
+        warehouses.find((w: Warehouse) => w.isMain) || warehouses[0];
       form.setFieldsValue({
         warehouseId: service?.warehouseId || mainWarehouse.id,
       });
@@ -125,13 +134,14 @@ export function ServiceForm({
             placeholder="Выберите услугу"
             loading={isLoadingBarcodes}
             showSearch
-            optionFilterProp="children"
-            filterOption={(input, option) =>
-              option?.children?.toLowerCase().indexOf(input.toLowerCase()) >= 0
-            }
+            optionFilterProp="label"
           >
             {barcodes?.map((barcode: any) => (
-              <Select.Option key={barcode.id} value={barcode.id}>
+              <Select.Option
+                key={barcode.id}
+                value={barcode.id}
+                label={`${barcode.productName} ${barcode.code}`}
+              >
                 {barcode.productName} ({barcode.code})
               </Select.Option>
             ))}
@@ -149,7 +159,7 @@ export function ServiceForm({
             loading={isLoadingWarehouses}
             disabled={isLoadingWarehouses}
           >
-            {warehouses?.map((warehouse: any) => (
+            {warehouses?.map((warehouse: Warehouse) => (
               <Select.Option key={warehouse.id} value={warehouse.id}>
                 {warehouse.name} {warehouse.isMain ? '(Основной)' : ''}
               </Select.Option>

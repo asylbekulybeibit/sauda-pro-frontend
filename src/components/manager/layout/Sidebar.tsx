@@ -58,7 +58,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: ShoppingBagIcon,
       color: 'bg-purple-100 text-purple-600',
       children: [
-        { name: 'Товары', href: `/manager/${shopId}/products` },
+        { name: 'Товары и услуги', href: `/manager/${shopId}/products` },
         { name: 'Категории', href: `/manager/${shopId}/categories` },
         { name: 'Штрих-коды', href: `/manager/${shopId}/barcodes` },
         { name: 'Склад', href: `/manager/${shopId}/warehouse` },
@@ -90,7 +90,6 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: ArchiveBoxIcon,
       color: 'bg-orange-100 text-orange-600',
       children: [
-        
         {
           name: 'Приход товара',
           href: `/manager/${shopId}/warehouse/incoming`,
@@ -107,7 +106,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
     },
     {
       name: 'Поставщики',
-      href: `/manager/${shopId}/suppliers`,
+      href: `/manager/${shopId}/suppliers/warehouse/${warehouseId}`,
       icon: TruckIcon,
       color: 'bg-teal-100 text-teal-600',
     },
@@ -135,7 +134,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       icon: UserPlusIcon,
       color: 'bg-pink-100 text-pink-600',
     },
-    
+
     // {
     //   name: 'Маркетинг',
     //   icon: ChartBarIcon,

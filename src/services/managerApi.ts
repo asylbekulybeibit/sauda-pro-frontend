@@ -64,7 +64,7 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
   try {
     const startTime = performance.now();
     console.log(
-      `[${new Date().toISOString()}] Fetching products for shop ${shopId}`
+      `[${new Date().toISOString()}] Fetching warehouse products for shop ${shopId}`
     );
 
     // Добавляем уникальный идентификатор для отслеживания запроса
@@ -73,20 +73,22 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
       .substring(2, 9)}`;
     console.log(`Request ID: ${requestId}`);
 
-    // Используем правильный эндпоинт с shopId
-    const response = await api.get(`/manager/products/shop/${shopId}`);
+    // Изменяем эндпоинт, чтобы получать warehouse_products
+    const response = await api.get(
+      `/manager/warehouse-products/shop/${shopId}`
+    );
 
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
     const count = response.data?.length || 0;
 
     console.log(
-      `[${new Date().toISOString()}] Products fetched in ${duration}ms, count: ${count}, requestId: ${requestId}`
+      `[${new Date().toISOString()}] Warehouse products fetched in ${duration}ms, count: ${count}, requestId: ${requestId}`
     );
 
     if (!response.data) {
       console.warn(
-        `[${new Date().toISOString()}] No data received from products API, shopId: ${shopId}`
+        `[${new Date().toISOString()}] No data received from warehouse products API, shopId: ${shopId}`
       );
       return [];
     }
@@ -96,14 +98,14 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
       // Проверяем наличие ключевых полей в первом элементе для диагностики
       const sampleProduct = response.data[0];
       console.log(
-        `Sample product fields: id=${sampleProduct.id}, name=${sampleProduct.name}, quantity=${sampleProduct.quantity}`
+        `Sample product fields: id=${sampleProduct.id}, name=${sampleProduct.barcode?.productName}, quantity=${sampleProduct.quantity}`
       );
     }
 
     return response.data;
   } catch (error) {
     console.error(
-      `[${new Date().toISOString()}] Error fetching products for shop ${shopId}:`,
+      `[${new Date().toISOString()}] Error fetching warehouse products for shop ${shopId}:`,
       error
     );
     // Расширенная диагностика для axios ошибок
@@ -729,16 +731,26 @@ export const deletePromotion = async (
 };
 
 // Методы для работы с поставщиками
-export const getSuppliers = async (shopId: string): Promise<Supplier[]> => {
+export const getSuppliers = async (
+  shopId: string,
+  warehouseId?: string
+): Promise<Supplier[]> => {
   try {
-    console.log(`Fetching suppliers for warehouse ${shopId}`);
-    // Используем формат URL с warehouseId вместо shopId
-    const url = `/manager/suppliers/warehouse/${shopId}`;
+    console.log(
+      `Fetching suppliers for shop ${shopId}${
+        warehouseId ? `, warehouse ${warehouseId}` : ''
+      }`
+    );
+    // Корректный URL для получения поставщиков для конкретного склада
+    const url = warehouseId
+      ? `/manager/suppliers/warehouse/${warehouseId}`
+      : `/manager/suppliers/shop/${shopId}`;
+
     console.log(`Request URL: ${url}`);
     const response = await api.get(url);
     return response.data;
   } catch (error) {
-    console.error(`Error fetching suppliers for warehouse ${shopId}:`, error);
+    console.error(`Error fetching suppliers for shop ${shopId}:`, error);
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -748,11 +760,17 @@ export const createSupplier = async (
   shopId?: string
 ): Promise<Supplier> => {
   try {
-    console.log(`Creating supplier in shop ${shopId}`);
+    console.log(`Creating supplier in shop ${shopId}, data:`, data);
+
     // Используем формат URL, соответствующий бэкенду
     const url = `/manager/suppliers`;
-    console.log(`Request URL: ${url}`);
+
+    // Сохраняем warehouseId, если он указан явно, чтобы привязать поставщика к конкретному складу
+    // Если warehouseId не указан, бэкенд сам определит склад менеджера
+    console.log(`Request URL: ${url}, Data:`, data);
+
     const response = await api.post(url, data);
+    console.log('Created supplier:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error creating supplier:', error);
@@ -767,7 +785,7 @@ export const updateSupplier = async (
 ): Promise<Supplier> => {
   try {
     console.log(`Updating supplier ${id} in shop ${shopId}`);
-    // Используем формат URL, соответствующий бэкенду
+    // Используем обновленный формат URL с shopId
     const url = shopId
       ? `/manager/suppliers/shop/${shopId}/supplier/${id}`
       : `/manager/suppliers/${id}`;
@@ -786,7 +804,7 @@ export const deleteSupplier = async (
 ): Promise<void> => {
   try {
     console.log(`Deleting supplier ${id} from shop ${shopId}`);
-    // Используем формат URL, соответствующий бэкенду
+    // Используем обновленный формат URL с shopId
     const url = `/manager/suppliers/shop/${shopId}/supplier/${id}`;
     console.log(`Request URL: ${url}`);
     await api.delete(url);
@@ -802,10 +820,10 @@ export const getSupplierById = async (
 ): Promise<Supplier> => {
   try {
     console.log(`Fetching supplier with id ${id} for shop ${shopId}`);
-    // Используем формат URL, соответствующий бэкенду
-    const response = await api.get(
-      `/manager/suppliers/shop/${shopId}/supplier/${id}`
-    );
+    // Используем обновленный формат URL с shopId
+    const url = `/manager/suppliers/shop/${shopId}/supplier/${id}`;
+    console.log(`Request URL: ${url}`);
+    const response = await api.get(url);
     return response.data;
   } catch (error) {
     console.error('Error fetching supplier:', error);

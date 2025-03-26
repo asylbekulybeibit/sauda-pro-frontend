@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Switch, message, Select } from 'antd';
+import { Form, Input, Button, Switch, message } from 'antd';
 import { Supplier } from '@/types/supplier';
-import {
-  createSupplier,
-  updateSupplier,
-  getWarehouses,
-} from '@/services/managerApi';
+import { createSupplier, updateSupplier } from '@/services/managerApi';
 import { ApiErrorHandler } from '@/utils/error-handler';
+import { useRoleStore } from '@/store/roleStore';
+import { useParams } from 'react-router-dom';
 
 interface SupplierFormProps {
   shopId: string;
   initialData?: Supplier;
   onSuccess: () => void;
-}
-
-interface Warehouse {
-  id: string;
-  name: string;
 }
 
 export const SupplierForm: React.FC<SupplierFormProps> = ({
@@ -25,23 +18,15 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
   onSuccess,
 }) => {
   const [form] = Form.useForm();
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(false);
   const isEdit = !!initialData;
+  const { currentRole } = useRoleStore();
+  const { warehouseId: urlWarehouseId } = useParams<{ warehouseId: string }>();
 
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      try {
-        const data = await getWarehouses(shopId);
-        setWarehouses(data);
-      } catch (error) {
-        console.error('Failed to fetch warehouses:', error);
-        message.error('Не удалось загрузить список складов');
-      }
-    };
-
-    fetchWarehouses();
-  }, [shopId]);
+  // Получаем ID склада текущего менеджера или из URL
+  const warehouseId =
+    urlWarehouseId ||
+    (currentRole?.type === 'shop' ? currentRole.warehouse?.id : undefined);
 
   const onFinish = async (values: any) => {
     setLoading(true);
@@ -57,10 +42,23 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
         );
         message.success('Поставщик успешно обновлен');
       } else {
+        if (!warehouseId) {
+          message.error(
+            'Не удалось определить склад. Пожалуйста, обратитесь к администратору.'
+          );
+          setLoading(false);
+          return;
+        }
+
+        console.log(
+          `Creating supplier for shop ${shopId}, warehouse ${warehouseId}`
+        );
+
         await createSupplier(
           {
             ...values,
             shopId,
+            warehouseId, // Автоматически используем склад из URL или текущей роли
             isActive: true,
           },
           shopId
@@ -113,19 +111,6 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
 
       <Form.Item name="address" label="Адрес">
         <Input.TextArea />
-      </Form.Item>
-
-      <Form.Item
-        name="warehouseId"
-        label="Склад"
-        tooltip="Выберите склад, если поставщик работает только с конкретным складом"
-      >
-        <Select
-          placeholder="Выберите склад"
-          allowClear
-          loading={warehouses.length === 0}
-          options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
-        />
       </Form.Item>
 
       {isEdit && (

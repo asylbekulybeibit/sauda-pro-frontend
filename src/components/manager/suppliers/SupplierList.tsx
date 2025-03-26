@@ -5,10 +5,11 @@ import {
   getWarehouses,
 } from '@/services/managerApi';
 import { Supplier } from '@/types/supplier';
-import { Button, Table, Modal, message, Tag } from 'antd';
+import { Button, Table, Modal, message, Tag, Space } from 'antd';
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiErrorHandler } from '@/utils/error-handler';
+import { useRoleStore } from '@/store/roleStore';
 
 interface SupplierListProps {
   shopId: string;
@@ -21,37 +22,78 @@ interface Warehouse {
 
 export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [warehouses, setWarehouses] = useState<Record<string, Warehouse>>({});
   const [loading, setLoading] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(
     null
   );
+  const [currentWarehouse, setCurrentWarehouse] = useState<Warehouse | null>(
+    null
+  );
   const navigate = useNavigate();
+  const { currentRole } = useRoleStore();
+  const { warehouseId: urlWarehouseId } = useParams<{ warehouseId: string }>();
+
+  // Получаем ID склада из URL или из текущей роли менеджера
+  const warehouseId =
+    urlWarehouseId ||
+    (currentRole?.type === 'shop' ? currentRole.warehouse?.id : undefined);
+
+  // Добавляем лог для отслеживания текущего склада
+  useEffect(() => {
+    console.log('=== ИНФОРМАЦИЯ О ТЕКУЩЕМ СКЛАДЕ (SupplierList) ===');
+    console.log('URL warehouseId:', urlWarehouseId);
+    console.log('Роль менеджера:', currentRole);
+    console.log('Warehouse из роли:', currentRole?.warehouse);
+    console.log('Итоговый warehouseId:', warehouseId);
+    console.log('===============================================');
+  }, [urlWarehouseId, currentRole, warehouseId]);
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [suppliersData, warehousesData] = await Promise.all([
-        getSuppliers(shopId),
-        getWarehouses(shopId),
-      ]);
 
-      // Преобразуем массив складов в объект для быстрого доступа по id
-      const warehousesMap: Record<string, Warehouse> = {};
-      warehousesData.forEach((warehouse: Warehouse) => {
-        warehousesMap[warehouse.id] = warehouse;
-      });
+      // Получаем информацию о текущем складе
+      if (warehouseId) {
+        console.log(
+          `Загрузка информации о складе ${warehouseId} для магазина ${shopId}`
+        );
+        const warehousesData = await getWarehouses(shopId);
+        console.log('Все склады магазина:', warehousesData);
 
+        const warehouse = warehousesData.find((w) => w.id === warehouseId);
+        if (warehouse) {
+          console.log('Найден текущий склад:', warehouse);
+          setCurrentWarehouse(warehouse);
+        } else {
+          console.warn(
+            `Склад с ID ${warehouseId} не найден в списке складов магазина ${shopId}`
+          );
+        }
+      } else {
+        console.warn(
+          'warehouseId не определен, невозможно загрузить информацию о складе'
+        );
+      }
+
+      // Получаем поставщиков только для текущего склада
+      console.log(
+        `Загрузка поставщиков для магазина ${shopId}, склад ${warehouseId}`
+      );
+      const suppliersData = await getSuppliers(shopId, warehouseId);
+      console.log(
+        `Загружено ${suppliersData.length} поставщиков:`,
+        suppliersData
+      );
       setSuppliers(suppliersData);
-      setWarehouses(warehousesMap);
     } catch (error) {
+      console.error('Ошибка при загрузке данных:', error);
       const apiError = ApiErrorHandler.handle(error);
       message.error(apiError.message);
     } finally {
       setLoading(false);
     }
-  }, [shopId]);
+  }, [shopId, warehouseId]);
 
   useEffect(() => {
     fetchData();
@@ -100,22 +142,6 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
       key: 'phone',
     },
     {
-      title: 'Склад',
-      key: 'warehouse',
-      render: (supplier: Supplier) => {
-        if (!supplier.warehouseId) {
-          return <span>Все склады</span>;
-        }
-
-        const warehouse = warehouses[supplier.warehouseId];
-        return warehouse ? (
-          <Tag color="blue">{warehouse.name}</Tag>
-        ) : (
-          <span>Неизвестный склад</span>
-        );
-      },
-    },
-    {
       title: 'Статус',
       dataIndex: 'isActive',
       key: 'isActive',
@@ -159,11 +185,23 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
           marginBottom: 16,
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
+        <div>
+          {currentWarehouse && (
+            <h3>
+              Склад: {currentWarehouse.name} (ID: {currentWarehouse.id})
+            </h3>
+          )}
+        </div>
         <Button
           type="primary"
-          onClick={() => navigate(`/manager/${shopId}/suppliers/new`)}
+          onClick={() =>
+            navigate(
+              `/manager/${shopId}/suppliers/warehouse/${warehouseId}/new`
+            )
+          }
           className="bg-blue-500"
         >
           Добавить поставщика
