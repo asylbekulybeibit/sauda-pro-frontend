@@ -24,15 +24,17 @@ import {
   createClient,
   updateClient,
   removeClient,
+  createClientFromWarehouse,
 } from '@/services/managerApi';
 import { Client, CreateClientDto, UpdateClientDto } from '@/types/client';
 import { formatDate } from '@/utils/format';
 
 interface ClientsListProps {
   shopId: string;
+  warehouseId?: string | null;
 }
 
-export function ClientsList({ shopId }: ClientsListProps) {
+export function ClientsList({ shopId, warehouseId }: ClientsListProps) {
   const queryClient = useQueryClient();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -48,15 +50,22 @@ export function ClientsList({ shopId }: ClientsListProps) {
 
   // Мутация для создания нового клиента
   const createMutation = useMutation({
-    mutationFn: (clientData: CreateClientDto) =>
-      createClient(shopId, clientData),
+    mutationFn: (clientData: CreateClientDto) => {
+      // Если warehouseId предоставлен, создаем клиента через этот склад
+      if (warehouseId) {
+        return createClientFromWarehouse(shopId, warehouseId, clientData);
+      } else {
+        return createClient(shopId, clientData);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients', shopId] });
       setIsModalVisible(false);
       form.resetFields();
-      message.success('Клиент успешно добавлен');
+      message.success('Клиент успешно добавлен для всех складов магазина');
     },
     onError: (error: any) => {
+      console.error('[ClientsList] Ошибка при создании клиента:', error);
       message.error(
         error.response?.data?.message || 'Ошибка при добавлении клиента'
       );
@@ -248,6 +257,7 @@ export function ClientsList({ shopId }: ClientsListProps) {
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
+        
         <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Form.Item
             label="Имя"

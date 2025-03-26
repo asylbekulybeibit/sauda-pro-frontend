@@ -1776,6 +1776,34 @@ export const removeClient = async (shopId: string, clientId: string) => {
   return data;
 };
 
+// Новый метод для создания клиента через конкретный склад (клиент будет доступен всем складам магазина)
+export const createClientFromWarehouse = async (
+  shopId: string,
+  warehouseId: string,
+  clientData: any
+) => {
+  console.log(
+    `[managerApi.createClientFromWarehouse] Создание клиента. shopId=${shopId}, warehouseId=${warehouseId}`,
+    clientData
+  );
+  try {
+    // Используем стандартный эндпоинт для создания клиента, передавая shopId,
+    // клиент будет создан для всего магазина, но инициирован из конкретного склада
+    const response = await api.post(
+      `/manager/clients/shop/${shopId}`,
+      clientData
+    );
+    console.log(
+      `[managerApi.createClientFromWarehouse] Клиент создан:`,
+      response.data
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`[managerApi.createClientFromWarehouse] Ошибка:`, error);
+    throw error;
+  }
+};
+
 // Добавляем функцию для получения списка складов магазина
 export const getWarehouses = async (shopId: string) => {
   try {
