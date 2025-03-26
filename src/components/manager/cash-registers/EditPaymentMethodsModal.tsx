@@ -38,9 +38,6 @@ interface FormValues {
     name: string;
     code: string;
     description?: string;
-    receiverName?: string;
-    receiverPhone?: string;
-    accountInfo?: string;
     isActive: boolean;
     status: PaymentMethodStatus;
   }>;
@@ -76,9 +73,6 @@ export default function EditPaymentMethodsModal({
         name: method.name!,
         code: method.code!,
         description: method.description,
-        receiverName: method.receiverName,
-        receiverPhone: method.receiverPhone,
-        accountInfo: method.accountInfo,
         isActive: method.isActive,
         status: method.status,
       })),
@@ -121,9 +115,6 @@ export default function EditPaymentMethodsModal({
           name: method.name, // Для кастомных методов имя обязательно
           code: method.code,
           description: method.description,
-          receiverName: method.receiverName,
-          receiverPhone: method.receiverPhone,
-          accountInfo: method.accountInfo,
           isActive: true,
           status: method.status,
         })),
