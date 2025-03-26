@@ -16,6 +16,8 @@ import {
   UserIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
+import { Car } from 'lucide-react';
+
 import { Disclosure } from '@headlessui/react';
 
 interface NavigationChild {
@@ -122,6 +124,12 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-blue-100 text-blue-600',
     },
     {
+      name: 'Автомобили клиентов',
+      href: `/manager/${shopId}/vehicles`,
+      icon: Car,
+      color: 'bg-pink-100 text-pink-600',
+    },
+    {
       name: 'Приглашения',
       href: `/manager/${shopId}/invites`,
       icon: UserPlusIcon,
@@ -133,10 +141,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-teal-100 text-teal-600',
       children: [
         { name: 'Типы услуг', href: `/manager/${shopId}/services/types` },
-        {
-          name: 'Автомобили клиентов',
-          href: `/manager/${shopId}/services/vehicles`,
-        },
+
         { name: 'История услуг', href: `/manager/${shopId}/services/history` },
       ],
     },

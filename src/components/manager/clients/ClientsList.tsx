@@ -257,7 +257,6 @@ export function ClientsList({ shopId, warehouseId }: ClientsListProps) {
         onCancel={() => setIsModalVisible(false)}
         footer={null}
       >
-        
         <Form form={form} layout="vertical" onFinish={handleFormSubmit}>
           <Form.Item
             label="Имя"

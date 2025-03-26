@@ -114,7 +114,7 @@ const ServiceTypesPage = lazy(
   () => import('./pages/manager/services/servicetypes/ServiceTypesPage')
 );
 const ClientVehiclesPage = lazy(
-  () => import('./pages/manager/services/vehicles/ClientVehiclesPage')
+  () => import('./pages/manager/vehicles/ClientVehiclesPage')
 );
 const ServiceHistoryPage = lazy(
   () => import('./pages/manager/services/history/ServiceHistoryPage')
@@ -296,6 +296,7 @@ export default function App() {
                   <Route path="sales/returns" element={<ReturnsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="clients" element={<ClientsPage />} />
+                  <Route path="vehicles" element={<ClientVehiclesPage />} />
                   <Route path="invites" element={<ManagerInvitesPage />} />
                   <Route path="services">
                     <Route path="types" element={<ServiceTypesPage />} />

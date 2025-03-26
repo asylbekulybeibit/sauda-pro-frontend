@@ -147,6 +147,7 @@ export function VehicleList({ shopId }: VehicleListProps) {
       engineVolume: vehicle.engineVolume,
       licensePlate: vehicle.licensePlate,
       vin: vehicle.vin,
+      registrationCertificate: vehicle.registrationCertificate,
       isWithoutLicensePlate: isWithoutLicensePlate,
     });
 
@@ -258,6 +259,18 @@ export function VehicleList({ shopId }: VehicleListProps) {
         }
         return licensePlate;
       },
+    },
+    {
+      title: 'VIN',
+      dataIndex: 'vin',
+      key: 'vin',
+      render: (vin: string) => vin || '-',
+    },
+    {
+      title: 'Техпаспорт',
+      dataIndex: 'registrationCertificate',
+      key: 'registrationCertificate',
+      render: (certificate: string) => certificate || '-',
     },
     {
       title: 'Дата регистрации',
@@ -435,8 +448,30 @@ export function VehicleList({ shopId }: VehicleListProps) {
             </div>
           </div>
 
-          <Form.Item label="VIN-номер" name="vin">
-            <Input />
+          <Form.Item
+            label="VIN-номер"
+            name="vin"
+            rules={[
+              {
+                pattern: /^[A-HJ-NPR-Z0-9]{17}$/i,
+                message:
+                  'VIN должен содержать 17 символов (буквы и цифры, исключая I, O, Q)',
+              },
+            ]}
+          >
+            <Input placeholder="Например: WVWZZZ1KZAW123456" maxLength={17} />
+          </Form.Item>
+
+          <Form.Item
+            label="Номер техпаспорта"
+            name="registrationCertificate"
+            rules={[
+              {
+                message: 'Номер техпаспорта должен быть уникальным',
+              },
+            ]}
+          >
+            <Input placeholder="Введите номер техпаспорта автомобиля" />
           </Form.Item>
 
           <Form.Item>

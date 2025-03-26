@@ -9,6 +9,7 @@ export interface Vehicle {
   engineVolume?: number;
   licensePlate: string;
   vin?: string;
+  registrationCertificate?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +24,7 @@ export interface CreateVehicleDto {
   engineVolume?: number;
   licensePlate: string;
   vin?: string;
+  registrationCertificate?: string;
 }
 
 export interface UpdateVehicleDto {
@@ -34,5 +36,6 @@ export interface UpdateVehicleDto {
   engineVolume?: number;
   licensePlate?: string;
   vin?: string;
+  registrationCertificate?: string;
   isActive?: boolean;
 }
