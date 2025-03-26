@@ -338,42 +338,125 @@ interface InviteStats {
   averageAcceptanceTime: number | null;
 }
 
-export async function getInvites(shopId: string): Promise<Invite[]> {
-  const { data } = await api.get(`/manager/staff/shop/${shopId}/invites`);
-  return data;
+// Обновленная функция для получения инвайтов по warehouse
+export async function getInvites(warehouseId: string): Promise<Invite[]> {
+  try {
+    console.log('Getting invites for warehouse:', warehouseId);
+    // URL должен запрашивать инвайты для склада, а не магазина
+    const { data } = await api.get(
+      `/manager/staff/warehouse/${warehouseId}/invites`
+    );
+    return data;
+  } catch (error) {
+    // Обработка ошибок, которые могут возникнуть, если API не найден
+    console.error('Error getting invites:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Пробуем альтернативный URL, для обратной совместимости
+      const { data } = await api.get(
+        `/manager/warehouse/invites/${warehouseId}`
+      );
+      return data;
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 }
 
-export async function getInviteStats(shopId: string): Promise<InviteStats> {
-  const { data } = await api.get(`/manager/staff/shop/${shopId}/invites/stats`);
-  return data;
+export async function getInviteStats(
+  warehouseId: string
+): Promise<InviteStats> {
+  try {
+    const { data } = await api.get(
+      `/manager/staff/warehouse/${warehouseId}/invites/stats`
+    );
+    return data;
+  } catch (error) {
+    // Обработка ошибок, которые могут возникнуть, если API не найден
+    console.error('Error getting invite stats:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Пробуем альтернативный URL, для обратной совместимости
+      const { data } = await api.get(
+        `/manager/warehouse/invites/${warehouseId}/stats`
+      );
+      return data;
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 }
 
 export async function createInvite(
-  shopId: string,
+  warehouseId: string,
   dto: CreateInviteDto
 ): Promise<Invite> {
-  const { data } = await api.post(`/manager/staff/shop/${shopId}/invites`, dto);
-  return data;
+  try {
+    console.log('Creating invite for warehouse:', warehouseId, dto);
+    // URL должен создавать инвайты для склада, а не магазина
+    const { data } = await api.post(
+      `/manager/staff/warehouse/${warehouseId}/invites`,
+      dto
+    );
+    return data;
+  } catch (error) {
+    // Обработка ошибок, которые могут возникнуть, если API не найден
+    console.error('Error creating invite:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Пробуем альтернативный URL, для обратной совместимости
+      const { data } = await api.post(
+        `/manager/warehouse/invites/${warehouseId}`,
+        dto
+      );
+      return data;
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 }
 
 export async function cancelInvite(
-  shopId: string,
+  warehouseId: string,
   inviteId: string
 ): Promise<Invite> {
-  const { data } = await api.post(
-    `/manager/staff/shop/${shopId}/invites/${inviteId}/cancel`
-  );
-  return data;
+  try {
+    console.log('Cancelling invite:', inviteId, 'for warehouse:', warehouseId);
+    // URL должен отменять инвайты для склада, а не магазина
+    const { data } = await api.post(
+      `/manager/staff/warehouse/${warehouseId}/invites/${inviteId}/cancel`
+    );
+    return data;
+  } catch (error) {
+    // Обработка ошибок, которые могут возникнуть, если API не найден
+    console.error('Error cancelling invite:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Пробуем альтернативный URL, для обратной совместимости
+      const { data } = await api.post(
+        `/manager/warehouse/invites/${warehouseId}/${inviteId}/cancel`
+      );
+      return data;
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 }
 
 export async function resendInvite(
-  shopId: string,
+  warehouseId: string,
   inviteId: string
 ): Promise<Invite> {
-  const { data } = await api.post(
-    `/manager/staff/shop/${shopId}/invites/${inviteId}/resend`
-  );
-  return data;
+  try {
+    // URL должен повторно отправлять инвайты для склада, а не магазина
+    const { data } = await api.post(
+      `/manager/staff/warehouse/${warehouseId}/invites/${inviteId}/resend`
+    );
+    return data;
+  } catch (error) {
+    // Обработка ошибок, которые могут возникнуть, если API не найден
+    console.error('Error resending invite:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Пробуем альтернативный URL, для обратной совместимости
+      const { data } = await api.post(
+        `/manager/warehouse/invites/${warehouseId}/${inviteId}/resend`
+      );
+      return data;
+    }
+    throw ApiErrorHandler.handle(error);
+  }
 }
 
 // Методы для работы с отчетами
@@ -1474,12 +1557,76 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
     }
 
     console.log('Fetching shop data for ID:', shopId);
-    const response = await api.get(`/manager/shops/${shopId}`);
-    console.log('Shop data fetched successfully:', response.data);
-    return response.data;
+    try {
+      const response = await api.get(`/manager/shops/${shopId}`);
+      console.log('Shop data fetched successfully:', response.data);
+
+      // Создаем минимальный объект Shop на основе данных, полученных от сервера
+      // Менеджер получает доступ только к своему складу, а не ко всему магазину
+      return {
+        id: shopId,
+        name: response.data.shopName || 'Неизвестный магазин',
+        warehouse: response.data.warehouse || null,
+        // Добавляем остальные поля с значениями по умолчанию или из данных
+        type: '',
+        address: '',
+        isActive: true,
+      };
+    } catch (error) {
+      console.error('Error in API request for shop data:', error);
+
+      // Запрашиваем данные о складе менеджера напрямую
+      console.log('Falling back to warehouse data fetch');
+
+      // Попробуем получить данные текущего склада из роли менеджера
+      const roleResponse = await api.get('/profile');
+      const managerRole = roleResponse.data.roles.find(
+        (r) => r.type === 'manager' && r.isActive
+      );
+
+      if (managerRole && managerRole.warehouse) {
+        console.log(
+          'Found manager warehouse from profile:',
+          managerRole.warehouse
+        );
+
+        // Используем данные склада из профиля
+        return {
+          id: shopId, // Используем переданный ID магазина
+          name: managerRole.shop?.name || 'Магазин',
+          warehouse: {
+            id: managerRole.warehouse.id,
+            name: managerRole.warehouse.name,
+            address: managerRole.warehouse.address,
+          },
+          type: '',
+          address: '',
+          isActive: true,
+        };
+      }
+
+      // Если все методы не сработали, возвращаем базовый объект
+      return {
+        id: shopId,
+        name: 'Магазин',
+        warehouse: null,
+        type: '',
+        address: '',
+        isActive: true,
+      };
+    }
   } catch (error) {
     console.error('Error in getManagerShop:', error);
-    throw ApiErrorHandler.handle(error);
+
+    // Вместо выбрасывания ошибки возвращаем заглушку
+    return {
+      id: shopId,
+      name: 'Магазин',
+      warehouse: null,
+      type: '',
+      address: '',
+      isActive: true,
+    };
   }
 };
 

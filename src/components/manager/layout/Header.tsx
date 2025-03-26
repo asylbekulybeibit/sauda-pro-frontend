@@ -84,19 +84,22 @@ export function ManagerHeader() {
               >
                 <Bars3Icon className="h-6 w-6" />
               </button>
-              <Link
-                to={`/manager/${currentRole.shop.id}`}
-                className="flex items-center hover:text-gray-600"
-              >
-                <span className="text-xl font-bold">
-                  {currentRole.shop.name}
-                </span>
-                {currentRole.shop.address && (
-                  <span className="ml-2 text-sm text-gray-500">
-                    📍 {currentRole.shop.address}
+              {currentRole && currentRole.warehouse ? (
+                <div className="flex items-center hover:text-gray-600">
+                  <span className="text-xl font-bold">
+                    {currentRole.warehouse.name}
                   </span>
-                )}
-              </Link>
+                  {currentRole.warehouse.address && (
+                    <span className="ml-2 text-sm text-gray-500">
+                      📍 {currentRole.warehouse.address}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center hover:text-gray-600">
+                  <span className="text-xl font-bold">Склад</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center">

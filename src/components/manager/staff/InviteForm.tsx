@@ -41,36 +41,57 @@ function ErrorModal({ isOpen, onClose, message }: ErrorModalProps) {
 interface CreateInviteFormProps {
   onClose: () => void;
   predefinedShopId?: string; // Если задан, селект проекта не показывается
+  warehouseId?: string; // ID склада для менеджера
 }
 
 interface FormData {
   phone: string;
   role: RoleType;
   shopId: string;
+  warehouseId?: string;
 }
 
 export function CreateInviteForm({
   onClose,
   predefinedShopId,
+  warehouseId,
 }: CreateInviteFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<FormData>({
     phone: '',
     role: RoleType.CASHIER,
     shopId: predefinedShopId || '',
+    warehouseId: warehouseId,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createInvite(formData.shopId, {
-        phone: normalizePhoneNumber(formData.phone),
-        role: RoleType.CASHIER,
-      }),
+    mutationFn: () => {
+      // Если есть warehouseId, используем его вместо shopId для создания инвайта
+      // Это обеспечит, что менеджер создает инвайты только для своего склада
+      if (warehouseId) {
+        return createInvite(warehouseId, {
+          phone: normalizePhoneNumber(formData.phone),
+          role: RoleType.CASHIER,
+        });
+      } else {
+        return createInvite(formData.shopId, {
+          phone: normalizePhoneNumber(formData.phone),
+          role: RoleType.CASHIER,
+        });
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invites'] });
+      // Инвалидируем запрос по правильному ключу - либо warehouse, либо shop
+      if (warehouseId) {
+        queryClient.invalidateQueries({ queryKey: ['invites', warehouseId] });
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ['invites', formData.shopId],
+        });
+      }
       onClose();
     },
     onError: (error: any) => {
@@ -79,17 +100,27 @@ export function CreateInviteForm({
       if (error.response?.status === 404) {
         errorMessage =
           'Не удалось отправить приглашение. Пожалуйста, обновите страницу и попробуйте снова.';
+      } else if (error.response?.status === 403) {
+        errorMessage =
+          'У вас нет доступа к этому складу или недостаточно прав для отправки приглашений.';
       } else if (error.response?.data?.message) {
         // Map backend error messages to user-friendly Russian messages
         const errorMessageMap: Record<string, string> = {
           'Для этого номера телефона уже есть активное приглашение':
             'Для этого номера телефона уже есть активное приглашение. Дождитесь ответа или отмените существующее приглашение.',
-          'Этот номер телефона уже зарегистрирован как кассир в вашем магазине':
-            'Этот номер телефона уже зарегистрирован как  кассир в вашем магазине.',
+          'Этот номер телефона уже зарегистрирован как кассир в вашем складе':
+            'Этот номер телефона уже зарегистрирован как кассир в вашем складе.',
+          'Этот номер телефона уже зарегистрирован как менеджер в вашем складе':
+            'Этот номер телефона уже зарегистрирован как менеджер в вашем складе.',
+          'Пользователь с этим номером телефона уже является менеджером данного склада и имеет все необходимые права доступа. Дополнительная роль кассира не требуется.':
+            'Пользователь с этим номером телефона уже является менеджером данного склада.',
           'Invalid phone number format': 'Неверный формат номера телефона',
           'Shop not found': 'Магазин не найден',
+          'Warehouse not found': 'Склад не найден',
           'Cannot invite to this role':
             'У вас нет прав для приглашения сотрудника на эту роль',
+          'У вас нет прав менеджера для этого склада':
+            'У вас нет прав менеджера для этого склада',
         };
 
         errorMessage =
@@ -114,6 +145,11 @@ export function CreateInviteForm({
       } catch (error) {
         errors.phone = 'Неверный формат номера телефона';
       }
+    }
+
+    // Проверяем, что warehouseId доступен для менеджера
+    if (!warehouseId && !formData.shopId) {
+      errors.general = 'Склад не выбран';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -177,6 +213,10 @@ export function CreateInviteForm({
             <option value={RoleType.CASHIER}>Кассир</option>
           </select>
         </div>
+
+        {errors.general && (
+          <p className="text-sm text-red-600">{errors.general}</p>
+        )}
 
         <div className="flex justify-end space-x-4 pt-6">
           <button

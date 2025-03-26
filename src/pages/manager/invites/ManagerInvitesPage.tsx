@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getInvites, cancelInvite } from '@/services/managerApi';
@@ -10,24 +10,44 @@ import { RoleType } from '@/types/role';
 import { formatDate } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table';
 import type { Invite } from '@/types/invite';
+import { useRoleStore } from '@/store/roleStore';
 
 function ManagerInvitesPage() {
   const { shopId } = useParams<{ shopId: string }>();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<InviteStatus | 'all'>('all');
   const queryClient = useQueryClient();
+  const { currentRole } = useRoleStore();
+  const [warehouseId, setWarehouseId] = useState<string | undefined>();
+
+  useEffect(() => {
+    // Получаем ID склада из текущей роли менеджера
+    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
+      setWarehouseId(currentRole.warehouse.id);
+    }
+  }, [currentRole]);
 
   const { data: invites, isLoading } = useQuery({
-    queryKey: ['invites', shopId],
-    queryFn: () => getInvites(shopId!),
-    enabled: !!shopId,
+    queryKey: ['invites', warehouseId],
+    queryFn: () => {
+      if (!warehouseId) throw new Error('Warehouse ID not available');
+      return getInvites(warehouseId);
+    },
+    enabled: !!warehouseId,
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (inviteId: string) => cancelInvite(shopId!, inviteId),
+    mutationFn: (inviteId: string) => {
+      if (!warehouseId) throw new Error('Warehouse ID not available');
+      return cancelInvite(warehouseId, inviteId);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invites', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['invites', warehouseId] });
       message.success('Приглашение отменено');
+    },
+    onError: (error) => {
+      message.error('Ошибка при отмене приглашения');
+      console.error('Error cancelling invite:', error);
     },
   });
 
@@ -185,6 +205,16 @@ function ManagerInvitesPage() {
     },
   ];
 
+  if (!warehouseId) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <p className="text-gray-500">Загрузка данных о складе...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -221,10 +251,11 @@ function ManagerInvitesPage() {
         rowKey="id"
       />
 
-      {isInviteModalOpen && shopId && (
+      {isInviteModalOpen && warehouseId && (
         <InviteForm
           onClose={() => setIsInviteModalOpen(false)}
           predefinedShopId={shopId}
+          warehouseId={warehouseId}
         />
       )}
     </div>
