@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { Shop } from '@/types/shop';
 import { updateShop as apiUpdateShop } from '@/services/api';
 import { getManagerShop } from '@/services/managerApi';
+import { getShop as getOwnerShop } from '@/services/ownerApi';
 
 interface ShopContextType {
   currentShop: Shop | null;
@@ -28,29 +29,39 @@ const extractShopIdFromPath = () => {
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+      // Проверяем формат /owner/{shopId}/... для пути владельца
+      const ownerPathMatch = path.match(/\/owner\/([^\/]+)/);
+      if (ownerPathMatch && ownerPathMatch[1]) {
+        const possibleShopId = ownerPathMatch[1];
+
+        // If it's a valid UUID, return it with role info
+        if (uuidRegex.test(possibleShopId)) {
+          console.log('Found valid shop UUID in owner path:', possibleShopId);
+          return { id: possibleShopId, role: 'owner' };
+        }
+      }
+
       // Стратегия 1а: Проверка стандартного формата /manager/{shopId}/...
       const managerPathMatch = path.match(/\/manager\/([^\/]+)/);
-
       if (managerPathMatch && managerPathMatch[1]) {
         const possibleShopId = managerPathMatch[1];
 
         // If it's a valid UUID, return it
         if (uuidRegex.test(possibleShopId)) {
           console.log('Found valid shop UUID in manager path:', possibleShopId);
-          return possibleShopId;
+          return { id: possibleShopId, role: 'manager' };
         }
       }
 
       // Стратегия 1б: Проверка формата /cashier/{shopId}/...
       const cashierPathMatch = path.match(/\/cashier\/([^\/]+)/);
-
       if (cashierPathMatch && cashierPathMatch[1]) {
         const possibleShopId = cashierPathMatch[1];
 
         // If it's a valid UUID, return it
         if (uuidRegex.test(possibleShopId)) {
           console.log('Found valid shop UUID in cashier path:', possibleShopId);
-          return possibleShopId;
+          return { id: possibleShopId, role: 'cashier' };
         }
       }
 
@@ -60,7 +71,7 @@ const extractShopIdFromPath = () => {
 
       if (shopIdParam && uuidRegex.test(shopIdParam)) {
         console.log('Found shop ID from URL query parameter:', shopIdParam);
-        return shopIdParam;
+        return { id: shopIdParam, role: 'unknown' };
       }
 
       // Стратегия 3: Последняя попытка - поиск любого UUID в URL
@@ -68,7 +79,7 @@ const extractShopIdFromPath = () => {
       for (const part of parts) {
         if (uuidRegex.test(part)) {
           console.log('Found UUID in URL path parts:', part);
-          return part;
+          return { id: part, role: 'unknown' };
         }
       }
 
@@ -88,13 +99,28 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
   const initializeShop = async () => {
     try {
       setLoading(true);
-      const shopId = extractShopIdFromPath();
+      const shopInfo = extractShopIdFromPath();
 
-      if (shopId) {
-        console.log('Initializing shop with ID from URL:', shopId);
+      if (shopInfo && shopInfo.id) {
+        console.log(
+          'Initializing shop with ID from URL:',
+          shopInfo.id,
+          'Role:',
+          shopInfo.role
+        );
 
         try {
-          const shopData = await getManagerShop(shopId);
+          let shopData;
+
+          // В зависимости от роли используем соответствующий API
+          if (shopInfo.role === 'owner') {
+            console.log('Using owner API to get shop data');
+            shopData = await getOwnerShop(shopInfo.id);
+          } else {
+            console.log('Using manager API to get shop data');
+            shopData = await getManagerShop(shopInfo.id);
+          }
+
           console.log('Successfully loaded shop data:', shopData);
           setCurrentShop(shopData);
           localStorage.setItem('currentShop', JSON.stringify(shopData));
@@ -160,23 +186,41 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
   // Listen for URL changes to update shop
   useEffect(() => {
     const handleLocationChange = () => {
-      const shopIdFromPath = extractShopIdFromPath();
+      const shopInfo = extractShopIdFromPath();
       if (
-        shopIdFromPath &&
-        (!currentShop || currentShop.id !== shopIdFromPath)
+        shopInfo &&
+        shopInfo.id &&
+        (!currentShop || currentShop.id !== shopInfo.id)
       ) {
         setLoading(true);
-        getManagerShop(shopIdFromPath)
-          .then((shop) => {
-            setCurrentShop(shop);
-            localStorage.setItem('currentShop', JSON.stringify(shop));
-          })
-          .catch((error) => {
+
+        const fetchShopData = async () => {
+          try {
+            let shopData;
+
+            // В зависимости от роли используем соответствующий API
+            if (shopInfo.role === 'owner') {
+              console.log(
+                'Using owner API to get shop data after location change'
+              );
+              shopData = await getOwnerShop(shopInfo.id);
+            } else {
+              console.log(
+                'Using manager API to get shop data after location change'
+              );
+              shopData = await getManagerShop(shopInfo.id);
+            }
+
+            setCurrentShop(shopData);
+            localStorage.setItem('currentShop', JSON.stringify(shopData));
+          } catch (error) {
             console.error('Error loading shop after location change:', error);
-          })
-          .finally(() => {
+          } finally {
             setLoading(false);
-          });
+          }
+        };
+
+        fetchShopData();
       }
     };
 

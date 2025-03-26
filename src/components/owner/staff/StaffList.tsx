@@ -94,6 +94,27 @@ export function StaffList({ staff }: StaffListProps) {
     }
   };
 
+  // Вспомогательная функция для получения информации о складе
+  const renderWarehouseInfo = (role: UserRoleDetails) => {
+    if (role.warehouse) {
+      return (
+        <div className="text-gray-500 ml-7">
+          <div className="flex items-center">
+            <span className="mr-1">🏢</span>
+            {role.warehouse.name}
+          </div>
+          {role.warehouse.address && (
+            <div className="text-gray-400 ml-5">
+              <span className="mr-1">📍</span>
+              {role.warehouse.address}
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -124,7 +145,7 @@ export function StaffList({ staff }: StaffListProps) {
                     key={role.id}
                     className="text-sm p-3 bg-gray-50 rounded-lg border border-gray-200"
                   >
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-start">
                       <div>
                         <span className="font-medium flex items-center gap-2">
                           {getRoleIcon(role.type)} {getRoleName(role.type)}
@@ -132,6 +153,7 @@ export function StaffList({ staff }: StaffListProps) {
                         <div className="text-gray-500 ml-7">
                           с {formatDateTime(role.createdAt)}
                         </div>
+                        {renderWarehouseInfo(role)}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
@@ -175,16 +197,19 @@ export function StaffList({ staff }: StaffListProps) {
                         className="text-sm p-3 bg-gray-50 rounded-lg border border-gray-200"
                       >
                         <div className="flex justify-between">
-                          <span className="text-gray-600 flex items-center gap-2">
-                            {getRoleIcon(role.type)} {getRoleName(role.type)}
-                          </span>
+                          <div>
+                            <span className="text-gray-600 flex items-center gap-2">
+                              {getRoleIcon(role.type)} {getRoleName(role.type)}
+                            </span>
+                            <div className="text-gray-500 ml-7">
+                              {formatDateTime(role.createdAt)}
+                              {role.deactivatedAt && (
+                                <> - {formatDateTime(role.deactivatedAt)}</>
+                              )}
+                            </div>
+                            {renderWarehouseInfo(role)}
+                          </div>
                           <span className="text-red-600">Уволен</span>
-                        </div>
-                        <div className="text-gray-500 ml-7">
-                          {formatDateTime(role.createdAt)}
-                          {role.deactivatedAt && (
-                            <> - {formatDateTime(role.deactivatedAt)}</>
-                          )}
                         </div>
                       </div>
                     ))}

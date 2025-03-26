@@ -33,6 +33,13 @@ export default function ProfilePage() {
           type: role.shop.type || 'shop',
           address: role.shop.address,
         },
+        warehouse: role.warehouse
+          ? {
+              id: role.warehouse.id,
+              name: role.warehouse.name,
+              address: role.warehouse.address,
+            }
+          : undefined,
       });
       if (role.type === RoleType.OWNER) {
         navigate(`/owner/${role.shop.id}`);
@@ -59,11 +66,21 @@ export default function ProfilePage() {
     >
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold">{role.shop.name}</h3>
-          {role.shop.address && (
+          {role.warehouse ? (
+            <h3 className="text-lg font-semibold">🏭 {role.warehouse.name}</h3>
+          ) : (
+            <h3 className="text-lg font-semibold">{role.shop.name}</h3>
+          )}
+
+          {role.shop.address && !role.warehouse && (
             <p className="text-gray-500">📍 {role.shop.address}</p>
           )}
-          <div className="flex items-center gap-2">
+
+          {role.warehouse && role.warehouse.address && (
+            <p className="text-gray-500">📍 {role.warehouse.address}</p>
+          )}
+
+          <div className="flex items-center gap-2 mt-2">
             <span className="text-2xl">
               {role.type === 'owner'
                 ? '👔'
@@ -84,6 +101,52 @@ export default function ProfilePage() {
     </motion.div>
   );
 
+  // Группировка ролей по проектам (shopId)
+  const groupRolesByShop = (roles: UserRoleDetails[]) => {
+    const groupedRoles: { [shopId: string]: UserRoleDetails[] } = {};
+
+    roles.forEach((role) => {
+      if (!groupedRoles[role.shop.id]) {
+        groupedRoles[role.shop.id] = [];
+      }
+      groupedRoles[role.shop.id].push(role);
+    });
+
+    return groupedRoles;
+  };
+
+  // Отображение проекта и его ролей
+  const renderShopWithRoles = (shopId: string, roles: UserRoleDetails[]) => {
+    // Получаем информацию о магазине из первой роли
+    const shopInfo = roles[0].shop;
+
+    // Находим роль владельца, если она есть
+    const ownerRole = roles.find((role) => role.type === RoleType.OWNER);
+
+    // Отображаем роли, где у нас нет склада отдельно
+    const shopRoles = roles.filter((role) => !role.warehouse);
+
+    // Отображаем роли, где у нас есть склад
+    const warehouseRoles = roles.filter((role) => role.warehouse);
+
+    return (
+      <div
+        key={shopId}
+        className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4"
+      >
+        <h3 className="text-lg font-semibold mb-4">{shopInfo.name}</h3>
+
+        <div className="space-y-4">
+          {/* Сначала отображаем роли без склада (например, владелец) */}
+          {shopRoles.map((role) => renderRole(role))}
+
+          {/* Затем отображаем роли со складами */}
+          {warehouseRoles.map((role) => renderRole(role))}
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
@@ -91,6 +154,10 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  // Группируем активные роли по проектам
+  const activeRoles = profile?.roles?.filter((role) => role.isActive) || [];
+  const groupedRoles = groupRolesByShop(activeRoles);
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
@@ -149,9 +216,10 @@ export default function ProfilePage() {
               <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">Мои проекты</h2>
                 <div className="space-y-4">
-                  {profile.roles
-                    .filter((role) => role.isActive)
-                    .map((role) => renderRole(role))}
+                  {/* Отображаем карточки проектов с сгруппированными ролями */}
+                  {Object.keys(groupedRoles).map((shopId) =>
+                    renderShopWithRoles(shopId, groupedRoles[shopId])
+                  )}
                 </div>
               </div>
             )}

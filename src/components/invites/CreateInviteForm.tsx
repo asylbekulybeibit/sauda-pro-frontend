@@ -72,7 +72,11 @@ export function CreateInviteForm({
     }
 
     if (!predefinedShopId && !formData.shopId) {
-      newErrors.shopId = 'Выберите проект';
+      newErrors.shopId = 'Выберите сеть';
+    }
+
+    if (!formData.warehouseId) {
+      newErrors.warehouseId = 'Выберите склад';
     }
 
     setErrors(newErrors);
@@ -88,6 +92,10 @@ export function CreateInviteForm({
 
     createMutation.mutate(formData);
   };
+
+  const filteredWarehouses = warehouses?.filter(
+    (warehouse) => warehouse.shopId === formData.shopId
+  );
 
   return (
     <>
@@ -115,7 +123,7 @@ export function CreateInviteForm({
         {!predefinedShopId && (
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Проект *
+              Сеть *
             </label>
             <select
               value={formData.shopId}
@@ -130,10 +138,10 @@ export function CreateInviteForm({
                 errors.shopId ? 'border-red-500' : 'border-gray-300'
               } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
             >
-              <option value="">Выберите проект</option>
+              <option value="">Выберите сеть</option>
               {shops?.map((shop) => (
                 <option key={shop.id} value={shop.id}>
-                  {shop.name} {shop.address && `(${shop.address})`}
+                  {shop.name}
                 </option>
               ))}
             </select>
@@ -146,7 +154,7 @@ export function CreateInviteForm({
         {formData.shopId && (
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Склад
+              Склад *
             </label>
             <select
               value={formData.warehouseId}
@@ -156,20 +164,23 @@ export function CreateInviteForm({
                   warehouseId: e.target.value,
                 }))
               }
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+              className={`mt-1 block w-full rounded-md border ${
+                errors.warehouseId ? 'border-red-500' : 'border-gray-300'
+              } px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500`}
             >
-              <option value="">Без привязки к складу</option>
-              {warehouses
-                ?.filter((warehouse) => warehouse.shopId === formData.shopId)
-                .map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}{' '}
-                    {warehouse.address && `(${warehouse.address})`}
-                  </option>
-                ))}
+              <option value="">Выберите склад</option>
+              {filteredWarehouses?.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}{' '}
+                  {warehouse.address && `(${warehouse.address})`}
+                </option>
+              ))}
             </select>
+            {errors.warehouseId && (
+              <p className="mt-1 text-sm text-red-500">{errors.warehouseId}</p>
+            )}
             <p className="mt-1 text-xs text-gray-500">
-              Если склад не выбран, инвайт будет отправлен только на проект
+              Сотрудник будет привязан к выбранному складу
             </p>
           </div>
         )}

@@ -66,7 +66,9 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
       {/* Заголовок и роль */}
       <div className="flex justify-between items-start">
         <div className="space-y-1">
-          <div className="text-lg font-medium">Приглашение в проект</div>
+          <div className="text-lg font-medium">
+            {invite.warehouse ? 'Приглашение на склад' : 'Приглашение в проект'}
+          </div>
           <div className="text-sm text-gray-500">
             от {invite.createdBy.firstName} {invite.createdBy.lastName}
           </div>
@@ -79,16 +81,30 @@ const PendingInviteCard = ({ invite }: { invite: Invite }) => {
         </div>
       </div>
 
-      {/* Информация о проекте */}
-      <div>
-        <div className="text-sm text-gray-500">Проект</div>
-        <div className="font-medium">{invite.shop.name}</div>
-        {invite.shop.address && (
-          <div className="text-sm text-gray-500 mt-1">
-            📍 {invite.shop.address}
+      {/* Информация о проекте/складе */}
+      {invite.warehouse ? (
+        <div>
+          <div className="text-sm text-gray-500">Склад</div>
+          <div className="font-medium flex items-center">
+            <span className="mr-1">🏢</span> {invite.warehouse.name}
           </div>
-        )}
-      </div>
+          {invite.warehouse.address && (
+            <div className="text-sm text-gray-500 mt-1">
+              <span className="mr-1">📍</span> {invite.warehouse.address}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <div className="text-sm text-gray-500">Проект</div>
+          <div className="font-medium">{invite.shop.name}</div>
+          {invite.shop.address && (
+            <div className="text-sm text-gray-500 mt-1">
+              📍 {invite.shop.address}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Дата создания */}
       <div className="text-sm text-gray-500">

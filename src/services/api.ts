@@ -267,6 +267,20 @@ export const getShopStaff = async (): Promise<UserRoleDetails[]> => {
   return response.data;
 };
 
+export const getShopStaffById = async (
+  shopId: string
+): Promise<UserRoleDetails[]> => {
+  const response = await api.get(`/owner/shops/${shopId}/staff`);
+  return response.data;
+};
+
+export const getWarehouseStaff = async (
+  warehouseId: string
+): Promise<UserRoleDetails[]> => {
+  const response = await api.get(`/owner/staff/${warehouseId}`);
+  return response.data;
+};
+
 export const removeStaffMember = async (staffId: string): Promise<void> => {
   await api.patch(`/users/staff/${staffId}/deactivate`);
 };

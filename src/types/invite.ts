@@ -1,5 +1,6 @@
 import { RoleType } from '@/types/role';
 import { Shop } from './shop';
+import { Warehouse } from './warehouse';
 
 export enum InviteStatus {
   PENDING = 'pending',
@@ -25,6 +26,11 @@ export interface Invite {
   createdAt: string;
   updatedAt: string;
   shop: Shop;
+  warehouse?: {
+    id: string;
+    name: string;
+    address?: string;
+  };
   createdBy: {
     id: string;
     phone: string;

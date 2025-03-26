@@ -16,7 +16,12 @@ export const getOwnerInvites = async (shopId: string): Promise<Invite[]> => {
 export const getShopStaff = async (
   shopId: string
 ): Promise<UserRoleDetails[]> => {
-  const response = await api.get(`/owner/staff/${shopId}`);
+  const response = await api.get(`/owner/shops/${shopId}/staff`);
+  return response.data;
+};
+
+export const getShop = async (shopId: string) => {
+  const response = await api.get(`/owner/${shopId}`);
   return response.data;
 };
 

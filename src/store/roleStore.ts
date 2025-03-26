@@ -9,9 +9,21 @@ export interface Shop {
   address?: string;
 }
 
+export interface Warehouse {
+  id: string;
+  name: string;
+  address?: string;
+}
+
 export type CurrentRole =
   | { type: 'superadmin' }
-  | { type: 'shop'; id: string; role: RoleType; shop: Shop };
+  | {
+      type: 'shop';
+      id: string;
+      role: RoleType;
+      shop: Shop;
+      warehouse?: Warehouse;
+    };
 
 interface RoleState {
   currentRole: CurrentRole | null;

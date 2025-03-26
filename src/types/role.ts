@@ -19,6 +19,12 @@ export interface Shop {
   address?: string;
 }
 
+export interface Warehouse {
+  id: string;
+  name: string;
+  address?: string;
+}
+
 export interface UserRoleDetails {
   id: string;
   type: RoleType;
@@ -28,6 +34,8 @@ export interface UserRoleDetails {
   user: User;
   shopId: string;
   shop: Shop;
+  warehouseId?: string;
+  warehouse?: Warehouse;
 }
 
 // Simplified role type for route protection

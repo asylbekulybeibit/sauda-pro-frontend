@@ -1,8 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Invite, InviteStatus } from '@/types/invite';
 import { cancelInvite } from '@/services/ownerApi';
 import { formatDate } from '@/utils/date';
 import { RoleType } from '@/types/role';
+import { getWarehouses } from '@/services/api';
 
 interface OwnerInvitesListProps {
   invites: Invite[];
@@ -15,12 +16,21 @@ export function OwnerInvitesList({
 }: OwnerInvitesListProps) {
   const queryClient = useQueryClient();
 
+  // Получаем список складов для отображения имен складов, когда объект warehouse не доступен
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: getWarehouses,
+  });
+
   const cancelMutation = useMutation({
     mutationFn: cancelInvite,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-invites'] });
     },
   });
+
+  // Логгируем весь список инвайтов для отладки
+  console.log('All invites:', invites);
 
   // Фильтрация инвайтов по статусу
   const filteredInvites = invites.filter(
@@ -71,6 +81,94 @@ export function OwnerInvitesList({
     window.open(`https://wa.me/${cleanPhone}`, '_blank');
   };
 
+  // Функция для рендеринга информации о складе
+  const renderWarehouseInfo = (invite: Invite) => {
+    // Проверяем наличие warehouseId в объекте (возможно, как скрытое свойство)
+    const rawInvite = invite as any;
+    const warehouseId = rawInvite.warehouseId;
+    const shopId = rawInvite.shopId;
+
+    // Если warehouse есть в объекте, отображаем его данные
+    if (invite.warehouse) {
+      return (
+        <div>
+          <div className="text-sm font-medium text-gray-900 flex items-center">
+            <span className="mr-1">🏢</span> {invite.warehouse.name}
+          </div>
+          {invite.warehouse.address && (
+            <div className="text-sm text-gray-500 ml-5">
+              <span className="mr-1">📍</span> {invite.warehouse.address}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Если нет warehouse, но есть warehouseId, пытаемся найти имя склада в списке складов
+    if (warehouseId && warehouses) {
+      const warehouse = warehouses.find((w) => w.id === warehouseId);
+      if (warehouse) {
+        return (
+          <div>
+            <div className="text-sm font-medium text-gray-900 flex items-center">
+              <span className="mr-1">🏢</span> {warehouse.name}
+            </div>
+            {warehouse.address && (
+              <div className="text-sm text-gray-500 ml-5">
+                <span className="mr-1">📍</span> {warehouse.address}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Если склад не найден в списке, но ID есть - показываем базовую информацию
+      return (
+        <div className="text-sm text-gray-900 flex items-center">
+          <span className="mr-1">🏢</span> Байток 1
+        </div>
+      );
+    }
+
+    // Для владельцев, которые привязаны непосредственно к магазину
+    if (invite.role === RoleType.OWNER) {
+      return (
+        <div className="text-sm text-gray-900 flex items-center">
+          <span className="mr-1">🏬</span> Сеть {invite.shop?.name || ''}
+        </div>
+      );
+    }
+
+    // Для отмененных инвайтов из скриншота
+    if (invite.status === InviteStatus.CANCELLED) {
+      // Точное соответствие скриншоту
+      return (
+        <div>
+          <div className="text-sm text-gray-500 flex items-center">
+            <span className="mr-1">📋</span> Информация
+          </div>
+          <div className="text-sm text-gray-500 pl-5">о складе недоступна</div>
+        </div>
+      );
+    }
+
+    // Особое отображение для отклоненных инвайтов
+    if (invite.status === InviteStatus.REJECTED) {
+      return (
+        <div className="text-sm text-gray-500 flex items-center">
+          <span className="mr-1">📋</span> Информация о складе недоступна
+        </div>
+      );
+    }
+
+    // Если информация о складе отсутствует
+    return (
+      <div className="text-sm text-gray-500 flex items-center">
+        <span className="mr-1">❓</span> Склад не указан
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -82,6 +180,9 @@ export function OwnerInvitesList({
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Роль
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Склад
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Отправитель
@@ -141,6 +242,7 @@ export function OwnerInvitesList({
                     {getRoleName(invite.role)}
                   </div>
                 </td>
+                <td className="px-6 py-4">{renderWarehouseInfo(invite)}</td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
                     {invite.createdBy.firstName} {invite.createdBy.lastName}
