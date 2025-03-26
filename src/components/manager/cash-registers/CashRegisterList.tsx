@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { Table, Button, message, Popconfirm, Tag } from 'antd';
+import { useState, useMemo } from 'react';
+import { Table, Button, Popconfirm, Typography, Space, Tag, Modal } from 'antd';
+import {
+  ExclamationCircleOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SettingOutlined,
+  WalletOutlined,
+} from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   CashRegister,
@@ -11,7 +18,12 @@ import {
   PaymentMethodStatus,
 } from '@/types/cash-register';
 import { cashRegistersApi } from '@/services/cashRegistersApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import EditPaymentMethodsModal from './EditPaymentMethodsModal';
+import { PaymentMethodBalanceModal } from './PaymentMethodBalanceModal';
+
+const { confirm } = Modal;
+const { Text } = Typography;
 
 interface CashRegisterListProps {
   registers: CashRegister[];
@@ -53,28 +65,83 @@ export default function CashRegisterList({
   onDelete,
   warehouseId,
 }: CashRegisterListProps) {
+  const queryClient = useQueryClient();
   const [editingRegister, setEditingRegister] = useState<CashRegister | null>(
     null
   );
+  const [balanceModalVisible, setBalanceModalVisible] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<RegisterPaymentMethod | null>(null);
 
-  const handleStatusChange = async (id: string, status: CashRegisterStatus) => {
-    try {
-      await cashRegistersApi.updateStatus(warehouseId, id, status);
-      onStatusChange();
-      message.success('Статус кассы обновлен');
-    } catch (error) {
-      message.error('Не удалось обновить статус кассы');
-    }
+  const statusMutation = useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: 'active' | 'disabled';
+    }) => cashRegistersApi.updateStatus(warehouseId, id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['cash-registers', warehouseId],
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => cashRegistersApi.remove(warehouseId, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['cash-registers', warehouseId],
+      });
+    },
+  });
+
+  const handleStatusChange = (
+    id: string,
+    currentStatus: 'active' | 'disabled'
+  ) => {
+    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
+    statusMutation.mutate({ id, status: newStatus });
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await cashRegistersApi.remove(warehouseId, id);
-      onDelete();
-      message.success('Касса удалена');
-    } catch (error) {
-      message.error('Не удалось удалить кассу');
-    }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: 'Вы уверены, что хотите удалить эту кассу?',
+      icon: <ExclamationCircleOutlined />,
+      content: 'Это действие нельзя отменить.',
+      okText: 'Да',
+      okType: 'danger',
+      cancelText: 'Нет',
+      onOk() {
+        deleteMutation.mutate(id);
+      },
+    });
+  };
+
+  const handleEditPaymentMethods = (register: CashRegister) => {
+    setEditingRegister(register);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingRegister(null);
+  };
+
+  const handlePaymentMethodsSuccess = () => {
+    queryClient.invalidateQueries({
+      queryKey: ['cash-registers', warehouseId],
+    });
+    setEditingRegister(null);
+  };
+
+  const handleOpenBalanceModal = (paymentMethod: RegisterPaymentMethod) => {
+    setSelectedPaymentMethod(paymentMethod);
+    setBalanceModalVisible(true);
+  };
+
+  const handleCloseBalanceModal = () => {
+    setBalanceModalVisible(false);
+    setSelectedPaymentMethod(null);
   };
 
   const renderPaymentMethod = (method: RegisterPaymentMethod) => {
@@ -123,7 +190,26 @@ export default function CashRegisterList({
       dataIndex: 'status',
       key: 'status',
       render: (status: CashRegisterStatus) => (
-        <Tag color={statusColors[status]}>{statusLabels[status]}</Tag>
+        <Popconfirm
+          title={`Изменить статус на ${
+            status === CashRegisterStatus.ACTIVE ? 'неактивный' : 'активный'
+          }?`}
+          onConfirm={() =>
+            handleStatusChange(
+              registers[0].id,
+              status === CashRegisterStatus.ACTIVE ? 'disabled' : 'active'
+            )
+          }
+          okText="Да"
+          cancelText="Нет"
+        >
+          <Tag
+            color={status === CashRegisterStatus.ACTIVE ? 'green' : 'red'}
+            className="cursor-pointer"
+          >
+            {statusLabels[status]}
+          </Tag>
+        </Popconfirm>
       ),
     },
     {
@@ -131,54 +217,47 @@ export default function CashRegisterList({
       dataIndex: 'paymentMethods',
       key: 'paymentMethods',
       render: (paymentMethods: RegisterPaymentMethod[]) => (
-        <div className="space-x-1">
-          {paymentMethods.map(renderPaymentMethod)}
-        </div>
+        <Space direction="vertical" size="small">
+          {paymentMethods.length === 0 ? (
+            <Text type="secondary">Нет методов оплаты</Text>
+          ) : (
+            paymentMethods.map((method) => (
+              <Space key={method.id} size="small">
+                <Tag color={method.isActive ? 'blue' : 'gray'}>
+                  {method.name}
+                </Tag>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<WalletOutlined />}
+                  onClick={() => handleOpenBalanceModal(method)}
+                  title="Управление балансом"
+                />
+              </Space>
+            ))
+          )}
+        </Space>
       ),
     },
     {
       title: 'Действия',
       key: 'actions',
       render: (_, record) => (
-        <div className="space-x-2">
-          <Button size="small" onClick={() => setEditingRegister(record)}>
-            Методы оплаты
-          </Button>
-          {record.status === CashRegisterStatus.INACTIVE ? (
-            <Button
-              type="primary"
-              size="small"
-              onClick={() =>
-                handleStatusChange(record.id, CashRegisterStatus.ACTIVE)
-              }
-              className="bg-blue-500"
-            >
-              Активировать
-            </Button>
-          ) : (
-            <Button
-              size="small"
-              onClick={() =>
-                handleStatusChange(record.id, CashRegisterStatus.INACTIVE)
-              }
-            >
-              Деактивировать
-            </Button>
-          )}
-          <Popconfirm
-            title="Удалить кассу?"
-            description="Вы уверены, что хотите удалить эту кассу?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Да"
-            cancelText="Нет"
-            okButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
-            cancelButtonProps={{ className: 'bg-blue-500 hover:bg-blue-500' }}
-          >
-            <Button size="small" danger>
-              Удалить
-            </Button>
-          </Popconfirm>
-        </div>
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<SettingOutlined />}
+            onClick={() => handleEditPaymentMethods(record)}
+            title="Настроить методы оплаты"
+          />
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+            title="Удалить"
+          />
+        </Space>
       ),
     },
   ];
@@ -196,9 +275,18 @@ export default function CashRegisterList({
       {editingRegister && (
         <EditPaymentMethodsModal
           isOpen={true}
-          onClose={() => setEditingRegister(null)}
-          onSuccess={onStatusChange}
+          onClose={handleCloseEditModal}
+          onSuccess={handlePaymentMethodsSuccess}
           register={editingRegister}
+        />
+      )}
+
+      {selectedPaymentMethod && (
+        <PaymentMethodBalanceModal
+          isOpen={balanceModalVisible}
+          onClose={handleCloseBalanceModal}
+          paymentMethod={selectedPaymentMethod}
+          warehouseId={warehouseId}
         />
       )}
     </>

@@ -4,6 +4,7 @@ import {
   CreateCashRegisterDto,
   CashRegisterStatus,
   PaymentMethodDto,
+  PaymentMethodTransactionType,
 } from '../types/cash-register';
 
 export const cashRegistersApi = {
@@ -63,6 +64,69 @@ export const cashRegistersApi = {
       `/manager/${warehouseId}/cash-registers/${id}/payment-methods`,
       {
         paymentMethods,
+      }
+    );
+    return data;
+  },
+
+  // Получить все транзакции метода оплаты
+  getPaymentMethodTransactions: async (
+    warehouseId: string,
+    paymentMethodId: string,
+    options?: {
+      startDate?: string;
+      endDate?: string;
+      type?: PaymentMethodTransactionType;
+      limit?: number;
+      offset?: number;
+    }
+  ) => {
+    const params = new URLSearchParams();
+    if (options?.startDate) params.append('startDate', options.startDate);
+    if (options?.endDate) params.append('endDate', options.endDate);
+    if (options?.type) params.append('type', options.type);
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.offset) params.append('offset', options.offset.toString());
+
+    const { data } = await api.get(
+      `/manager/${warehouseId}/payment-methods/${paymentMethodId}/transactions?${params.toString()}`
+    );
+    return data;
+  },
+
+  // Пополнить баланс метода оплаты
+  depositToPaymentMethod: async (
+    warehouseId: string,
+    paymentMethodId: string,
+    amount: number,
+    note?: string,
+    shiftId?: string
+  ) => {
+    const { data } = await api.post(
+      `/manager/${warehouseId}/payment-methods/${paymentMethodId}/deposit`,
+      {
+        amount,
+        note,
+        shiftId,
+      }
+    );
+    return data;
+  },
+
+  // Изъять средства из баланса метода оплаты
+  withdrawFromPaymentMethod: async (
+    warehouseId: string,
+    paymentMethodId: string,
+    amount: number,
+    note?: string,
+    shiftId?: string
+  ) => {
+    const { data } = await api.post(
+      `/manager/${warehouseId}/payment-methods/${paymentMethodId}/withdraw`,
+      {
+        amount,
+        note,
+        shiftId,
       }
     );
     return data;

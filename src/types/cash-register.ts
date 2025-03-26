@@ -28,7 +28,7 @@ export interface CashRegister {
   type: RegisterType;
   location?: string;
   status: RegisterStatus;
-  paymentMethods: PaymentMethod[];
+  paymentMethods: RegisterPaymentMethod[];
   createdAt: string;
   updatedAt: string;
 }
@@ -97,6 +97,8 @@ export interface RegisterPaymentMethod {
   isActive: boolean;
   status: PaymentMethodStatus;
   createdAt: string;
+  currentBalance: number;
+  accountDetails?: string;
 }
 
 export interface PaymentMethodDto {
@@ -114,4 +116,41 @@ export interface CreateCashRegisterDto {
   type: CashRegisterType;
   location?: string;
   paymentMethods: PaymentMethodDto[];
+}
+
+export enum PaymentMethodTransactionType {
+  SALE = 'sale',
+  REFUND = 'refund',
+  DEPOSIT = 'deposit',
+  WITHDRAWAL = 'withdrawal',
+  PURCHASE = 'purchase',
+  ADJUSTMENT = 'adjustment',
+}
+
+export enum PaymentMethodReferenceType {
+  SALE = 'sale',
+  REFUND = 'refund',
+  PURCHASE = 'purchase',
+  SHIFT = 'shift',
+  MANUAL = 'manual',
+}
+
+export interface PaymentMethodTransaction {
+  id: string;
+  paymentMethodId: string;
+  paymentMethod: RegisterPaymentMethod;
+  shiftId?: string;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  transactionType: PaymentMethodTransactionType;
+  referenceType?: PaymentMethodReferenceType;
+  referenceId?: string;
+  note?: string;
+  createdById?: string;
+  createdBy?: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
 }
