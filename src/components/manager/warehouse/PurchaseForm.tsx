@@ -245,7 +245,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
 
-  // Загрузка поставщиков
+  // Получаем поставщиков
   const {
     data: suppliers,
     isLoading: isLoadingSuppliers,
@@ -256,11 +256,24 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       if (!warehouseId) {
         throw new Error('warehouseId не определен');
       }
-      return getSuppliers(warehouseId);
+      console.log(
+        `[PurchaseForm] Загрузка поставщиков с параметром warehouseId=${warehouseId}`
+      );
+      // Явно указываем warehouseId как второй параметр для совместимости
+      return getSuppliers(warehouseId, warehouseId);
     },
     enabled: !!warehouseId,
     staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
+
+  // Убедимся, что данные о поставщиках загружены и покажем информацию о них
+  useEffect(() => {
+    if (suppliers && suppliers.length > 0) {
+      console.log(
+        `[PurchaseForm] Загружено ${suppliers.length} поставщиков для склада ${warehouseId}`
+      );
+    }
+  }, [suppliers, warehouseId]);
 
   const {
     data: shop,
@@ -286,7 +299,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       if (!warehouseId) {
         throw new Error('warehouseId не определен');
       }
-      return getCategories(warehouseId);
+      console.log(
+        `[PurchaseForm] Загрузка категорий с параметром warehouseId=${warehouseId}`
+      );
+      return getCategories(warehouseId); // Метод getCategories теперь должен корректно обрабатывать ID склада
     },
     enabled: !!warehouseId,
     staleTime: 1000 * 60 * 5, // 5 минут кэширования

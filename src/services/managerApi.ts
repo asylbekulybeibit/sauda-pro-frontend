@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from './api';
 import { Product } from '@/types/product';
 import { Category } from '@/types/category';
@@ -12,7 +13,6 @@ import { PriceHistory } from '@/types/priceHistory';
 import { ApiErrorHandler } from '@/utils/error-handler';
 import { RoleType } from '@/types/role';
 import { Purchase } from '@/types/purchase';
-import axios from 'axios';
 import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
 
@@ -169,11 +169,66 @@ export const deleteProduct = async (id: string): Promise<void> => {
 // Методы для работы с категориями
 export const getCategories = async (shopId: string): Promise<Category[]> => {
   try {
-    console.log(`Fetching categories for shop ${shopId}`);
-    const response = await api.get(`/manager/categories/shop/${shopId}`);
+    console.log(`Fetching categories for shop/warehouse ${shopId}`);
+
+    // Проверяем формат ID - если это UUID, то вероятно это ID склада
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        shopId
+      );
+
+    let url = `/manager/categories/shop/${shopId}`;
+
+    // Если похоже на UUID склада, добавляем параметр isWarehouseId
+    if (isUUID && shopId.length === 36) {
+      url += '?isWarehouseId=true';
+      console.log(
+        `Определено, что ${shopId} может быть ID склада, добавляем параметр isWarehouseId=true`
+      );
+    }
+
+    console.log(`Request URL для получения категорий: ${url}`);
+    const response = await api.get(url);
+
+    if (response.data && Array.isArray(response.data)) {
+      console.log(`Получено ${response.data.length} категорий`);
+    } else {
+      console.warn(
+        'Получены данные категорий в неожиданном формате:',
+        response.data
+      );
+    }
+
     return response.data;
   } catch (error) {
     console.error(`Error fetching categories for shop ${shopId}:`, error);
+    // Подробная информация об ошибке
+    if (axios.isAxiosError(error)) {
+      console.error(`Axios error: ${error.message}`);
+      console.error(`Status: ${error.response?.status}`);
+      console.error(`Status text: ${error.response?.statusText}`);
+      console.error(`Data:`, error.response?.data);
+
+      // Проверяем конкретную ошибку для склада
+      if (
+        error.response?.status === 404 &&
+        error.response?.data?.message?.includes('Склад с ID')
+      ) {
+        console.warn(
+          `Выглядит как ошибка отсутствия склада. Попробуем запрос без параметра isWarehouseId`
+        );
+
+        // При ошибке 404 для склада пробуем запросить категории напрямую по ID
+        try {
+          const directUrl = `/manager/categories/shop/${shopId}`;
+          console.log(`Пробуем прямой запрос: ${directUrl}`);
+          const directResponse = await api.get(directUrl);
+          return directResponse.data;
+        } catch (retryError) {
+          console.error(`Повторная попытка также не удалась:`, retryError);
+        }
+      }
+    }
     throw ApiErrorHandler.handle(error);
   }
 };
