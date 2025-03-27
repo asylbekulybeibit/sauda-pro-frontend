@@ -1823,8 +1823,22 @@ export const createClientFromWarehouse = async (
   }
 };
 
+// Интерфейс для склада
+export interface Warehouse {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  isMain?: boolean;
+  isActive?: boolean;
+  shopId: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Добавляем функцию для получения списка складов магазина
-export const getWarehouses = async (shopId: string) => {
+export const getWarehouses = async (shopId: string): Promise<Warehouse[]> => {
   try {
     const response = await api.get(`/manager/warehouses/shop/${shopId}`);
     return response.data;

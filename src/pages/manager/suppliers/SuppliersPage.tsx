@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { SupplierList } from '@/components/manager/suppliers/SupplierList';
 import { useShop } from '@/hooks/useShop';
-import { getManagerShop, getWarehouses } from '@/services/managerApi';
+import {
+  getManagerShop,
+  getWarehouses,
+  Warehouse,
+} from '@/services/managerApi';
 import { Shop } from '@/types/shop';
 import { Spin } from 'antd';
-import { Warehouse } from '@/types/warehouse';
 
 const SuppliersPage: React.FC = () => {
   const { shopId, warehouseId } = useParams<{
@@ -99,7 +102,7 @@ const SuppliersPage: React.FC = () => {
     <div>
       <h1 className="text-2xl font-semibold mb-4">
         Поставщики
-        {warehouseName ? ` - Склад: ${warehouseName} (ID: ${warehouseId})` : ''}
+      
       </h1>
       <SupplierList shopId={effectiveShopId} />
     </div>

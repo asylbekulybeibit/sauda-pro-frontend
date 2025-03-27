@@ -3,6 +3,7 @@ import {
   getSuppliers,
   deleteSupplier,
   getWarehouses,
+  Warehouse,
 } from '@/services/managerApi';
 import { Supplier } from '@/types/supplier';
 import { Button, Table, Modal, message, Tag, Space } from 'antd';
@@ -13,11 +14,6 @@ import { useRoleStore } from '@/store/roleStore';
 
 interface SupplierListProps {
   shopId: string;
-}
-
-interface Warehouse {
-  id: string;
-  name: string;
 }
 
 export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
@@ -44,7 +40,10 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
     console.log('=== ИНФОРМАЦИЯ О ТЕКУЩЕМ СКЛАДЕ (SupplierList) ===');
     console.log('URL warehouseId:', urlWarehouseId);
     console.log('Роль менеджера:', currentRole);
-    console.log('Warehouse из роли:', currentRole?.warehouse);
+    console.log(
+      'Warehouse из роли:',
+      currentRole?.type === 'shop' ? currentRole.warehouse : 'Нет'
+    );
     console.log('Итоговый warehouseId:', warehouseId);
     console.log('===============================================');
   }, [urlWarehouseId, currentRole, warehouseId]);
@@ -61,7 +60,9 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
         const warehousesData = await getWarehouses(shopId);
         console.log('Все склады магазина:', warehousesData);
 
-        const warehouse = warehousesData.find((w) => w.id === warehouseId);
+        const warehouse = warehousesData.find(
+          (w: Warehouse) => w.id === warehouseId
+        );
         if (warehouse) {
           console.log('Найден текущий склад:', warehouse);
           setCurrentWarehouse(warehouse);
@@ -188,13 +189,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
           alignItems: 'center',
         }}
       >
-        <div>
-          {currentWarehouse && (
-            <h3>
-              Склад: {currentWarehouse.name} (ID: {currentWarehouse.id})
-            </h3>
-          )}
-        </div>
+       
         <Button
           type="primary"
           onClick={() =>
