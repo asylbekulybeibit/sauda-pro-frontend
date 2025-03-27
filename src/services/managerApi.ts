@@ -123,9 +123,20 @@ export const createProduct = async (
   data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Product> => {
   try {
+    console.log(
+      'Вызов createProduct с данными:',
+      JSON.stringify(data, null, 2)
+    );
+
+    // Проверяем наличие warehouseId и shopId
+    if (!data.warehouseId) {
+      console.warn('createProduct вызван без warehouseId!');
+    }
+
     const response = await api.post('/manager/products', data);
     return response.data;
   } catch (error) {
+    console.error('Ошибка при создании товара:', error);
     throw ApiErrorHandler.handle(error);
   }
 };

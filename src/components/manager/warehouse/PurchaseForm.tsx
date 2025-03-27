@@ -1060,6 +1060,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         ...values,
         categoryId: categoryId, // Используем ID категории (новой или выбранной)
         shopId: shopId,
+        warehouseId: warehouseId, // Явно передаем ID склада
         barcodes: [values.barcode],
         isActive: true,
       };
@@ -1073,6 +1074,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         'Creating product with data:',
         JSON.stringify(productData, null, 2)
       );
+      console.log('warehouseId для нового товара:', warehouseId);
+      console.log('shopId для нового товара:', shopId);
 
       // Создаем новый товар
       const newProduct = await createProductMutation.mutateAsync(productData);
@@ -1469,7 +1472,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
       // Создаем минимальный набор данных для создания прихода
       const purchaseData = {
-        shopId: shopId,
+        warehouseId: warehouseId, // Указываем явно warehouseId из состояния компонента
+        shopId: shopId, // Оставляем shopId для совместимости
         date: values.date
           ? values.date.toISOString() // Используем полный ISO формат даты со временем
           : new Date().toISOString(), // Для текущей даты тоже используем полный формат
@@ -1487,6 +1491,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       };
 
       console.log('Prepared purchase data:', purchaseData);
+      console.log('warehouseId передаётся:', purchaseData.warehouseId);
       console.log('supplierId передаётся:', purchaseData.supplierId);
 
       // Создаем новый приход или обновляем существующий
