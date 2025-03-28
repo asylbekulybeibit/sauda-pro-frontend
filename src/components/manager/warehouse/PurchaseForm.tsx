@@ -251,18 +251,17 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     isLoading: isLoadingSuppliers,
     error: suppliersError,
   } = useQuery({
-    queryKey: ['suppliers', warehouseId],
+    queryKey: ['suppliers', shopId],
     queryFn: () => {
-      if (!warehouseId) {
-        throw new Error('warehouseId не определен');
+      if (!shopId) {
+        throw new Error('shopId не определен');
       }
       console.log(
-        `[PurchaseForm] Загрузка поставщиков с параметром warehouseId=${warehouseId}`
+        `[PurchaseForm] Загрузка поставщиков с параметром shopId=${shopId}`
       );
-      // Явно указываем warehouseId как второй параметр для совместимости
-      return getSuppliers(warehouseId, warehouseId);
+      return getSuppliers(shopId);
     },
-    enabled: !!warehouseId,
+    enabled: !!shopId,
     staleTime: 1000 * 60 * 5, // 5 минут кэширования
   });
 
@@ -270,10 +269,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   useEffect(() => {
     if (suppliers && suppliers.length > 0) {
       console.log(
-        `[PurchaseForm] Загружено ${suppliers.length} поставщиков для склада ${warehouseId}`
+        `[PurchaseForm] Загружено ${suppliers.length} поставщиков для магазина ${shopId}`
       );
     }
-  }, [suppliers, warehouseId]);
+  }, [suppliers, shopId]);
 
   const {
     data: shop,
