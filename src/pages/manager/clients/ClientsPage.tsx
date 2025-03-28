@@ -13,25 +13,14 @@ function ClientsPage() {
   useEffect(() => {
     if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
       setWarehouseId(currentRole.warehouse.id);
-      console.log(
-        '[ClientsPage] Установлен ID склада:',
-        currentRole.warehouse.id
-      );
     }
   }, [currentRole]);
 
-  // Для отладки
-  useEffect(() => {
-    console.log(`[ClientsPage] warehouseId:`, warehouseId);
-    console.log(`[ClientsPage] shopId:`, shopId);
-    console.log(`[ClientsPage] currentRole:`, currentRole);
-  }, [warehouseId, shopId, currentRole]);
-
-  if (!warehouseId) {
+  if (!shopId) {
     return (
       <div className="p-6">
         <div className="flex justify-center items-center h-40">
-          <p className="text-gray-500">Загрузка данных о складе...</p>
+          <p className="text-gray-500">Магазин не выбран</p>
         </div>
       </div>
     );
@@ -50,7 +39,7 @@ function ClientsPage() {
       </div>
 
       <div className="mt-6">
-        <ClientsList shopId={shopId!} warehouseId={warehouseId} />
+        <ClientsList shopId={shopId} warehouseId={warehouseId} />
       </div>
     </div>
   );
