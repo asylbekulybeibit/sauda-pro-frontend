@@ -1129,6 +1129,7 @@ export const isApiError = (error: unknown): error is ApiError => {
 
 export interface CreatePurchaseRequest {
   warehouseId: string;
+  shopId?: string;
   supplierId?: string | null;
   invoiceNumber?: string | null;
   date: string;
