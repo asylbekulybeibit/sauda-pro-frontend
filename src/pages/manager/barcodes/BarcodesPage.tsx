@@ -107,7 +107,7 @@ const BarcodesPage: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Штрихкоды</h1>
+        <h1 className="text-2xl font-semibold">Номенклатура</h1>
         <Button
           type="primary"
           icon={<PlusOutlined />}

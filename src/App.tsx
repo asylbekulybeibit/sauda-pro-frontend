@@ -276,10 +276,7 @@ export default function App() {
                 >
                   <Route index element={<ManagerDashboard />} />
                   <Route path="products" element={<ProductsPage />} />
-                  <Route
-                    path="products/:productId"
-                    element={<ProductDetailsPage />}
-                  />
+                  
                   <Route path="barcodes" element={<BarcodesPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route

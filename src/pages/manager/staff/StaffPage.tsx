@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import {
   getStaff,
   getStaffByWarehouse,
@@ -17,6 +17,15 @@ function StaffPage() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { currentRole } = useRoleStore();
   const [warehouseId, setWarehouseId] = useState<string | undefined>();
+  const navigate = useNavigate();
+
+  // Проверяем наличие currentRole и перенаправляем на страницу профиля, если роль не выбрана
+  useEffect(() => {
+    if (!currentRole) {
+      navigate('/profile', { replace: true });
+      return;
+    }
+  }, [currentRole, navigate]);
 
   // Получаем ID склада из текущей роли менеджера
   useEffect(() => {
@@ -46,6 +55,15 @@ function StaffPage() {
     console.log(`[StaffPage] shopId:`, shopId);
     console.log(`[StaffPage] currentRole:`, currentRole);
   }, [warehouseId, shopId, currentRole]);
+
+  // Если нет currentRole, показываем загрузку
+  if (!currentRole) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   if (!warehouseId) {
     return (
@@ -80,11 +98,7 @@ function StaffPage() {
           Управление персоналом
         </h1>
 
-        {currentRole?.type === 'shop' && currentRole.warehouse && (
-          <div className="text-gray-600">
-            Склад: {currentRole.warehouse.name}
-          </div>
-        )}
+       
       </div>
 
       {/* Секция системных пользователей */}

@@ -15,6 +15,8 @@ import {
   CurrencyDollarIcon,
   UserIcon,
   WrenchScrewdriverIcon,
+  FolderIcon,
+  QrCodeIcon,
 } from '@heroicons/react/24/outline';
 import { Car } from 'lucide-react';
 
@@ -54,15 +56,16 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-blue-100 text-blue-600',
     },
     {
-      name: 'Товары и склад',
-      icon: ShoppingBagIcon,
+      name: 'Категории',
+      href: `/manager/${shopId}/categories`,
+      icon: FolderIcon,
       color: 'bg-purple-100 text-purple-600',
-      children: [
-        { name: 'Товары и услуги', href: `/manager/${shopId}/products` },
-        { name: 'Категории', href: `/manager/${shopId}/categories` },
-        { name: 'Штрих-коды', href: `/manager/${shopId}/barcodes` },
-        { name: 'Склад', href: `/manager/${shopId}/warehouse` },
-      ],
+    },
+    {
+      name: 'Номенклатура',
+      href: `/manager/${shopId}/barcodes`,
+      icon: QrCodeIcon,
+      color: 'bg-indigo-100 text-indigo-600',
     },
     {
       name: 'Кассы',
