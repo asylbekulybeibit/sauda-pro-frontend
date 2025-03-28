@@ -33,10 +33,13 @@ import {
   getManagerShop,
   createPurchase,
   createProduct,
+  getBarcodes,
+  createBarcode,
 } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
 import { PurchaseItem } from '@/types/purchase';
+import type { InputRef } from 'antd/lib/input';
 
 const { Option } = Select;
 const { Title } = Typography;
@@ -68,6 +71,12 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     useState<boolean>(false);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const [isCreatingProduct, setIsCreatingProduct] = useState<boolean>(false);
+
+  // Добавляем состояние для обработки штрих-кода
+  const [isProcessingBarcode, setIsProcessingBarcode] =
+    useState<boolean>(false);
+  const [barcodeInput, setBarcodeInput] = useState<string>('');
+  const barcodeInputRef = React.useRef<InputRef>(null);
 
   // Queries
   const { data: products, isLoading: isLoadingProducts } = useQuery({
@@ -113,33 +122,145 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     isLoadingProducts || isLoadingSuppliers || isLoadingShop;
 
   // Handlers
+  const handleBarcodeSubmit = async () => {
+    if (!barcodeInput.trim()) {
+      message.error('Введите штрих-код');
+      return;
+    }
+
+    try {
+      setIsProcessingBarcode(true);
+
+      // 1. Проверяем наличие штрих-кода в базе магазина
+      const barcodes = await getBarcodes(shopId);
+      const existingBarcode = barcodes.find((b) => b.code === barcodeInput);
+
+      if (existingBarcode) {
+        // Штрих-код существует в магазине
+        // Проверяем, есть ли товар в текущем складе
+        const warehouseProduct = products?.find(
+          (p) => p.barcode?.code === barcodeInput
+        );
+
+        if (warehouseProduct) {
+          // Если товар уже есть в складе, добавляем его в приход
+          const newItem: PurchaseItem = {
+            id: uuidv4(),
+            productId: warehouseProduct.id,
+            name:
+              warehouseProduct.barcode?.productName ||
+              existingBarcode.productName,
+            barcode: existingBarcode.code,
+            purchasePrice: warehouseProduct.purchasePrice || 0,
+            sellingPrice: warehouseProduct.sellingPrice || 0,
+            quantity: 1,
+            product: warehouseProduct,
+          };
+
+          setPurchaseItems((prev) => [...prev, newItem]);
+          message.success(
+            'Товар добавлен в приход (цена из последнего прихода)'
+          );
+          setBarcodeModalVisible(false);
+        } else {
+          // Если товара нет в складе, но есть в базе баркодов, создаем его с нулевыми значениями
+          try {
+            const productData = {
+              shopId,
+              warehouseId: propWarehouseId,
+              barcodes: [existingBarcode.code],
+              isActive: true,
+              purchasePrice: 0,
+              sellingPrice: 0,
+              quantity: 0,
+              barcode: existingBarcode,
+              minQuantity: 0,
+              name: existingBarcode.productName,
+            };
+
+            const newProduct = await createProductMutation.mutateAsync(
+              productData
+            );
+
+            const newItem: PurchaseItem = {
+              id: uuidv4(),
+              productId: newProduct.id,
+              name: existingBarcode.productName,
+              barcode: existingBarcode.code,
+              purchasePrice: 0,
+              sellingPrice: 0,
+              quantity: 1,
+              product: newProduct,
+            };
+
+            setPurchaseItems((prev) => [...prev, newItem]);
+            message.success('Товар добавлен в приход');
+            setBarcodeModalVisible(false);
+          } catch (error) {
+            console.error('Error creating product:', error);
+            message.error('Ошибка при создании товара в складе');
+          }
+        }
+      } else {
+        // Штрих-код не существует, открываем форму создания нового товара
+        setScannedBarcode(barcodeInput);
+        setBarcodeModalVisible(false);
+        setNewProductModalVisible(true);
+      }
+    } catch (error) {
+      console.error('Error processing barcode:', error);
+      message.error('Ошибка при обработке штрих-кода');
+    } finally {
+      setIsProcessingBarcode(false);
+      setBarcodeInput('');
+    }
+  };
+
   const handleCreateProduct = async (values: any) => {
     try {
       setIsCreatingProduct(true);
 
-      const purchasePrice = parseFloat(values.purchasePrice || 0);
-      const sellingPrice =
-        parseFloat(values.sellingPrice || 0) || purchasePrice * 1.2;
+      // 1. Создаем или получаем штрих-код для магазина
+      let barcodeData;
+      const barcodes = await getBarcodes(shopId);
+      const existingBarcode = barcodes.find((b) => b.code === values.barcode);
 
+      if (!existingBarcode) {
+        // Создаем новый штрих-код для магазина
+        barcodeData = await createBarcode({
+          code: values.barcode,
+          productName: values.name,
+          description: values.description,
+          isService: false,
+          shopId,
+        });
+      }
+
+      // 2. Создаем товар для конкретного склада с нулевыми начальными значениями
       const productData = {
         ...values,
         shopId,
         warehouseId: propWarehouseId,
         barcodes: [values.barcode],
         isActive: true,
-        purchasePrice,
-        sellingPrice,
+        purchasePrice: 0, // Устанавливаем 0 при создании
+        sellingPrice: 0, // Устанавливаем 0 при создании
+        quantity: 0, // Устанавливаем 0 при создании
+        barcode: existingBarcode || barcodeData,
+        minQuantity: 0,
       };
 
+      console.log('Creating product with data:', productData);
       const newProduct = await createProductMutation.mutateAsync(productData);
 
+      // 3. Добавляем товар в список прихода с ценами из формы
       const newItem: PurchaseItem = {
         id: uuidv4(),
         productId: newProduct.id,
         name: values.name,
         barcode: values.barcode,
-        purchasePrice,
-        sellingPrice,
+        purchasePrice: parseFloat(values.purchasePrice || 0),
+        sellingPrice: parseFloat(values.sellingPrice || 0),
         quantity: values.quantity || 1,
         product: newProduct,
       };
@@ -147,7 +268,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       setPurchaseItems((prev) => [...prev, newItem]);
       setNewProductModalVisible(false);
       newProductForm.resetFields();
+      message.success('Товар успешно создан и добавлен в приход');
     } catch (error: any) {
+      console.error('Error creating product:', error);
       message.error(error.message || 'Ошибка при создании товара');
     } finally {
       setIsCreatingProduct(false);
@@ -327,6 +450,48 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {/* Barcode Scanner Modal */}
+      <Modal
+        title="Сканирование штрих-кода"
+        open={barcodeModalVisible}
+        onCancel={() => {
+          setBarcodeModalVisible(false);
+          setBarcodeInput('');
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            onClick={() => {
+              setBarcodeModalVisible(false);
+              setBarcodeInput('');
+            }}
+          >
+            Отмена
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={isProcessingBarcode}
+            onClick={handleBarcodeSubmit}
+            className="bg-blue-600"
+          >
+            Ок
+          </Button>,
+        ]}
+      >
+        <div className="space-y-4">
+          <p>Отсканируйте штрих-код товара или введите его вручную:</p>
+          <Input
+            ref={barcodeInputRef}
+            value={barcodeInput}
+            onChange={(e) => setBarcodeInput(e.target.value)}
+            onPressEnter={handleBarcodeSubmit}
+            placeholder="Штрих-код"
+            autoFocus
+          />
+        </div>
+      </Modal>
+
       {/* New Product Modal */}
       <Modal
         title="Создание нового товара"
@@ -519,6 +684,17 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               columns={columns}
               rowKey="id"
               pagination={false}
+              footer={() => (
+                <div className="flex justify-end text-lg font-medium">
+                  Общая сумма:{' '}
+                  {formatPrice(
+                    purchaseItems.reduce(
+                      (sum, item) => sum + item.quantity * item.purchasePrice,
+                      0
+                    )
+                  )}
+                </div>
+              )}
             />
 
             <div className="mt-4 flex justify-end space-x-2">

@@ -130,9 +130,11 @@ export const createProduct = async (
       console.warn('createProduct вызван без warehouseId!');
     }
 
-    const response = await api.post('/manager/products', data);
+    console.log('Creating product with data:', data);
+    const response = await api.post(`/manager/warehouse-products`, data);
     return response.data;
   } catch (error) {
+    console.error('Error in createProduct:', error);
     handleApiError(error);
     throw error;
   }
@@ -1182,60 +1184,40 @@ export const createPurchase = async (
   }
 
   try {
+    console.log('[createPurchase] Starting purchase creation with data:', {
+      warehouseId: purchaseData.warehouseId,
+      shopId: purchaseData.shopId,
+      supplierId: purchaseData.supplierId,
+      itemsCount: purchaseData.items?.length,
+      date: purchaseData.date,
+    });
+
+    // Определяем URL в зависимости от наличия поставщика
+    const url = purchaseData.supplierId
+      ? '/manager/purchases'
+      : '/manager/purchases/no-supplier';
+
+    console.log(`[createPurchase] Using URL: ${url}`);
+    console.log('[createPurchase] Full request data:', purchaseData);
+
+    const response = await api.post(url, purchaseData);
+
     console.log(
-      `[createPurchase] Creating purchase for warehouse ${purchaseData.warehouseId}`
+      `[createPurchase] Purchase created successfully:`,
+      response.data
     );
-
-    // Массив возможных URL для создания прихода
-    const potentialUrls = [
-      `/manager/purchases/${purchaseData.warehouseId}`,
-      `/manager/purchases/warehouse/${purchaseData.warehouseId}`,
-      `/manager/warehouses/${purchaseData.warehouseId}/purchases`,
-      `/manager/warehouse/purchases/${purchaseData.warehouseId}`,
-    ];
-
-    let lastError = null;
-
-    // Перебираем все возможные URL и пробуем создать приход
-    for (const url of potentialUrls) {
-      try {
-        console.log(`[createPurchase] Trying URL: ${url}`);
-        const response = await api.post(url, purchaseData);
-        console.log(
-          `[createPurchase] Purchase created successfully with URL ${url}`
-        );
-        return response.data;
-      } catch (error) {
-        console.error(`[createPurchase] Failed with URL ${url}:`, error);
-        lastError = error;
-        // Продолжаем с следующим URL
-      }
-    }
-
-    // Также пробуем URL для создания прихода без поставщика
-    try {
-      const specialUrl = '/manager/purchases/no-supplier';
-      console.log(
-        `[createPurchase] Trying special URL for purchases without supplier: ${specialUrl}`
-      );
-      const response = await api.post(specialUrl, purchaseData);
-      console.log(
-        `[createPurchase] Purchase created successfully with special URL`
-      );
-      return response.data;
-    } catch (error) {
-      console.error(
-        `[createPurchase] Failed with special URL for purchases without supplier:`,
-        error
-      );
-      lastError = error;
-    }
-
-    // Если все попытки не удались, выбрасываем ошибку
-    console.error('[createPurchase] All attempts failed');
-    throw ApiErrorHandler.handle(lastError);
+    return response.data;
   } catch (error) {
     console.error('[createPurchase] Error creating purchase:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Response status:', error.response?.status);
+      console.error('Response data:', error.response?.data);
+      console.error('Request config:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data,
+      });
+    }
     throw ApiErrorHandler.handle(error);
   }
 };
