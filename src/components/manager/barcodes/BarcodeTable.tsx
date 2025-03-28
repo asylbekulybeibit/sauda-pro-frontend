@@ -110,6 +110,10 @@ export function BarcodeTable({ barcodes, shopId, onEdit }: BarcodeTableProps) {
         okText="Удалить"
         cancelText="Отмена"
         confirmLoading={deleteMutation.isPending}
+        okButtonProps={{
+          className: '!bg-blue-500 hover:!bg-blue-600',
+          style: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+        }}
       >
         <p>
           Вы уверены, что хотите удалить штрихкод "

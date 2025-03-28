@@ -55,9 +55,7 @@ const BarcodesPage: React.FC = () => {
 
   // Обработчик открытия модального окна для создания штрихкода
   const handleCreateBarcode = () => {
-    setSelectedBarcode({
-      isService: activeTab === 'services',
-    });
+    setSelectedBarcode(undefined);
     setIsModalVisible(true);
   };
 
@@ -70,6 +68,7 @@ const BarcodesPage: React.FC = () => {
   // Обработчик закрытия модального окна
   const handleCloseModal = () => {
     setIsModalVisible(false);
+    setSelectedBarcode(undefined);
   };
 
   // Обработчик поиска
@@ -180,6 +179,7 @@ const BarcodesPage: React.FC = () => {
         onClose={handleCloseModal}
         barcode={selectedBarcode}
         shopId={shopId}
+        defaultIsService={activeTab === 'services'}
       />
     </div>
   );

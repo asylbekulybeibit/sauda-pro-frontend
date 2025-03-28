@@ -24,6 +24,7 @@ interface BarcodeFormProps {
   onClose: () => void;
   barcode?: any;
   shopId: string;
+  defaultIsService?: boolean;
 }
 
 export function BarcodeForm({
@@ -31,63 +32,55 @@ export function BarcodeForm({
   onClose,
   barcode,
   shopId,
+  defaultIsService = false,
 }: BarcodeFormProps) {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const isEdit = !!barcode;
 
   // Загрузка категорий
-  const { data: categories } = useQuery({
+  const { data: categories } = useQuery<Category[]>({
     queryKey: ['categories', shopId],
     queryFn: () => getCategories(shopId),
     enabled: !!shopId,
   });
 
-  // Мутации для создания/обновления штрихкода
-  const createMutation = useMutation({
-    mutationFn: createBarcode,
+  // Мутация для создания/обновления штрихкода
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      isEdit ? updateBarcode(barcode.id, data) : createBarcode(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['barcodes'] });
-      message.success('Штрихкод успешно создан');
+      message.success(isEdit ? 'Штрихкод обновлен' : 'Штрихкод успешно создан');
       handleClose();
     },
     onError: (error) => {
-      message.error('Ошибка при создании штрихкода');
-      console.error('Error creating barcode:', error);
+      message.error('Ошибка при сохранении штрихкода');
+      console.error('Error saving barcode:', error);
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (data: any) => updateBarcode(barcode.id, { ...data, shopId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['barcodes'] });
-      message.success('Штрихкод успешно обновлен');
-      handleClose();
-    },
-    onError: (error) => {
-      message.error('Ошибка при обновлении штрихкода');
-      console.error('Error updating barcode:', error);
-    },
-  });
+  // Генерация нового штрихкода
+  const handleGenerateBarcode = () => {
+    const newBarcode = generateBarcode();
+    form.setFieldsValue({ code: newBarcode });
+  };
 
   useEffect(() => {
     if (visible) {
       if (isEdit) {
-        form.setFieldsValue({
-          code: barcode.code,
-          productName: barcode.productName,
-          description: barcode.description,
-          categoryId: barcode.categoryId,
-          isService: barcode.isService,
-        });
+        // Если редактирование - заполняем форму данными штрихкода
+        form.setFieldsValue(barcode);
       } else {
+        // Если создание - очищаем форму и генерируем новый штрихкод
+        form.resetFields();
+        handleGenerateBarcode();
         form.setFieldsValue({
-          code: generateBarcode(),
-          isService: false,
+          isService: defaultIsService,
         });
       }
     }
-  }, [visible, form, barcode, isEdit]);
+  }, [visible, barcode, form, isEdit, defaultIsService]);
 
   const handleClose = () => {
     form.resetFields();
@@ -97,16 +90,10 @@ export function BarcodeForm({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const data = {
+      await mutation.mutateAsync({
         ...values,
         shopId,
-      };
-
-      if (isEdit) {
-        await updateMutation.mutateAsync(data);
-      } else {
-        await createMutation.mutateAsync(data);
-      }
+      });
     } catch (error) {
       console.error('Validation failed:', error);
     }
@@ -114,35 +101,32 @@ export function BarcodeForm({
 
   return (
     <Modal
-      title={isEdit ? 'Редактировать штрихкод' : 'Создать штрихкод'}
+      title={isEdit ? 'Редактирование штрихкода' : 'Создание штрихкода'}
       open={visible}
       onOk={handleSubmit}
       onCancel={handleClose}
-      confirmLoading={createMutation.isPending || updateMutation.isPending}
+      confirmLoading={mutation.isPending}
       okText={isEdit ? 'Сохранить' : 'Создать'}
       cancelText="Отмена"
-      width={600}
-      okButtonProps={{ className: '!bg-blue-500 hover:!bg-blue-600' }}
+      okButtonProps={{
+        className: '!bg-blue-500 hover:!bg-blue-600',
+        style: { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
+      }}
     >
-      <Form form={form} layout="vertical" initialValues={{ isService: false }}>
+      <Form form={form} layout="vertical">
         <Form.Item
           name="code"
           label="Штрихкод"
           rules={[{ required: true, message: 'Введите штрихкод' }]}
         >
           <Input
-            disabled={isEdit}
+            readOnly={isEdit}
             suffix={
               !isEdit && (
                 <Button
-                  type="primary"
+                  type="link"
                   icon={<ReloadOutlined />}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const newBarcode = generateBarcode();
-                    form.setFieldsValue({ code: newBarcode });
-                  }}
-                  className="!bg-blue-500 hover:!bg-blue-600"
+                  onClick={handleGenerateBarcode}
                 >
                   Генерировать
                 </Button>
@@ -160,18 +144,17 @@ export function BarcodeForm({
         </Form.Item>
 
         <Form.Item name="description" label="Описание">
-          <Input.TextArea rows={3} />
+          <Input.TextArea />
         </Form.Item>
 
         <Form.Item name="categoryId" label="Категория">
-          <Select
-            allowClear
-            placeholder="Выберите категорию"
-            options={categories?.map((category: Category) => ({
-              value: category.id,
-              label: category.name,
-            }))}
-          />
+          <Select allowClear placeholder="Выберите категорию">
+            {categories?.map((category) => (
+              <Select.Option key={category.id} value={category.id}>
+                {category.name}
+              </Select.Option>
+            ))}
+          </Select>
         </Form.Item>
 
         <Form.Item name="isService" label="Это услуга" valuePropName="checked">
