@@ -1084,11 +1084,20 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       const newPurchasePrice = newProduct.purchasePrice || purchasePrice;
       const newSellingPrice = newProduct.sellingPrice || sellingPrice;
 
+      // Получаем имя товара из нескольких возможных источников
+      const productName =
+        (newProduct.barcode && newProduct.barcode.productName) || // Имя из штрихкода в ответе
+        newProduct.name || // Имя в ответе
+        values.name || // Имя из формы
+        'Новый товар'; // Запасной вариант
+
+      console.log('Имя товара для отображения:', productName);
+
       // Добавляем новый товар в список приходов
       const newItem: PurchaseItem = {
         id: uuidv4(),
         productId: newProduct.id,
-        name: newProduct.name,
+        name: productName,
         sku: newProduct.sku,
         barcode: newProduct.barcode,
         barcodes: newProduct.barcodes,
@@ -1102,7 +1111,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       setNewProductModalVisible(false);
       setIsCreatingProduct(false);
       message.success(
-        `Новый товар "${newProduct.name}" создан и добавлен в приход`
+        `Новый товар "${productName}" создан и добавлен в приход`
       );
 
       // Сохраняем состояние формы после добавления нового товара

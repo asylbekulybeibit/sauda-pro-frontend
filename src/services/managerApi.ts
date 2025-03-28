@@ -120,14 +120,11 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
 };
 
 export const createProduct = async (
-  data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
+  data: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
+    warehouseId?: string;
+  }
 ): Promise<Product> => {
   try {
-    console.log(
-      'Вызов createProduct с данными:',
-      JSON.stringify(data, null, 2)
-    );
-
     // Проверяем наличие warehouseId и shopId
     if (!data.warehouseId) {
       console.warn('createProduct вызван без warehouseId!');
@@ -136,8 +133,8 @@ export const createProduct = async (
     const response = await api.post('/manager/products', data);
     return response.data;
   } catch (error) {
-    console.error('Ошибка при создании товара:', error);
-    throw ApiErrorHandler.handle(error);
+    handleApiError(error);
+    throw error;
   }
 };
 
@@ -180,66 +177,11 @@ export const deleteProduct = async (id: string): Promise<void> => {
 // Методы для работы с категориями
 export const getCategories = async (shopId: string): Promise<Category[]> => {
   try {
-    console.log(`Fetching categories for shop/warehouse ${shopId}`);
-
-    // Проверяем формат ID - если это UUID, то вероятно это ID склада
-    const isUUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        shopId
-      );
-
-    let url = `/manager/categories/shop/${shopId}`;
-
-    // Если похоже на UUID склада, добавляем параметр isWarehouseId
-    if (isUUID && shopId.length === 36) {
-      url += '?isWarehouseId=true';
-      console.log(
-        `Определено, что ${shopId} может быть ID склада, добавляем параметр isWarehouseId=true`
-      );
-    }
-
-    console.log(`Request URL для получения категорий: ${url}`);
-    const response = await api.get(url);
-
-    if (response.data && Array.isArray(response.data)) {
-      console.log(`Получено ${response.data.length} категорий`);
-    } else {
-      console.warn(
-        'Получены данные категорий в неожиданном формате:',
-        response.data
-      );
-    }
-
+    console.log(`Fetching categories for shop ${shopId}`);
+    const response = await api.get(`/manager/shop/${shopId}/categories`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching categories for shop ${shopId}:`, error);
-    // Подробная информация об ошибке
-    if (axios.isAxiosError(error)) {
-      console.error(`Axios error: ${error.message}`);
-      console.error(`Status: ${error.response?.status}`);
-      console.error(`Status text: ${error.response?.statusText}`);
-      console.error(`Data:`, error.response?.data);
-
-      // Проверяем конкретную ошибку для склада
-      if (
-        error.response?.status === 404 &&
-        error.response?.data?.message?.includes('Склад с ID')
-      ) {
-        console.warn(
-          `Выглядит как ошибка отсутствия склада. Попробуем запрос без параметра isWarehouseId`
-        );
-
-        // При ошибке 404 для склада пробуем запросить категории напрямую по ID
-        try {
-          const directUrl = `/manager/categories/shop/${shopId}`;
-          console.log(`Пробуем прямой запрос: ${directUrl}`);
-          const directResponse = await api.get(directUrl);
-          return directResponse.data;
-        } catch (retryError) {
-          console.error(`Повторная попытка также не удалась:`, retryError);
-        }
-      }
-    }
     throw ApiErrorHandler.handle(error);
   }
 };
@@ -248,7 +190,10 @@ export const createCategory = async (
   data: Omit<Category, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<Category> => {
   try {
-    const response = await api.post('/manager/categories', data);
+    const response = await api.post(
+      `/manager/shop/${data.shopId}/categories`,
+      data
+    );
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -260,24 +205,33 @@ export const updateCategory = async (
   data: Partial<Category>
 ): Promise<Category> => {
   try {
-    const response = await api.patch(`/manager/categories/${id}`, data);
+    const response = await api.patch(
+      `/manager/shop/${data.shopId}/categories/${id}`,
+      data
+    );
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
   }
 };
 
-export const deleteCategory = async (id: string): Promise<void> => {
+export const deleteCategory = async (
+  id: string,
+  shopId: string
+): Promise<void> => {
   try {
-    await api.delete(`/manager/categories/${id}`);
+    await api.delete(`/manager/shop/${shopId}/categories/${id}`);
   } catch (error) {
     throw ApiErrorHandler.handle(error);
   }
 };
 
-export const getCategoryById = async (id: string): Promise<Category> => {
+export const getCategoryById = async (
+  id: string,
+  shopId: string
+): Promise<Category> => {
   try {
-    const response = await api.get(`/manager/categories/${id}`);
+    const response = await api.get(`/manager/shop/${shopId}/categories/${id}`);
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -797,70 +751,45 @@ export const deletePromotion = async (
 };
 
 // Методы для работы с поставщиками
-export const getSuppliers = async (
-  shopId: string,
-  warehouseId?: string
-): Promise<Supplier[]> => {
+export const getSuppliers = async (shopId: string): Promise<Supplier[]> => {
   try {
-    console.log(
-      `Fetching suppliers for shop ${shopId}${
-        warehouseId ? `, warehouse ${warehouseId}` : ''
-      }`
-    );
-    // Корректный URL для получения поставщиков для конкретного склада
-    const url = warehouseId
-      ? `/manager/suppliers/warehouse/${warehouseId}`
-      : `/manager/suppliers/shop/${shopId}`;
-
-    console.log(`Request URL: ${url}`);
-    const response = await api.get(url);
-    return response.data;
+    console.log(`Fetching suppliers for shop ${shopId}`);
+    const { data } = await api.get(`/manager/shop/${shopId}/suppliers`);
+    return data;
   } catch (error) {
-    console.error(`Error fetching suppliers for shop ${shopId}:`, error);
-    throw ApiErrorHandler.handle(error);
+    console.error('Error fetching suppliers:', error);
+    throw handleApiError(error);
   }
 };
 
-export const createSupplier = async (
-  data: any,
-  shopId?: string
-): Promise<Supplier> => {
+export const createSupplier = async (data: any): Promise<Supplier> => {
   try {
-    console.log(`Creating supplier in shop ${shopId}, data:`, data);
-
-    // Используем формат URL, соответствующий бэкенду
-    const url = `/manager/suppliers`;
-
-    // Сохраняем warehouseId, если он указан явно, чтобы привязать поставщика к конкретному складу
-    // Если warehouseId не указан, бэкенд сам определит склад менеджера
-    console.log(`Request URL: ${url}, Data:`, data);
-
-    const response = await api.post(url, data);
+    console.log(`Creating supplier in shop ${data.shopId}, data:`, data);
+    const { shopId } = data;
+    const response = await api.post(`/manager/shop/${shopId}/suppliers`, data);
     console.log('Created supplier:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error creating supplier:', error);
-    throw ApiErrorHandler.handle(error);
+    throw handleApiError(error);
   }
 };
 
 export const updateSupplier = async (
   id: string,
   data: Partial<Supplier>,
-  shopId?: string
+  shopId: string
 ): Promise<Supplier> => {
   try {
     console.log(`Updating supplier ${id} in shop ${shopId}`);
-    // Используем обновленный формат URL с shopId
-    const url = shopId
-      ? `/manager/suppliers/shop/${shopId}/supplier/${id}`
-      : `/manager/suppliers/${id}`;
-    console.log(`Request URL: ${url}`);
-    const response = await api.patch(url, data);
+    const response = await api.patch(
+      `/manager/shop/${shopId}/suppliers/${id}`,
+      data
+    );
     return response.data;
   } catch (error) {
     console.error('Error updating supplier:', error);
-    throw ApiErrorHandler.handle(error);
+    throw handleApiError(error);
   }
 };
 
@@ -870,13 +799,10 @@ export const deleteSupplier = async (
 ): Promise<void> => {
   try {
     console.log(`Deleting supplier ${id} from shop ${shopId}`);
-    // Используем обновленный формат URL с shopId
-    const url = `/manager/suppliers/shop/${shopId}/supplier/${id}`;
-    console.log(`Request URL: ${url}`);
-    await api.delete(url);
+    await api.delete(`/manager/shop/${shopId}/suppliers/${id}`);
   } catch (error) {
     console.error('Error deleting supplier:', error);
-    throw ApiErrorHandler.handle(error);
+    throw handleApiError(error);
   }
 };
 
@@ -886,14 +812,11 @@ export const getSupplierById = async (
 ): Promise<Supplier> => {
   try {
     console.log(`Fetching supplier with id ${id} for shop ${shopId}`);
-    // Используем обновленный формат URL с shopId
-    const url = `/manager/suppliers/shop/${shopId}/supplier/${id}`;
-    console.log(`Request URL: ${url}`);
-    const response = await api.get(url);
+    const response = await api.get(`/manager/shop/${shopId}/suppliers/${id}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching supplier:', error);
-    throw ApiErrorHandler.handle(error);
+    throw handleApiError(error);
   }
 };
 
@@ -1991,12 +1914,66 @@ export const getBarcodes = async (
   isService: boolean = false
 ): Promise<any[]> => {
   try {
-    const response = await api.get(`/manager/barcodes/shop/${shopId}`, {
-      params: { isService },
-    });
+    const response = await api.get(
+      `/manager/barcodes/shop/${shopId}?isService=${isService}`
+    );
     return response.data;
   } catch (error) {
-    console.error('Error fetching barcodes:', error);
-    throw handleApiError(error, 'Не удалось загрузить штрих-коды');
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const createBarcode = async (data: {
+  code: string;
+  productName: string;
+  description?: string;
+  categoryId?: string;
+  isService: boolean;
+  shopId: string;
+}): Promise<any> => {
+  try {
+    const response = await api.post(
+      `/manager/barcodes/shop/${data.shopId}`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const updateBarcode = async (
+  id: string,
+  data: {
+    productName: string;
+    description?: string;
+    categoryId?: string;
+    isService: boolean;
+    shopId: string;
+  }
+): Promise<any> => {
+  try {
+    const response = await api.patch(
+      `/manager/barcodes/shop/${data.shopId}/${id}`,
+      data
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const deleteBarcode = async (
+  id: string,
+  shopId: string
+): Promise<void> => {
+  try {
+    await api.delete(`/manager/barcodes/shop/${shopId}/${id}`);
+  } catch (error) {
+    handleApiError(error);
+    throw error;
   }
 };

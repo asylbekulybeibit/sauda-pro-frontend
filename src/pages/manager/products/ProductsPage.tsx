@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getProducts, getCategories } from '@/services/managerApi';
 import { ProductList } from '@/components/manager/products/ProductList';
-import { ProductForm } from '@/components/manager/products/ProductForm';
 import { Button, Spin, Space, Tabs } from 'antd';
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { Category } from '@/types/category';
@@ -48,10 +47,7 @@ export const ProductsPage: React.FC = () => {
     );
   }
 
-  const handleEditService = (service) => {
-    setEditingService(service);
-    setShowServiceForm(true);
-  };
+  
 
   return (
     <div className="space-y-4">
@@ -121,20 +117,13 @@ export const ProductsPage: React.FC = () => {
                   setEditingService(null);
                   setShowServiceForm(true);
                 }}
-                onServiceEdit={handleEditService}
               />
             ) : null,
           },
         ]}
       />
 
-      {showForm && (
-        <ProductForm
-          categories={categories || []}
-          shopId={shopId!}
-          onClose={() => setShowForm(false)}
-        />
-      )}
+     
 
       {showServiceForm && (
         <ServiceForm

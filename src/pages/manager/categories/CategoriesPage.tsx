@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Card, Button, Spin, message, Row, Col, Input, Empty } from 'antd';
 import {
   PlusOutlined,
   SearchOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories } from '@/services/managerApi';
 import { CategoryTable } from '@/components/manager/categories/CategoryTable';
 import { CategoryForm } from '@/components/manager/categories/CategoryForm';
 import { Category } from '@/types/category';
+import { ShopContext } from '@/contexts/ShopContext';
 
 const CategoriesPage: React.FC = () => {
-  const { shopId } = useParams<{ shopId: string }>();
+  const shopContext = useContext(ShopContext);
+  const shopId = shopContext?.currentShop?.id;
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<
     Category | undefined
@@ -66,8 +67,8 @@ const CategoriesPage: React.FC = () => {
     setSearchText('');
   };
 
-  if (!shopId) {
-    return <div>Идентификатор магазина не найден</div>;
+  if (!shopId || !shopContext?.currentShop) {
+    return <div>Магазин не выбран</div>;
   }
 
   if (isLoading) {

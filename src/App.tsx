@@ -56,7 +56,7 @@ const ProductDetailsPage = lazy(
   () => import('./pages/manager/products/ProductDetailsPage')
 );
 const BarcodesPage = lazy(
-  () => import('./pages/manager/products/BarcodesPage')
+  () => import('./pages/manager/barcodes/BarcodesPage')
 );
 const CategoriesPage = lazy(
   () => import('./pages/manager/categories/CategoriesPage')

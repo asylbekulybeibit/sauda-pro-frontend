@@ -71,17 +71,11 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
             `Склад с ID ${warehouseId} не найден в списке складов магазина ${shopId}`
           );
         }
-      } else {
-        console.warn(
-          'warehouseId не определен, невозможно загрузить информацию о складе'
-        );
       }
 
-      // Получаем поставщиков только для текущего склада
-      console.log(
-        `Загрузка поставщиков для магазина ${shopId}, склад ${warehouseId}`
-      );
-      const suppliersData = await getSuppliers(shopId, warehouseId);
+      // Получаем поставщиков для магазина
+      console.log(`Загрузка поставщиков для магазина ${shopId}`);
+      const suppliersData = await getSuppliers(shopId);
       console.log(
         `Загружено ${suppliersData.length} поставщиков:`,
         suppliersData
@@ -189,7 +183,6 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
           alignItems: 'center',
         }}
       >
-       
         <Button
           type="primary"
           onClick={() =>
