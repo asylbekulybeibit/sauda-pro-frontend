@@ -1,68 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, Switch, message } from 'antd';
+import { Form, Input, Button, Switch, message, Modal } from 'antd';
 import { Supplier } from '@/types/supplier';
 import { createSupplier, updateSupplier } from '@/services/managerApi';
 import { ApiErrorHandler } from '@/utils/error-handler';
-import { useRoleStore } from '@/store/roleStore';
-import { useParams } from 'react-router-dom';
 
 interface SupplierFormProps {
   shopId: string;
   initialData?: Supplier;
+  visible: boolean;
+  onClose: () => void;
   onSuccess: () => void;
 }
 
 export const SupplierForm: React.FC<SupplierFormProps> = ({
   shopId,
   initialData,
+  visible,
+  onClose,
   onSuccess,
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const isEdit = !!initialData;
-  const { currentRole } = useRoleStore();
-  const { warehouseId: urlWarehouseId } = useParams<{ warehouseId: string }>();
 
-  // Получаем ID склада текущего менеджера или из URL
-  const warehouseId =
-    urlWarehouseId ||
-    (currentRole?.type === 'shop' ? currentRole.warehouse?.id : undefined);
+  // Обработка данных формы при изменении видимости или initialData
+  useEffect(() => {
+    if (visible) {
+      if (initialData) {
+        // Если есть данные для редактирования, заполняем форму
+        form.setFieldsValue({
+          name: initialData.name,
+          contactPerson: initialData.contactPerson,
+          phone: initialData.phone,
+          email: initialData.email,
+          address: initialData.address,
+          notes: initialData.notes,
+        });
+      } else {
+        // Если это создание нового поставщика, очищаем форму
+        form.resetFields();
+      }
+    }
+  }, [visible, initialData, form]);
 
-  const onFinish = async (values: any) => {
+  const handleCancel = () => {
+    onClose();
+  };
+
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      if (isEdit && initialData) {
-        await updateSupplier(
-          initialData.id,
-          {
-            ...values,
-            shopId,
-          },
-          shopId
-        );
+      if (initialData) {
+        await updateSupplier(initialData.id, { ...values, shopId }, shopId);
         message.success('Поставщик успешно обновлен');
       } else {
-        if (!warehouseId) {
-          message.error(
-            'Не удалось определить склад. Пожалуйста, обратитесь к администратору.'
-          );
-          setLoading(false);
-          return;
-        }
-
-        console.log(
-          `Creating supplier for shop ${shopId}, warehouse ${warehouseId}`
-        );
-
-        await createSupplier(
-          {
-            ...values,
-            shopId,
-            warehouseId, // Автоматически используем склад из URL или текущей роли
-            isActive: true,
-          },
-          shopId
-        );
+        await createSupplier({ ...values, shopId });
         message.success('Поставщик успешно создан');
       }
       onSuccess();
@@ -75,60 +67,48 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({
   };
 
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={onFinish}
-      initialValues={initialData}
+    <Modal
+      title={isEdit ? 'Редактировать поставщика' : 'Добавить поставщика'}
+      open={visible}
+      onCancel={handleCancel}
+      onOk={form.submit}
+      okText={isEdit ? 'Сохранить' : 'Добавить'}
+      cancelText="Отмена"
+      confirmLoading={loading}
+      destroyOnClose
+      okButtonProps={{
+        className: '!bg-blue-500 hover:!bg-blue-600',
+      }}
     >
-      <Form.Item
-        name="name"
-        label="Название"
-        rules={[{ required: true, message: 'Введите название поставщика' }]}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        initialValues={initialData}
       >
-        <Input />
-      </Form.Item>
-
-      <Form.Item name="contactPerson" label="Контактное лицо">
-        <Input />
-      </Form.Item>
-
-      <Form.Item
-        name="email"
-        label="Email"
-        rules={[{ type: 'email', message: 'Введите корректный email' }]}
-      >
-        <Input />
-      </Form.Item>
-
-      <Form.Item
-        name="phone"
-        label="Телефон"
-        rules={[{ required: true, message: 'Введите телефон' }]}
-      >
-        <Input />
-      </Form.Item>
-
-      <Form.Item name="address" label="Адрес">
-        <Input.TextArea />
-      </Form.Item>
-
-      {isEdit && (
-        <Form.Item name="isActive" label="Активен" valuePropName="checked">
-          <Switch />
-        </Form.Item>
-      )}
-
-      <Form.Item>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={loading}
-          className="bg-blue-500"
+        <Form.Item
+          name="name"
+          label="Название"
+          rules={[{ required: true, message: 'Введите название поставщика' }]}
         >
-          {isEdit ? 'Сохранить' : 'Создать'}
-        </Button>
-      </Form.Item>
-    </Form>
+          <Input />
+        </Form.Item>
+        <Form.Item name="contactPerson" label="Контактное лицо">
+          <Input />
+        </Form.Item>
+        <Form.Item name="phone" label="Телефон">
+          <Input />
+        </Form.Item>
+        <Form.Item name="email" label="Email">
+          <Input type="email" />
+        </Form.Item>
+        <Form.Item name="address" label="Адрес">
+          <Input />
+        </Form.Item>
+        <Form.Item name="notes" label="Примечания">
+          <Input.TextArea rows={4} />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };

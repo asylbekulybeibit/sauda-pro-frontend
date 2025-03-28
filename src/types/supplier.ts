@@ -1,16 +1,15 @@
 export interface Supplier {
   id: string;
   name: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
   address?: string;
+  notes?: string;
   shopId: string;
-  warehouseId?: string;
-  isWarehouseSpecific?: boolean;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SupplierProduct {

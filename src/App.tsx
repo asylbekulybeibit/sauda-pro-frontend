@@ -99,12 +99,8 @@ const CashRegistersPage = lazy(
 const SuppliersPage = lazy(
   () => import('./pages/manager/suppliers/SuppliersPage')
 );
-const SupplierDetailsPage = lazy(
-  () => import('./pages/manager/suppliers/SupplierDetailsPage')
-);
-const SupplierFormPage = lazy(
-  () => import('./pages/manager/suppliers/SupplierFormPage')
-);
+
+
 const PriceAnalyticsPage = lazy(
   () => import('./pages/manager/prices/PriceAnalyticsPage')
 );
@@ -328,13 +324,7 @@ export default function App() {
                       path="warehouse/:warehouseId"
                       element={<SuppliersPage />}
                     />
-                    <Route path=":id" element={<SupplierDetailsPage />} />
-                    <Route path=":id/edit" element={<SupplierFormPage />} />
-                    <Route path="new" element={<SupplierFormPage />} />
-                    <Route
-                      path="warehouse/:warehouseId/new"
-                      element={<SupplierFormPage />}
-                    />
+                   
                   </Route>
                   <Route path="prices">
                     <Route index element={<PriceAnalyticsPage />} />

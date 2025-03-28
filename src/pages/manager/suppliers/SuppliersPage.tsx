@@ -1,46 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams } from 'react-router-dom';
 import { SupplierList } from '@/components/manager/suppliers/SupplierList';
-import { useShop } from '@/hooks/useShop';
+import { useQuery } from '@tanstack/react-query';
 import { getManagerShop } from '@/services/managerApi';
-import { Shop } from '@/types/shop';
-import { Spin } from 'antd';
+import { Spin, Card } from 'antd';
 
 const SuppliersPage: React.FC = () => {
   const { shopId } = useParams<{ shopId: string }>();
-  const { currentShop } = useShop();
-  const [shop, setShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const loadData = async () => {
-      // Если currentShop уже есть, используем его
-      if (currentShop) {
-        console.log('Используем текущий магазин из контекста:', currentShop);
-        setShop(currentShop);
-        return;
-      }
+  const { data: shop, isLoading } = useQuery({
+    queryKey: ['shop', shopId],
+    queryFn: () => getManagerShop(shopId!),
+    enabled: !!shopId,
+  });
 
-      // Если нет currentShop, но есть shopId, загружаем информацию о магазине
-      if (shopId) {
-        console.log(`Загрузка информации о магазине по ID: ${shopId}`);
-        setLoading(true);
-        try {
-          const shopData = await getManagerShop(shopId);
-          console.log('Получены данные магазина:', shopData);
-          setShop(shopData);
-        } catch (error) {
-          console.error('Ошибка при загрузке информации о магазине:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
+  if (!shopId) {
+    return <div>Магазин не выбран</div>;
+  }
 
-    loadData();
-  }, [shopId, currentShop]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <Spin size="large" />
@@ -48,17 +26,15 @@ const SuppliersPage: React.FC = () => {
     );
   }
 
-  if (!shop && !currentShop && !shopId) {
-    return <div>Магазин не выбран</div>;
-  }
-
-  const effectiveShopId = shop?.id || currentShop?.id || shopId || '';
-  console.log(`Рендеринг списка поставщиков для магазина: ${effectiveShopId}`);
-
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">Поставщики</h1>
-      <SupplierList shopId={effectiveShopId} />
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Поставщики</h1>
+      </div>
+
+      <Card className="shadow-sm">
+        <SupplierList shopId={shopId} />
+      </Card>
     </div>
   );
 };
