@@ -1,8 +1,17 @@
+export interface Barcode {
+  id: string;
+  code: string;
+  productName: string;
+  description?: string;
+  categoryId?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
-  name: string;
-  sku: string;
-  barcode?: string;
+  barcode?: Barcode;
   barcodes?: string[];
   purchasePrice: number;
   sellingPrice: number;

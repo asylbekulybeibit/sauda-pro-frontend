@@ -16,15 +16,15 @@ export interface User {
 
 export interface PurchaseItem {
   id: string;
+  productId: string;
   name: string;
-  sku?: string;
   barcode?: string;
   barcodes?: string[];
-  quantity: number;
   purchasePrice: number;
   sellingPrice: number;
+  quantity: number;
+  comment?: string;
   product?: Product;
-  productId?: string;
 }
 
 export interface Purchase {

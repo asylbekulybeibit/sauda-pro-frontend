@@ -60,11 +60,11 @@ interface CreateTransferDto {
 }
 
 // Методы для работы с товарами
-export const getProducts = async (shopId: string): Promise<Product[]> => {
+export const getProducts = async (warehouseId: string): Promise<Product[]> => {
   try {
     const startTime = performance.now();
     console.log(
-      `[${new Date().toISOString()}] Fetching warehouse products for shop ${shopId}`
+      `[${new Date().toISOString()}] Fetching warehouse products for warehouse ${warehouseId}`
     );
 
     // Добавляем уникальный идентификатор для отслеживания запроса
@@ -73,9 +73,9 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
       .substring(2, 9)}`;
     console.log(`Request ID: ${requestId}`);
 
-    // Изменяем эндпоинт, чтобы получать warehouse_products
+    // Используем warehouseId как query параметр
     const response = await api.get(
-      `/manager/warehouse-products/shop/${shopId}`
+      `/manager/warehouse-products/shop/${warehouseId}?warehouseId=${warehouseId}`
     );
 
     const endTime = performance.now();
@@ -88,7 +88,7 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
 
     if (!response.data) {
       console.warn(
-        `[${new Date().toISOString()}] No data received from warehouse products API, shopId: ${shopId}`
+        `[${new Date().toISOString()}] No data received from warehouse products API, warehouseId: ${warehouseId}`
       );
       return [];
     }
@@ -105,7 +105,7 @@ export const getProducts = async (shopId: string): Promise<Product[]> => {
     return response.data;
   } catch (error) {
     console.error(
-      `[${new Date().toISOString()}] Error fetching warehouse products for shop ${shopId}:`,
+      `[${new Date().toISOString()}] Error fetching warehouse products for warehouse ${warehouseId}:`,
       error
     );
     // Расширенная диагностика для axios ошибок
