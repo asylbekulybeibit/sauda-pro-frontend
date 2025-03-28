@@ -1368,56 +1368,12 @@ export const getPurchaseById = async (
   id: string,
   warehouseId?: string
 ): Promise<Purchase> => {
-  console.log('[getPurchaseById] ID:', id, 'warehouseId:', warehouseId);
-
-  if (!id) {
-    console.error('[getPurchaseById] Missing required purchase ID');
-    throw new Error('Missing required purchase ID');
-  }
-
-  // Если warehouseId не передан, выбрасываем ошибку
-  if (!warehouseId) {
-    console.error('[getPurchaseById] Missing required warehouseId');
-    throw new Error('Missing required warehouseId parameter');
-  }
-
-  // Массив возможных форматов URL для запроса
-  const possibleUrls = [
-    // Основной формат маршрута из App.tsx
-    `/manager/${warehouseId}/warehouse/purchases/${id}`,
-    // Альтернативные форматы для совместимости с API
-    `/manager/purchases/${id}?warehouseId=${warehouseId}`,
-    `/manager/purchases/warehouse/${warehouseId}/purchase/${id}`,
-    `/manager/warehouses/${warehouseId}/purchases/${id}`,
-    `/manager/purchases/${warehouseId}/${id}`,
-    `/manager/warehouse/purchases/${warehouseId}/${id}`,
-  ];
-
-  let lastError = null;
-
-  // Пробуем каждый формат URL по очереди
-  for (const url of possibleUrls) {
-    try {
-      console.log(`[getPurchaseById] Trying URL: ${url}`);
-      const { data } = await api.get(url);
-      console.log(
-        '[getPurchaseById] Purchase loaded successfully with URL:',
-        url
-      );
-      return data;
-    } catch (error) {
-      console.log(`[getPurchaseById] Error with URL ${url}:`, error);
-      lastError = error;
-      // Продолжаем со следующим URL
-    }
-  }
-
-  // Если все попытки не удались, выбрасываем последнюю ошибку
-  console.error(
-    '[getPurchaseById] All attempts to fetch purchase failed:',
-    lastError
+  console.log(
+    '[getPurchaseById] Trying URL:',
+    `/manager/purchases/${warehouseId}/${id}`
   );
-  throw ApiErrorHandler.handle(lastError);
+  const { data } = await api.get(`/manager/purchases/${warehouseId}/${id}`);
+  return data;
 };
 
 export const getPurchases = async (
@@ -1811,11 +1767,10 @@ export interface Warehouse {
 // Добавляем функцию для получения списка складов магазина
 export const getWarehouses = async (shopId: string): Promise<Warehouse[]> => {
   try {
-    const response = await api.get(`/manager/warehouses/shop/${shopId}`);
+    const response = await api.get(`/manager/warehouses/${shopId}`);
     return response.data;
   } catch (error) {
-    console.error('Error fetching warehouses:', error);
-    throw handleApiError(error, 'Не удалось загрузить список складов');
+    throw handleApiError(error);
   }
 };
 
@@ -1957,5 +1912,14 @@ export const deleteBarcode = async (
   } catch (error) {
     handleApiError(error);
     throw error;
+  }
+};
+
+export const getWarehouse = async (warehouseId: string): Promise<Warehouse> => {
+  try {
+    const response = await api.get(`/manager/warehouses/${warehouseId}`);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
   }
 };

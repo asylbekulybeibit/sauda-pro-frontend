@@ -21,10 +21,12 @@ export interface PurchaseItem {
   barcode?: string;
   barcodes?: string[];
   purchasePrice: number;
+  price?: number;
   sellingPrice: number;
   quantity: number;
   comment?: string;
   product?: Product;
+  total?: number;
 }
 
 export interface Purchase {
@@ -32,6 +34,8 @@ export interface Purchase {
   date: string;
   supplierId?: string;
   warehouseId: string;
+  warehouseName?: string;
+  warehouseAddress?: string;
   comment?: string;
   number?: string;
   items: PurchaseItem[];

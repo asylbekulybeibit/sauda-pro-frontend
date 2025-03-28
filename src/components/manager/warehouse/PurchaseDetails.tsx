@@ -85,12 +85,10 @@ const PurchaseDetails: React.FC = () => {
   } = useQuery({
     queryKey: ['purchase', id, warehouseId],
     queryFn: () => {
-      console.log(
-        'Fetching purchase data for purchase ID:',
+      console.log('[PurchaseDetails] Fetching purchase data:', {
         id,
-        'with warehouseId:',
-        warehouseId
-      );
+        warehouseId,
+      });
       if (!id) {
         console.error('Missing required purchase ID');
         throw new Error('Missing required purchase ID');
@@ -103,9 +101,14 @@ const PurchaseDetails: React.FC = () => {
 
       return getPurchaseById(id, warehouseId).then((data) => {
         console.log(
-          'Purchase data received (full object):',
+          '[PurchaseDetails] Purchase data received:',
           JSON.stringify(data, null, 2)
         );
+        console.log('[PurchaseDetails] Warehouse info:', {
+          warehouseId: data.warehouseId,
+          warehouse: data.warehouse,
+          warehouseName: data.warehouseName,
+        });
         return data;
       });
     },
@@ -143,13 +146,26 @@ const PurchaseDetails: React.FC = () => {
   // Получаем дополнительную информацию о магазине если нужно
   const enhanceShopInfo = (purchase: any) => {
     const result = { ...purchase };
+    console.log('[enhanceShopInfo] Input purchase data:', purchase);
+
+    // Если в объекте есть информация о складе, но нет warehouse объекта, создаем его
+    if (purchase.warehouseId && !purchase.warehouse) {
+      result.warehouse = {
+        id: purchase.warehouseId,
+        name: purchase.warehouseName || `Склад #${purchase.warehouseId}`,
+        address: purchase.warehouseAddress,
+      };
+      console.log(
+        '[enhanceShopInfo] Created warehouse object:',
+        result.warehouse
+      );
+    }
 
     // Если в объекте есть информация о магазине, но нет shop объекта, создаем его
     if (purchase.shopId) {
       result.shop = {
         ...purchase.shop,
         id: purchase.shopId,
-        // Улучшаем логику определения имени магазина, чтобы избежать "Магазин без названия"
         name:
           purchase.shopName ||
           (purchase.shop && purchase.shop.name) ||
@@ -197,6 +213,7 @@ const PurchaseDetails: React.FC = () => {
       supplier: result.supplier,
     });
 
+    console.log('[enhanceShopInfo] Result:', result);
     return result;
   };
 
@@ -218,98 +235,64 @@ const PurchaseDetails: React.FC = () => {
     }
 
     console.log(
-      'Исходные данные товаров для обработки:',
-      JSON.stringify(purchaseData.items)
+      'Raw purchase items data:',
+      JSON.stringify(purchaseData.items, null, 2)
     );
 
-    // Проверим доступность полных данных о товарах
-    console.log('Доступные товары из каталога:', allProducts?.length || 0);
-
     return purchaseData.items.map((item: any, index: number) => {
-      console.log(`Обрабатываю товар #${index}:`, JSON.stringify(item));
+      console.log(`Processing item #${index}:`, JSON.stringify(item, null, 2));
 
-      // Получаем полную информацию о товаре из каталога
+      // Get full product info if available
       const fullProductInfo = item.productId
         ? getFullProductInfo(item.productId)
         : null;
 
-      console.log(
-        `Дополнительная информация о товаре из каталога:`,
-        fullProductInfo
-      );
-
       // Ensure we have valid data
       const preparedItem: PurchaseItem = {
         ...item,
-        id: item.id || String(Math.random()), // Ensure we have an ID for rowKey
+        id: item.id || String(Math.random()),
         name:
           item.name ||
           (item.product
             ? item.product.name
             : fullProductInfo?.name || 'Товар без названия'),
         quantity: typeof item.quantity === 'number' ? item.quantity : 0,
-        purchasePrice: 0, // Default value, will be updated below
-        sellingPrice:
-          typeof item.sellingPrice === 'number' ? item.sellingPrice : 0,
       };
 
-      // Копируем SKU из каталога товаров, если его нет
-      if (!preparedItem.sku) {
-        preparedItem.sku =
-          item.sku || item.product?.sku || fullProductInfo?.sku || null;
-      }
-
-      // Обработка штрихкодов - сохраняем все возможные источники
-      if (item.barcode) {
-        preparedItem.barcode = item.barcode;
-      } else if (item.barcodes && item.barcodes.length > 0) {
-        preparedItem.barcode = item.barcodes[0];
-        preparedItem.barcodes = item.barcodes;
-      } else if (item.product) {
-        if (item.product.barcode) {
-          preparedItem.barcode = item.product.barcode;
-        } else if (item.product.barcodes && item.product.barcodes.length > 0) {
-          preparedItem.barcode = item.product.barcodes[0];
-          preparedItem.barcodes = item.product.barcodes;
-        }
-      }
-
-      // Дополнительно проверяем информацию из каталога товаров
-      if (!preparedItem.barcode && fullProductInfo) {
-        if (fullProductInfo.barcode) {
-          preparedItem.barcode = fullProductInfo.barcode;
-        } else if (
-          fullProductInfo.barcodes &&
-          fullProductInfo.barcodes.length > 0
-        ) {
-          preparedItem.barcode = fullProductInfo.barcodes[0];
-          preparedItem.barcodes = fullProductInfo.barcodes;
-        }
-      }
-
-      // Handle price - it might be in different properties
+      // Handle price - try all possible sources
       let price = null;
-      if (typeof item.purchasePrice === 'number') {
-        price = item.purchasePrice;
-      } else if (typeof item.price === 'number') {
+      if (typeof item.price === 'number' && !isNaN(item.price)) {
         price = item.price;
+        console.log(`Using item.price: ${price}`);
+      } else if (
+        typeof item.purchasePrice === 'number' &&
+        !isNaN(item.purchasePrice)
+      ) {
+        price = item.purchasePrice;
+        console.log(`Using item.purchasePrice: ${price}`);
       } else if (
         item.product &&
         typeof item.product.purchasePrice === 'number'
       ) {
         price = item.product.purchasePrice;
+        console.log(`Using item.product.purchasePrice: ${price}`);
+      } else if (
+        fullProductInfo &&
+        typeof fullProductInfo.purchasePrice === 'number'
+      ) {
+        price = fullProductInfo.purchasePrice;
+        console.log(`Using fullProductInfo.purchasePrice: ${price}`);
       }
 
       // Make sure we always have a price
+      preparedItem.price = price !== null ? price : 0;
       preparedItem.purchasePrice = price !== null ? price : 0;
 
-      console.log(`Итоговый обработанный товар #${index}:`, {
+      console.log(`Final prepared item #${index}:`, {
         id: preparedItem.id,
         name: preparedItem.name,
-        sku: preparedItem.sku,
-        barcode: preparedItem.barcode,
-        barcodes: preparedItem.barcodes,
         quantity: preparedItem.quantity,
+        price: preparedItem.price,
         purchasePrice: preparedItem.purchasePrice,
       });
 
@@ -350,65 +333,6 @@ const PurchaseDetails: React.FC = () => {
     );
   }
 
-  // Table columns for the items list
-  const columns = [
-    {
-      title: 'Название',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string, record: PurchaseItem) => (
-        <div>
-          <div>{text || 'Товар без названия'}</div>
-          {record.sku && (
-            <div className="text-xs text-gray-500">Артикул: {record.sku}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      title: 'Количество',
-      dataIndex: 'quantity',
-      key: 'quantity',
-      width: 120,
-      render: (quantity: any) =>
-        typeof quantity === 'number' ? quantity : '—',
-    },
-    {
-      title: 'Цена закупки',
-      dataIndex: 'purchasePrice',
-      key: 'purchasePrice',
-      width: 150,
-      render: (price: any, record: PurchaseItem) => {
-        console.log(`Rendering price for item: ${record.name}, price:`, price);
-        // Проверяем все возможные источники цены
-        const effectivePrice =
-          typeof price === 'number'
-            ? price
-            : typeof record.purchasePrice === 'number'
-            ? record.purchasePrice
-            : 0;
-        return formatPrice(effectivePrice);
-      },
-    },
-    {
-      title: 'Сумма',
-      key: 'total',
-      width: 120,
-      render: (_: any, record: PurchaseItem) => {
-        console.log(`Calculating total for item: ${record.name}`);
-        const quantity =
-          typeof record.quantity === 'number' ? record.quantity : 0;
-        // Проверяем все возможные источники цены
-        const price =
-          typeof record.purchasePrice === 'number' ? record.purchasePrice : 0;
-        console.log(
-          `quantity: ${quantity}, price: ${price}, total: ${quantity * price}`
-        );
-        return formatPrice(quantity * price);
-      },
-    },
-  ];
-
   // Функция для корректного отображения информации о пользователе
   const formatUserInfo = (user: string | User | null | undefined): string => {
     if (!user) return '—';
@@ -446,9 +370,8 @@ const PurchaseDetails: React.FC = () => {
         ['Статус', purchase.status === 'completed' ? 'Завершен' : 'Черновик'],
         ['Номер накладной', purchase.invoiceNumber || purchase.number || '—'],
         ['Поставщик', purchase.supplierName || purchase.supplier?.name || '—'],
-        ['Магазин', purchase.shop?.name || '—'],
-        ['Адрес', purchase.shop?.address || '—'],
-        ['Дата', formatDate(purchase.date) || '—'],
+        ['Магазин', purchase.warehouse?.name || '—'],
+        ['Адрес', purchase.warehouse?.address || '—'],       
         ['Создал', formatUserInfo(purchase.createdBy) || '—'],
         ['Дата создания', formatDate(purchase.createdAt) || '—'],
         ['Комментарий', purchase.comment || '—'],
@@ -460,8 +383,7 @@ const PurchaseDetails: React.FC = () => {
       const itemsData = [
         // Заголовки
         [
-          'Название',
-          'Артикул',
+          'Название',          
           'Штрихкод',
           'Количество',
           'Цена закупки',
@@ -509,7 +431,6 @@ const PurchaseDetails: React.FC = () => {
 
           console.log(`Подготовленные данные для товара #${index}:`, {
             name: item.name,
-            sku: item.sku || item.product?.sku || '—',
             barcode,
             quantity,
             price: formattedPrice,
@@ -517,8 +438,7 @@ const PurchaseDetails: React.FC = () => {
           });
 
           itemsData.push([
-            item.name,
-            item.sku || item.product?.sku || '—',
+            item.name,           
             barcode,
             quantity.toString(),
             formattedPrice,
@@ -604,97 +524,122 @@ const PurchaseDetails: React.FC = () => {
         </Space>
       </div>
 
-      <Card className="mb-6">
+      <Card className="shadow-sm mb-4">
         <Descriptions bordered column={2}>
           <Descriptions.Item label="Статус">
-            <Tag
-              color={enhancedPurchase.status === 'completed' ? 'green' : 'blue'}
-            >
-              {enhancedPurchase.status === 'completed'
-                ? 'Завершен'
-                : 'Черновик'}
-            </Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Номер накладной">
-            {enhancedPurchase.number || enhancedPurchase.invoiceNumber || '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Поставщик">
-            {enhancedPurchase.supplierName ||
-              enhancedPurchase.supplier?.name ||
-              '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Магазин" span={2}>
-            <div>
-              <span className="font-medium">
-                {enhancedPurchase.shop?.name || '—'}
-              </span>
-              {enhancedPurchase.shop?.address && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Адрес: {enhancedPurchase.shop.address}
-                </div>
-              )}
-            </div>
-          </Descriptions.Item>
-          {enhancedPurchase.comment && (
-            <Descriptions.Item label="Комментарий" span={2}>
-              {enhancedPurchase.comment}
-            </Descriptions.Item>
-          )}
-          <Descriptions.Item label="Создал">
-            {formatUserInfo(enhancedPurchase.createdBy)}
-          </Descriptions.Item>
-          <Descriptions.Item label="Когда">
-            {enhancedPurchase.createdAt
-              ? formatDate(enhancedPurchase.createdAt)
-              : '—'}
-          </Descriptions.Item>
-          {enhancedPurchase.updatedBy &&
-            enhancedPurchase.updatedBy !== enhancedPurchase.createdBy && (
-              <>
-                <Descriptions.Item label="Обновил">
-                  {formatUserInfo(enhancedPurchase.updatedBy)}
-                </Descriptions.Item>
-                <Descriptions.Item label="Когда">
-                  {enhancedPurchase.updatedAt
-                    ? formatDate(enhancedPurchase.updatedAt)
-                    : '—'}
-                </Descriptions.Item>
-              </>
+            {purchase?.status === 'completed' ? (
+              <Tag color="green">Завершен</Tag>
+            ) : purchase?.status === 'draft' ? (
+              <Tag color="orange">Черновик</Tag>
+            ) : (
+              <Tag color="red">Отменен</Tag>
             )}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Номер накладной">
+            {purchase?.invoiceNumber || '—'}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Поставщик">
+            {purchase?.supplier?.name || '—'}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Магазин">
+            {purchase?.warehouse?.name || '—'}
+            {purchase?.warehouse?.address && (
+              <div className="text-gray-500 text-sm">
+                {purchase?.warehouse?.address}
+              </div>
+            )}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Комментарий">
+            {purchase?.comment || '—'}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Создал">
+            {formatUserInfo(purchase?.createdBy)}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Когда">
+            {purchase?.date ? formatDate(purchase.date) : '—'}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="Общая сумма">
+            <Text strong>{formatPrice(itemsTotal)}</Text>
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
       <Card title={`Товары (${processedItems.length || 0})`}>
         <Table
           dataSource={processedItems}
-          columns={columns}
+          columns={[
+            {
+              title: 'Название',
+              dataIndex: 'name',
+              key: 'name',
+              render: (text: string) => text || 'Товар без названия',
+            },
+            {
+              title: 'Штрихкод',
+              dataIndex: 'barcode',
+              key: 'barcode',
+              width: 150,
+              render: (barcode: string) => barcode || '—',
+            },
+            {
+              title: 'Количество',
+              dataIndex: 'quantity',
+              key: 'quantity',
+              width: 120,
+              render: (quantity: number) => quantity || 0,
+            },
+            {
+              title: 'Цена',
+              dataIndex: 'price',
+              key: 'price',
+              width: 150,
+              render: (_: any, record: PurchaseItem) => {
+                // Try to get price from different possible sources
+                const price = record.price || record.purchasePrice || 0;
+                console.log('Rendering price for item:', {
+                  name: record.name,
+                  price: record.price,
+                  purchasePrice: record.purchasePrice,
+                  finalPrice: price,
+                });
+                return formatPrice(price);
+              },
+            },
+            {
+              title: 'Сумма',
+              key: 'total',
+              width: 150,
+              render: (_: any, record: PurchaseItem) => {
+                const quantity = record.quantity || 0;
+                const price = record.price || record.purchasePrice || 0;
+                const total = quantity * price;
+                console.log('Calculating total for item:', {
+                  name: record.name,
+                  quantity,
+                  price,
+                  total,
+                });
+                return formatPrice(total);
+              },
+            },
+          ]}
           rowKey="id"
           pagination={false}
           summary={() => (
             <Table.Summary fixed>
               <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={3}>
+                <Table.Summary.Cell index={0} colSpan={4}>
                   <strong>Итого:</strong>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={1}>
-                  <Text strong>
-                    {formatPrice(
-                      processedItems.reduce(
-                        (sum: number, item: PurchaseItem) => {
-                          const quantity =
-                            typeof item.quantity === 'number'
-                              ? item.quantity
-                              : 0;
-                          const price =
-                            typeof item.purchasePrice === 'number'
-                              ? item.purchasePrice
-                              : 0;
-                          return sum + quantity * price;
-                        },
-                        0
-                      )
-                    )}
-                  </Text>
+                  <Text strong>{formatPrice(itemsTotal)}</Text>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
             </Table.Summary>

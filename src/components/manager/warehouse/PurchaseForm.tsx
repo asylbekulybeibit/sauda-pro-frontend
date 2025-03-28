@@ -35,6 +35,7 @@ import {
   createProduct,
   getBarcodes,
   createBarcode,
+  getWarehouse,
 } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
@@ -97,6 +98,13 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     enabled: !!shopId,
   });
 
+  // Добавляем запрос данных о складе
+  const { data: warehouse, isLoading: isLoadingWarehouse } = useQuery({
+    queryKey: ['warehouse', propWarehouseId],
+    queryFn: () => getWarehouse(propWarehouseId!),
+    enabled: !!propWarehouseId,
+  });
+
   // Mutations
   const createPurchaseMutation = useMutation({
     mutationFn: createPurchase,
@@ -119,7 +127,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   // Loading state
   const isFormLoading =
-    isLoadingProducts || isLoadingSuppliers || isLoadingShop;
+    isLoadingProducts ||
+    isLoadingSuppliers ||
+    isLoadingShop ||
+    isLoadingWarehouse;
 
   // Handlers
   const handleBarcodeSubmit = async () => {
@@ -325,7 +336,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       return;
     }
 
-    if (!propWarehouseId) {
+    if (!propWarehouseId || !warehouse) {
       message.error('Не указан склад');
       return;
     }
@@ -347,6 +358,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         })),
         status: 'draft' as const,
         updatePurchasePrices: true,
+        warehouse: {
+          name: warehouse.name,
+          id: warehouse.id,
+          address: warehouse.address || '',
+        },
       };
 
       await createPurchaseMutation.mutateAsync(purchaseData);
