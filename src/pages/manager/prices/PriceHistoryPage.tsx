@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, DatePicker, Space, Tag, Tooltip } from 'antd';
+import { Table, DatePicker, Space, Tag, Tooltip, Select } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { getPriceChangesReport } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
@@ -14,12 +14,18 @@ interface PriceHistoryPageProps {
 
 const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+  const [priceTypeFilter, setPriceTypeFilter] = useState<string | null>(null);
 
   const { data: priceHistory, isLoading } = useQuery({
     queryKey: ['priceHistory', warehouseId, dateRange],
     queryFn: () =>
       getPriceChangesReport(warehouseId, dateRange?.[0], dateRange?.[1]),
   });
+
+  // Фильтруем данные по типу цены
+  const filteredData = priceHistory?.filter(
+    (item) => !priceTypeFilter || item.priceType === priceTypeFilter
+  );
 
   const columns = [
     {
@@ -111,7 +117,7 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
   return (
     <div className="p-6">
       <div className="mb-4">
-        <Space>
+        <Space size="middle">
           <RangePicker
             onChange={(dates) => {
               if (dates) {
@@ -124,12 +130,23 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
               }
             }}
           />
+          <Select
+            style={{ width: 200 }}
+            placeholder="Тип цены"
+            allowClear
+            onChange={(value) => setPriceTypeFilter(value)}
+            options={[
+              { label: 'Все', value: null },
+              { label: 'Закупочная', value: 'purchase' },
+              { label: 'Продажная', value: 'selling' },
+            ]}
+          />
         </Space>
       </div>
 
       <Table
         columns={columns}
-        dataSource={priceHistory}
+        dataSource={filteredData}
         rowKey="id"
         loading={isLoading}
       />
