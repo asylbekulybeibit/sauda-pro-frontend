@@ -1,21 +1,28 @@
 import { useEffect, useRef } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { useRoleStore } from '@/store/roleStore';
 import { useState } from 'react';
 import { ManagerSidebar } from '@/components/manager/layout/Sidebar';
-import { NotificationsPopover } from '@/components/manager/notifications/NotificationsPopover';
 import { useAuthStore } from '@/store/authStore';
 import { RoleType } from '@/types/role';
+import { useMinQuantityWarning } from '@/hooks/useMinQuantityWarning';
+import { LowStockPopover } from '../notifications/LowStockPopover';
 
 export function ManagerHeader() {
+  const { shopId } = useParams<{ shopId: string }>();
   const { currentRole } = useRoleStore();
   const { logout } = useAuthStore();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const warehouseId =
+    currentRole?.type === 'shop' ? currentRole.warehouse?.id : undefined;
+
+  const { warningCount } = useMinQuantityWarning(shopId, warehouseId);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -102,8 +109,8 @@ export function ManagerHeader() {
               )}
             </div>
 
-            <div className="flex items-center">
-              <NotificationsPopover />
+            <div className="flex items-center space-x-4">
+              <LowStockPopover />
               <div className="ml-4 relative flex-shrink-0" ref={menuRef}>
                 <button
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}

@@ -189,6 +189,10 @@ function WarehouseRoute({
   return <Component warehouseId={warehouseId!} />;
 }
 
+const NotificationsPage = lazy(
+  () => import('./pages/manager/notifications/NotificationsPage')
+);
+
 export default function App() {
   const { isAuthenticated } = useAuthStore();
 
@@ -286,7 +290,8 @@ export default function App() {
                     <Route index element={<AnalyticsPage />} />
                     <Route path="reports" element={<ReportsPage />} />
                   </Route>
-                 
+
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="suppliers" element={<SuppliersPage />} />
                   <Route path="warehouse">
                     <Route path="incoming" element={<IncomingPage />} />

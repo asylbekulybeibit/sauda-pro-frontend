@@ -17,6 +17,7 @@ import {
   WrenchScrewdriverIcon,
   FolderIcon,
   QrCodeIcon,
+  BellIcon,
 } from '@heroicons/react/24/outline';
 import { Car } from 'lucide-react';
 
@@ -136,12 +137,18 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       href: `/manager/${shopId}/vehicles`,
       icon: Car,
       color: 'bg-pink-100 text-pink-600',
-    },
+    },    
     {
       name: 'Приглашения',
       href: `/manager/${shopId}/invites`,
       icon: UserPlusIcon,
       color: 'bg-pink-100 text-pink-600',
+    },
+    {
+      name: 'Уведомления',
+      href: `/manager/${shopId}/notifications`,
+      icon: BellIcon,
+      color: 'bg-yellow-100 text-yellow-600',
     },
 
     // {
