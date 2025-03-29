@@ -225,7 +225,7 @@ const PriceListPage: React.FC<PriceListPageProps> = ({ warehouseId }) => {
             title: 'Количество',
             dataIndex: 'quantity',
             key: 'quantity',
-            render: (quantity: number) => quantity || '—',
+            render: (quantity: number) => Math.floor(quantity) || 0,
           },
           {
             title: 'Сумма',

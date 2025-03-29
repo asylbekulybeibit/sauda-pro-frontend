@@ -392,6 +392,7 @@ function InventoryPage() {
       title: 'Текущий остаток',
       dataIndex: 'quantity',
       key: 'quantity',
+      render: (quantity: number) => Math.floor(quantity) || 0,
     },
     {
       title: 'Последняя инвентаризация',

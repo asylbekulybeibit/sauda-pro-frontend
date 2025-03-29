@@ -260,7 +260,7 @@ export function InventoryForm({
           warehouseId: warehouseId,
           type: 'ADJUSTMENT' as const,
           warehouseProductId: item.productId,
-          quantity: item.actualQuantity,
+          quantity: Number(item.actualQuantity),
           comment: item.comment,
           description: `Инвентаризация от ${values.date.format('YYYY-MM-DD')}`,
           note: values.comment,
