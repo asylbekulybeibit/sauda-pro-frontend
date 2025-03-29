@@ -32,7 +32,8 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
       title: 'Наименование',
       dataIndex: 'product',
       key: 'product',
-      render: (product: any) => product?.name || 'Без названия',
+      render: (_: any, record: any) =>
+        record.warehouseProduct?.barcode?.productName || 'Без названия',
     },
     {
       title: 'Тип цены',
@@ -61,11 +62,19 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
       key: 'change',
       render: (_: any, record: any) => {
         const change = record.newPrice - record.oldPrice;
-        const percentChange = ((change / record.oldPrice) * 100).toFixed(2);
+        let percentageText = '';
+
+        // Вычисляем процент только если старая цена не равна 0
+        if (record.oldPrice > 0) {
+          const percentChange = ((change / record.oldPrice) * 100).toFixed(2);
+          percentageText = ` (${percentChange}%)`;
+        }
+
         return (
           <span style={{ color: change >= 0 ? 'green' : 'red' }}>
             {change >= 0 ? '+' : ''}
-            {formatPrice(change)} ({percentChange}%)
+            {formatPrice(change)}
+            {percentageText}
           </span>
         );
       },
