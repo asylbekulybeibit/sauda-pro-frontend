@@ -35,7 +35,7 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
   const filteredData = priceHistory?.filter((item) => {
     const matchesType = !priceTypeFilter || item.priceType === priceTypeFilter;
     const productName = (
-      item.warehouseProduct?.barcode?.productName || ''
+      item.product?.barcode?.productName || ''
     ).toLowerCase();
     const matchesSearch =
       !searchText || productName.includes(searchText.toLowerCase());

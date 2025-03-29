@@ -17,19 +17,6 @@ import { ShopProvider } from '@/contexts/ShopContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManagerHeader } from '@/components/manager/layout/Header';
 import './styles/price-analytics.css';
-import CashierDashboard from './pages/cashier/CashierDashboard';
-import ServiceTypeSelection from './pages/cashier/ServiceTypeSelection';
-import ServiceSelection from './pages/cashier/ServiceSelection';
-import ClientSelection from './pages/cashier/ClientSelection';
-import VehicleSelection from './pages/cashier/VehicleSelection';
-import TechnicianSelection from './pages/cashier/TechnicianSelection';
-import PriceConfirmation from './pages/cashier/PriceConfirmation';
-import ServicePrices from './pages/cashier/ServicePrices';
-import ActiveServices from './pages/cashier/service/ActiveServices';
-import CompletedServices from './pages/cashier/service/CompletedServices';
-import ServiceCompletion from './pages/cashier/service/ServiceCompletion';
-import PaymentMethodSelection from './pages/cashier/service/PaymentMethodSelection';
-import CompletedServiceDetails from './pages/cashier/service/CompletedServiceDetails';
 
 // Ленивая загрузка компонентов
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
@@ -46,9 +33,7 @@ const OwnerStaffPage = lazy(() => import('./pages/owner/StaffPage'));
 const AnalyticsPage = lazy(
   () => import('./pages/manager/analytics/AnalyticsPage')
 );
-const BulkOperationsPage = lazy(
-  () => import('./pages/manager/BulkOperationsPage')
-);
+
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const ProductsPage = lazy(
   () => import('./pages/manager/products/ProductsPage')
@@ -117,14 +102,6 @@ const PurchaseDetailsPage = lazy(
 
 // Ленивая загрузка компонентов кассира
 // Комментируем импорты, которые вызывают ошибки
-const CashierLayout = lazy(() => import('./pages/cashier/CashierLayout'));
-const CashRegisterSelection = lazy(
-  () => import('./pages/cashier/CashRegisterSelection')
-);
-const ShiftHistory = lazy(() => import('./pages/cashier/ShiftHistory'));
-const CloseShift = lazy(() => import('./pages/cashier/CloseShift'));
-const ShiftDetails = lazy(() => import('./pages/cashier/ShiftDetails'));
-const ReceiptDetails = lazy(() => import('./pages/cashier/ReceiptDetails'));
 
 // Компонент для защиты роутов, требующих аутентификации
 function AuthGuard() {
@@ -309,10 +286,8 @@ export default function App() {
                     <Route index element={<AnalyticsPage />} />
                     <Route path="reports" element={<ReportsPage />} />
                   </Route>
-                  <Route
-                    path="bulk-operations"
-                    element={<BulkOperationsPage />}
-                  />
+                 
+                  <Route path="suppliers" element={<SuppliersPage />} />
                   <Route path="warehouse">
                     <Route path="incoming" element={<IncomingPage />} />
                     <Route path="purchases">
@@ -339,69 +314,6 @@ export default function App() {
                       element={<WarehouseRoute Component={PriceHistoryPage} />}
                     />
                   </Route>
-                </Route>
-
-                {/* Панель кассира */}
-                <Route
-                  path="/cashier/:shopId"
-                  element={
-                    <RoleGuard allowedRoles={[RoleType.CASHIER]}>
-                      <CashierLayout />
-                    </RoleGuard>
-                  }
-                >
-                  {/* Основной маршрут - страница выбора кассы */}
-                  <Route index element={<CashRegisterSelection />} />
-
-                  {/* Удаляем дашборд */}
-                  <Route path="dashboard" element={<CashierDashboard />} />
-
-                  {/* Оставляем остальные нужные маршруты */}
-                  <Route
-                    path="select-type"
-                    element={<ServiceTypeSelection />}
-                  />
-                  <Route path="shift-history" element={<ShiftHistory />} />
-                  <Route path="close-shift" element={<CloseShift />} />
-                  <Route path="close-shift/:shiftId" element={<CloseShift />} />
-                  <Route path="shift/:shiftId" element={<ShiftDetails />} />
-                  <Route
-                    path="receipt/:receiptId"
-                    element={<ReceiptDetails />}
-                  />
-
-                  {/* Новые маршруты для меню услуг */}
-                  <Route path="select-service" element={<ServiceSelection />} />
-                  <Route path="select-client" element={<ClientSelection />} />
-                  <Route path="select-vehicle" element={<VehicleSelection />} />
-                  <Route
-                    path="select-technician"
-                    element={<TechnicianSelection />}
-                  />
-                  <Route
-                    path="price-confirmation"
-                    element={<PriceConfirmation />}
-                  />
-                  <Route path="service/active" element={<ActiveServices />} />
-                  <Route
-                    path="completed-services"
-                    element={<CompletedServices />}
-                  />
-                  <Route path="service-prices" element={<ServicePrices />} />
-
-                  {/* Маршруты для процесса завершения услуги */}
-                  <Route
-                    path="service/complete/:serviceId"
-                    element={<ServiceCompletion />}
-                  />
-                  <Route
-                    path="service/payment/:serviceId"
-                    element={<PaymentMethodSelection />}
-                  />
-                  <Route
-                    path="service/receipt/:serviceId"
-                    element={<CompletedServiceDetails />}
-                  />
                 </Route>
               </Route>
 

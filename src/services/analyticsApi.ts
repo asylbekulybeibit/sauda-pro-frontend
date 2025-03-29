@@ -1,4 +1,5 @@
-import { api } from './api';
+import api from './api';
+
 import { ApiErrorHandler } from '@/utils/error-handler';
 
 export interface SalesAnalytics {

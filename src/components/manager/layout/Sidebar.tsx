@@ -115,7 +115,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
     },
     {
       name: 'Поставщики',
-      href: `/manager/${shopId}/suppliers/warehouse/${warehouseId}`,
+      href: `/manager/${shopId}/suppliers`,
       icon: TruckIcon,
       color: 'bg-teal-100 text-teal-600',
     },

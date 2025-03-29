@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, message, Tooltip, Spin } from 'antd';
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,37 +26,70 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
   >();
   const [loadingSupplier, setLoadingSupplier] = useState(false);
 
+  useEffect(() => {
+    console.log('[SupplierList] Mounted with shopId:', shopId);
+    return () => {
+      console.log('[SupplierList] Unmounting');
+    };
+  }, [shopId]);
+
   const queryClient = useQueryClient();
 
-  const { data: suppliers = [], isLoading } = useQuery({
+  const {
+    data: suppliers = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['suppliers', shopId],
-    queryFn: () => getSuppliers(shopId),
+    queryFn: async () => {
+      console.log('[SupplierList] Fetching suppliers for shopId:', shopId);
+      try {
+        const data = await getSuppliers(shopId);
+        console.log('[SupplierList] Suppliers data received:', data);
+        return data;
+      } catch (err) {
+        console.error('[SupplierList] Error fetching suppliers:', err);
+        message.error('Ошибка при загрузке списка поставщиков');
+        throw err;
+      }
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteSupplier(id, shopId),
+    mutationFn: (id: string) => {
+      console.log('[SupplierList] Deleting supplier:', id);
+      return deleteSupplier(id, shopId);
+    },
     onSuccess: () => {
+      console.log('[SupplierList] Supplier deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       message.success('Поставщик успешно удален');
       setDeleteModalVisible(false);
     },
-    onError: (error) => {
-      const apiError = ApiErrorHandler.handle(error);
+    onError: (err) => {
+      console.error('[SupplierList] Delete mutation error:', err);
+      const apiError = ApiErrorHandler.handle(err);
       message.error(apiError.message);
     },
   });
 
   const showModal = async (supplier?: Supplier) => {
+    console.log('[SupplierList] Opening modal for supplier:', supplier);
     if (supplier) {
       try {
         setLoadingSupplier(true);
-        // Получаем актуальные данные поставщика перед редактированием
+        console.log(
+          '[SupplierList] Fetching fresh supplier data:',
+          supplier.id
+        );
         const freshData = await getSupplierById(supplier.id, shopId);
+        console.log('[SupplierList] Fresh supplier data received:', freshData);
         setSelectedSupplier(freshData);
-      } catch (error) {
-        const apiError = ApiErrorHandler.handle(error);
+      } catch (err) {
+        console.error('[SupplierList] Error fetching supplier details:', err);
+        const apiError = ApiErrorHandler.handle(err);
         message.error(apiError.message);
-        return; // Не открываем модальное окно в случае ошибки
+        return;
       } finally {
         setLoadingSupplier(false);
       }
@@ -154,6 +187,15 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
     },
   ];
 
+  if (error) {
+    console.error('[SupplierList] Rendering error state:', error);
+    return (
+      <div className="text-center text-red-500">Ошибка при загрузке данных</div>
+    );
+  }
+
+  console.log('[SupplierList] Rendering with suppliers:', suppliers);
+
   return (
     <div>
       <div className="mb-4">
@@ -199,12 +241,11 @@ export const SupplierList: React.FC<SupplierListProps> = ({ shopId }) => {
         onCancel={() => setDeleteModalVisible(false)}
         okText="Удалить"
         cancelText="Отмена"
-        okButtonProps={{
-          className: '!bg-blue-500 hover:!bg-blue-600',
-        }}
+        okButtonProps={{ danger: true }}
       >
         <p>
-          Вы уверены, что хотите удалить поставщика {supplierToDelete?.name}?
+          Вы уверены, что хотите удалить поставщика "
+          {supplierToDelete?.name || ''}"?
         </p>
       </Modal>
     </div>

@@ -40,6 +40,8 @@ const PriceListPage: React.FC<PriceListPageProps> = ({ warehouseId }) => {
   const [activeTab, setActiveTab] = useState('products');
   const { currentRole } = useRoleStore();
   const shopId = currentRole?.type === 'shop' ? currentRole.shop.id : undefined;
+  const [searchText, setSearchText] = useState<string>('');
+  const [barcodeFilter, setBarcodeFilter] = useState<string>('');
 
   console.log('PriceListPage - Current IDs:', {
     warehouseId,
@@ -260,17 +262,55 @@ const PriceListPage: React.FC<PriceListPageProps> = ({ warehouseId }) => {
     },
   ];
 
+  // Фильтрация данных по названию и штрихкоду
+  const getFilteredData = (data: Product[] | undefined) => {
+    if (!data) return [];
+    return data.filter((item) => {
+      const productName = (
+        item.barcode?.productName ||
+        item.name ||
+        ''
+      ).toLowerCase();
+      const barcode = (item.barcode?.code || '').toLowerCase();
+      const searchLower = searchText.toLowerCase();
+      const barcodeLower = barcodeFilter.toLowerCase();
+
+      const matchesSearch = !searchText || productName.includes(searchLower);
+      const matchesBarcode = !barcodeFilter || barcode.includes(barcodeLower);
+
+      return matchesSearch && matchesBarcode;
+    });
+  };
+
   const items = [
     {
       key: 'products',
       label: 'Товары',
       children: (
-        <Table
-          columns={getColumns(false)}
-          dataSource={products}
-          rowKey="id"
-          loading={isLoadingProducts}
-        />
+        <>
+          <div className="mb-4">
+            <Space size="middle" wrap>
+              <Input.Search
+                placeholder="Поиск по названию"
+                style={{ width: 300 }}
+                allowClear
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+              <Input.Search
+                placeholder="Поиск по штрихкоду"
+                style={{ width: 300 }}
+                allowClear
+                onChange={(e) => setBarcodeFilter(e.target.value)}
+              />
+            </Space>
+          </div>
+          <Table
+            columns={getColumns(false)}
+            dataSource={getFilteredData(products)}
+            rowKey="id"
+            loading={isLoadingProducts}
+          />
+        </>
       ),
     },
     {
@@ -278,7 +318,21 @@ const PriceListPage: React.FC<PriceListPageProps> = ({ warehouseId }) => {
       label: 'Услуги',
       children: (
         <>
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between mb-4">
+            <Space size="middle" wrap>
+              <Input.Search
+                placeholder="Поиск по названию"
+                style={{ width: 300 }}
+                allowClear
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+              <Input.Search
+                placeholder="Поиск по штрихкоду"
+                style={{ width: 300 }}
+                allowClear
+                onChange={(e) => setBarcodeFilter(e.target.value)}
+              />
+            </Space>
             <Button
               type="primary"
               className="!bg-blue-600 hover:!bg-blue-500"
@@ -290,7 +344,7 @@ const PriceListPage: React.FC<PriceListPageProps> = ({ warehouseId }) => {
           </div>
           <Table
             columns={getColumns(true)}
-            dataSource={services}
+            dataSource={getFilteredData(services)}
             rowKey="id"
             loading={isLoadingServices}
           />

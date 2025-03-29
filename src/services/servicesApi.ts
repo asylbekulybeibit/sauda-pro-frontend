@@ -10,6 +10,7 @@ import {
   CreateServiceHistoryDto,
   UpdateServiceHistoryDto,
 } from '@/types/serviceHistory';
+import { handleApiError } from '@/utils/errorHandling';
 
 // API для типов услуг
 export const getServiceTypes = async (
