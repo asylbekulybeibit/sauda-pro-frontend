@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, DatePicker, Space, Tag, Tooltip, Select } from 'antd';
+import { Table, DatePicker, Space, Tag, Tooltip, Select, Input } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { getPriceChangesReport } from '@/services/managerApi';
 import { formatPrice } from '@/utils/format';
@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { UserOutlined, ImportOutlined } from '@ant-design/icons';
 
 const { RangePicker } = DatePicker;
+const { Search } = Input;
 
 interface PriceHistoryPageProps {
   warehouseId: string;
@@ -15,17 +16,31 @@ interface PriceHistoryPageProps {
 const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
   const [priceTypeFilter, setPriceTypeFilter] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState<string>('');
 
   const { data: priceHistory, isLoading } = useQuery({
     queryKey: ['priceHistory', warehouseId, dateRange],
-    queryFn: () =>
-      getPriceChangesReport(warehouseId, dateRange?.[0], dateRange?.[1]),
+    queryFn: () => {
+      if (!dateRange) return getPriceChangesReport(warehouseId);
+
+      // Устанавливаем время для начальной и конечной даты
+      const startDate = dayjs(dateRange[0]).startOf('day').toISOString();
+      const endDate = dayjs(dateRange[1]).endOf('day').toISOString();
+
+      return getPriceChangesReport(warehouseId, startDate, endDate);
+    },
   });
 
-  // Фильтруем данные по типу цены
-  const filteredData = priceHistory?.filter(
-    (item) => !priceTypeFilter || item.priceType === priceTypeFilter
-  );
+  // Фильтруем данные по типу цены и названию товара
+  const filteredData = priceHistory?.filter((item) => {
+    const matchesType = !priceTypeFilter || item.priceType === priceTypeFilter;
+    const productName = (
+      item.warehouseProduct?.barcode?.productName || ''
+    ).toLowerCase();
+    const matchesSearch =
+      !searchText || productName.includes(searchText.toLowerCase());
+    return matchesType && matchesSearch;
+  });
 
   const columns = [
     {
@@ -117,8 +132,10 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
   return (
     <div className="p-6">
       <div className="mb-4">
-        <Space size="middle">
+        <Space size="middle" wrap>
           <RangePicker
+            showTime={false}
+            format="DD.MM.YYYY"
             onChange={(dates) => {
               if (dates) {
                 setDateRange([
@@ -140,6 +157,12 @@ const PriceHistoryPage: React.FC<PriceHistoryPageProps> = ({ warehouseId }) => {
               { label: 'Закупочная', value: 'purchase' },
               { label: 'Продажная', value: 'selling' },
             ]}
+          />
+          <Search
+            placeholder="Поиск по названию"
+            style={{ width: 300 }}
+            allowClear
+            onChange={(e) => setSearchText(e.target.value)}
           />
         </Space>
       </div>
