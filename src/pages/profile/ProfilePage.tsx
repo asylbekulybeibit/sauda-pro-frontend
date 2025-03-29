@@ -163,7 +163,7 @@ export default function ProfilePage() {
         displayItems.push(
           <div
             key={shopId}
-            className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-4"
+            className="bg-blue-100 rounded-lg shadow-sm p-6 border border-gray-600 mb-4 hover:bg-blue-200 transition-colors"
           >
             <h3 className="text-lg font-semibold mb-4">
               {ownerRole.shop.name}
