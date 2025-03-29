@@ -74,10 +74,16 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-yellow-100 text-yellow-600',
     },
     {
-      name: 'История изменений цен',
+      name: 'Цены',
       icon: CurrencyDollarIcon,
       color: 'bg-green-100 text-green-600',
-      href: `/manager/${shopId}/prices`,
+      children: [
+        { name: 'Прайс-лист', href: `/manager/${shopId}/prices` },
+        {
+          name: 'История изменений',
+          href: `/manager/${shopId}/prices/history`,
+        },
+      ],
     },
     {
       name: 'Продажи',
@@ -101,10 +107,10 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
           name: 'Инвентаризация',
           href: `/manager/${shopId}/warehouse/inventory`,
         },
-        {
-          name: 'Перемещения',
-          href: `/manager/${shopId}/warehouse/transfers`,
-        },
+        // {
+        //   name: 'Перемещения',
+        //   href: `/manager/${shopId}/warehouse/transfers`,
+        // },
       ],
     },
     {

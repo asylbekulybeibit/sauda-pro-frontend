@@ -17,7 +17,7 @@ import { getProducts, createInventoryTransaction } from '@/services/managerApi';
 import dayjs from 'dayjs';
 
 interface InventoryFormProps {
-  shopId: string;
+  warehouseId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -31,7 +31,7 @@ interface InventoryItem {
 }
 
 export function InventoryForm({
-  shopId,
+  warehouseId,
   onClose,
   onSuccess,
 }: InventoryFormProps) {
@@ -44,8 +44,11 @@ export function InventoryForm({
 
   // Загрузка списка товаров
   const { data: products } = useQuery({
-    queryKey: ['products', shopId],
-    queryFn: () => getProducts(shopId),
+    queryKey: ['products', warehouseId],
+    queryFn: () => getProducts(warehouseId),
+    onSuccess: (data) => {
+      console.log('Loaded products:', data);
+    },
   });
 
   // Колонки для таблицы товаров
@@ -56,7 +59,7 @@ export function InventoryForm({
       key: 'productId',
       render: (productId: string) => {
         const product = products?.find((p) => p.id === productId);
-        return product?.name || '';
+        return product?.barcode?.productName || 'Без названия';
       },
     },
     {
@@ -254,20 +257,20 @@ export function InventoryForm({
       const promises = items.map((item, index) => {
         // Создаем простой объект с только нужными данными, избегая циклических ссылок
         const transactionData = {
-          shopId: shopId,
-          type: 'ADJUSTMENT' as const, // Корректировка (инвентаризация)
-          productId: item.productId, // productId уже строка
+          warehouseId: warehouseId,
+          type: 'ADJUSTMENT' as const,
+          warehouseProductId: item.productId,
           quantity: item.actualQuantity,
-          comment: item.comment, // Комментарий конкретно для этого товара
+          comment: item.comment,
           description: `Инвентаризация от ${values.date.format('YYYY-MM-DD')}`,
-          note: values.comment, // Общий комментарий для всей инвентаризации
-          // Передаем только простые данные в metadata
+          note: values.comment,
           metadata: {
             currentQuantity: Number(item.currentQuantity),
+            actualQuantity: Number(item.actualQuantity),
             difference: Number(item.difference),
             date: values.date.format('YYYY-MM-DD'),
             deviceInfo,
-            itemIndex: index, // Добавляем индекс элемента в массиве для отладки
+            itemIndex: index,
             inventory: {
               id: deviceInfo.submissionId,
               date: values.date.format('YYYY-MM-DD'),
@@ -277,10 +280,16 @@ export function InventoryForm({
           },
         };
 
+        // Добавляем логирование для отладки
         console.log(
-          `Sending inventory transaction ${index + 1}/${items.length}:`,
-          transactionData
+          'Sending inventory transaction with metadata:',
+          JSON.stringify(transactionData.metadata, null, 2)
         );
+        console.log(
+          'Full transaction data:',
+          JSON.stringify(transactionData, null, 2)
+        );
+
         return createInventoryTransaction(transactionData).catch((error) => {
           console.error(`Error creating transaction for item ${index}:`, error);
           throw error;
@@ -297,9 +306,11 @@ export function InventoryForm({
         await queryClient.invalidateQueries({ queryKey: ['products'] });
 
         // Явно инвалидируем кэш с конкретным shopId
-        await queryClient.invalidateQueries({ queryKey: ['products', shopId] });
         await queryClient.invalidateQueries({
-          queryKey: ['inventory', shopId],
+          queryKey: ['products', warehouseId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ['inventory', warehouseId],
         });
 
         const completionTime = new Date();
@@ -332,10 +343,12 @@ export function InventoryForm({
   // Фильтрация товаров для поиска
   const filteredProducts = products?.filter(
     (product) =>
-      product.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-      product.barcode?.includes(searchValue) ||
-      product.sku?.includes(searchValue)
+      (product.name || '').toLowerCase().includes(searchValue.toLowerCase()) ||
+      (product.barcode?.code || '').includes(searchValue) ||
+      (product.barcodes || []).some((code) => code.includes(searchValue))
   );
+
+  console.log('Filtered products:', filteredProducts);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -367,12 +380,15 @@ export function InventoryForm({
                   showSearch
                   onSearch={setSearchValue}
                   filterOption={false}
-                  options={filteredProducts?.map((product) => ({
-                    label: `${product.name} (${
-                      product.sku || product.barcode || 'Нет кода'
-                    })`,
-                    value: product.id,
-                  }))}
+                  options={filteredProducts?.map((product) => {
+                    console.log('Product for select:', product);
+                    return {
+                      label: `${
+                        product.barcode?.productName || 'Без названия'
+                      } (${product.barcode?.code || 'Нет штрихкода'})`,
+                      value: product.id,
+                    };
+                  })}
                 />
               </Form.Item>
               <Button

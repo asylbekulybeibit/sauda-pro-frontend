@@ -145,7 +145,7 @@ export const updateProduct = async (
   data: Partial<Product>
 ): Promise<Product> => {
   try {
-    const response = await api.patch(`/manager/products/${id}`, data);
+    const response = await api.patch(`/manager/warehouse-products/${id}`, data);
     return response.data;
   } catch (error) {
     throw ApiErrorHandler.handle(error);
@@ -173,6 +173,14 @@ export const deleteProduct = async (id: string): Promise<void> => {
     await api.delete(`/manager/products/${id}`);
   } catch (error) {
     throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const deleteWarehouseProduct = async (id: string): Promise<void> => {
+  try {
+    await api.patch(`/manager/warehouse-products/${id}`, { isActive: false });
+  } catch (error) {
+    handleApiError(error, 'Ошибка при удалении товара со склада');
   }
 };
 
@@ -250,7 +258,6 @@ export const getInventory = async (
       `[${new Date().toISOString()}] Fetching inventory transactions for shop ${shopId}`
     );
 
-    // Добавляем уникальный идентификатор для отслеживания запроса
     const requestId = `inv-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 9)}`;
@@ -273,15 +280,12 @@ export const getInventory = async (
       return [];
     }
 
-    // Проверяем структуру полученных данных для диагностики
     if (Array.isArray(response.data) && response.data.length > 0) {
-      // Если есть данные, проверяем наличие транзакций инвентаризации
       const adjustments = response.data.filter((t) => t.type === 'ADJUSTMENT');
       console.log(
         `Found ${adjustments.length} ADJUSTMENT transactions out of ${count} total`
       );
 
-      // Выводим последние 3 транзакции для диагностики
       if (response.data.length > 0) {
         const recentTransactions = response.data.slice(0, 3);
         console.log(
@@ -298,7 +302,6 @@ export const getInventory = async (
       `[${new Date().toISOString()}] Error fetching inventory for shop ${shopId}:`,
       error
     );
-    // Расширенная диагностика для axios ошибок
     if (axios.isAxiosError(error)) {
       console.error(`Axios error: ${error.message}`);
       console.error(`Status: ${error.response?.status}`);
@@ -310,9 +313,9 @@ export const getInventory = async (
 };
 
 export const createInventoryTransaction = async (data: {
-  shopId: string;
+  warehouseId: string;
   type: TransactionType;
-  productId: string;
+  warehouseProductId: string;
   quantity: number;
   price?: number;
   note?: string;
@@ -348,9 +351,9 @@ export const deleteInventoryTransaction = async (id: string): Promise<void> => {
 };
 
 export const getLowStockProducts = async (
-  shopId: string
+  warehouseId: string
 ): Promise<Product[]> => {
-  const response = await api.get(`/manager/inventory/low-stock/${shopId}`);
+  const response = await api.get(`/manager/inventory/low-stock/${warehouseId}`);
   return response.data;
 };
 
@@ -1768,7 +1771,7 @@ export interface Warehouse {
 // Добавляем функцию для получения списка складов магазина
 export const getWarehouses = async (shopId: string): Promise<Warehouse[]> => {
   try {
-    const response = await api.get(`/manager/warehouses/${shopId}`);
+    const response = await api.get(`/manager/warehouses/shop/${shopId}`);
     return response.data;
   } catch (error) {
     throw handleApiError(error);
@@ -1919,6 +1922,36 @@ export const deleteBarcode = async (
 export const getWarehouse = async (warehouseId: string): Promise<Warehouse> => {
   try {
     const response = await api.get(`/manager/warehouses/${warehouseId}`);
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error);
+  }
+};
+
+export const getProductTransactions = async (
+  productId: string
+): Promise<InventoryTransaction[]> => {
+  const response = await api.get<InventoryTransaction[]>(
+    `/manager/inventory/products/${productId}/transactions`
+  );
+  return response.data;
+};
+
+export interface CreateServiceProductDto {
+  barcodeId: string;
+  warehouseId: string;
+  sellingPrice: number;
+  purchasePrice: number;
+}
+
+export const createServiceProduct = async (
+  data: CreateServiceProductDto
+): Promise<any> => {
+  try {
+    const response = await api.post(
+      '/manager/warehouse-products/service',
+      data
+    );
     return response.data;
   } catch (error) {
     throw handleApiError(error);

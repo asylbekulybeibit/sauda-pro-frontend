@@ -6,6 +6,7 @@ import {
   Navigate,
   useLocation,
   Outlet,
+  useParams,
 } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
 import { useAuthStore } from '@/store/authStore';
@@ -100,14 +101,6 @@ const SuppliersPage = lazy(
   () => import('./pages/manager/suppliers/SuppliersPage')
 );
 
-
-const PriceAnalyticsPage = lazy(
-  () => import('./pages/manager/prices/PriceAnalyticsPage')
-);
-const ProductPriceHistoryPage = lazy(
-  () => import('./pages/manager/prices/ProductPriceHistoryPage')
-);
-
 // Страницы для услуг
 const ClientVehiclesPage = lazy(
   () => import('./pages/manager/vehicles/ClientVehiclesPage')
@@ -198,6 +191,27 @@ const queryClient = new QueryClient({
   },
 });
 
+const PriceListPage = lazy(
+  () => import('./pages/manager/prices/PriceListPage')
+);
+const PriceHistoryPage = lazy(
+  () => import('./pages/manager/prices/PriceHistoryPage')
+);
+
+// Add WarehouseRoute component to handle warehouseId
+function WarehouseRoute({
+  Component,
+}: {
+  Component: React.ComponentType<{ warehouseId: string }>;
+}) {
+  const { currentRole } = useRoleStore();
+  const { shopId } = useParams();
+  const warehouseId =
+    currentRole?.type === 'shop' ? currentRole.warehouse?.id || shopId : shopId;
+
+  return <Component warehouseId={warehouseId!} />;
+}
+
 export default function App() {
   const { isAuthenticated } = useAuthStore();
 
@@ -276,7 +290,7 @@ export default function App() {
                 >
                   <Route index element={<ManagerDashboard />} />
                   <Route path="products" element={<ProductsPage />} />
-                  
+
                   <Route path="barcodes" element={<BarcodesPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route
@@ -315,19 +329,14 @@ export default function App() {
                     />
                     <Route path="reports" element={<WarehouseReportsPage />} />
                   </Route>
-                  <Route path="suppliers">
-                    <Route index element={<SuppliersPage />} />
-                    <Route
-                      path="warehouse/:warehouseId"
-                      element={<SuppliersPage />}
-                    />
-                   
-                  </Route>
                   <Route path="prices">
-                    <Route index element={<PriceAnalyticsPage />} />
                     <Route
-                      path="product/:id"
-                      element={<ProductPriceHistoryPage />}
+                      index
+                      element={<WarehouseRoute Component={PriceListPage} />}
+                    />
+                    <Route
+                      path="history"
+                      element={<WarehouseRoute Component={PriceHistoryPage} />}
                     />
                   </Route>
                 </Route>

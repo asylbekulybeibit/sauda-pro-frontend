@@ -1,6 +1,7 @@
 export interface PriceHistory {
   id: string;
   productId: string;
+  warehouseProductId: string;
   oldPrice: number;
   newPrice: number;
   reason?: string;

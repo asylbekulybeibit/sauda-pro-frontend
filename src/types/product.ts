@@ -21,9 +21,11 @@ export interface Product {
   description?: string;
   categoryId?: string;
   isActive: boolean;
+  isService: boolean;
   createdAt: string;
   updatedAt: string;
   shopId: string;
+  warehouseId: string;
   unit?: string;
 }
 

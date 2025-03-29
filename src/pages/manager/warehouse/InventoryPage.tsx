@@ -15,18 +15,35 @@ import {
   Space,
 } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { getProducts, getInventory } from '@/services/managerApi';
+import {
+  getProducts,
+  getInventory,
+  getWarehouses,
+  Warehouse,
+  getProductTransactions,
+} from '@/services/managerApi';
 import { formatDate, getTimeAgo } from '@/utils/format';
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import { InventoryForm } from '@/components/manager/warehouse/InventoryForm';
 import { Product } from '@/types/product';
 import { InventoryTransaction } from '@/types/inventory';
 import { useQueryClient } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+
+// Расширяем тип InventoryTransaction для поддержки metadata
+interface ExtendedInventoryTransaction extends InventoryTransaction {
+  metadata?: {
+    difference?: number;
+    currentQuantity?: number;
+    actualQuantity?: number;
+  };
+}
 
 interface ProductWithInventory extends Product {
   lastInventoryDate?: string | null;
   hasDifference?: boolean;
   differencePercent?: number;
+  lastInventoryTransaction?: ExtendedInventoryTransaction | null;
 }
 
 // Интерфейс для группировки транзакций по дате
@@ -48,6 +65,7 @@ function InventoryPage() {
   );
   const [blockAutoUpdate, setBlockAutoUpdate] = useState(false);
   const isMountedRef = useRef(false);
+  const [warehouseId, setWarehouseId] = useState<string | null>(null);
 
   // Состояние для модального окна с историей инвентаризаций
   const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
@@ -58,6 +76,28 @@ function InventoryPage() {
   >([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
+  // Получаем список складов магазина
+  const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery<
+    Warehouse[]
+  >({
+    queryKey: ['warehouses', shopId],
+    queryFn: () => getWarehouses(shopId!),
+    enabled: !!shopId,
+  });
+
+  // Обрабатываем изменение данных складов
+  useEffect(() => {
+    if (warehouses) {
+      // Если есть склады, берем первый активный
+      const activeWarehouse = warehouses.find((w: Warehouse) => w.isActive);
+      if (activeWarehouse) {
+        setWarehouseId(activeWarehouse.id);
+      } else {
+        message.error('Нет доступных складов');
+      }
+    }
+  }, [warehouses]);
+
   useEffect(() => {
     console.log('InventoryPage mounted, forcing data refresh');
     isMountedRef.current = true;
@@ -65,19 +105,23 @@ function InventoryPage() {
     const forceDataRefresh = async () => {
       try {
         setBlockAutoUpdate(false);
-
         setLastUpdate(new Date());
-
         setDataError(null);
 
-        queryClient.invalidateQueries({ queryKey: ['products', shopId] });
-        queryClient.invalidateQueries({ queryKey: ['inventory', shopId] });
+        if (warehouseId) {
+          queryClient.invalidateQueries({
+            queryKey: ['products', warehouseId],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ['inventory', warehouseId],
+          });
+        }
       } catch (error) {
         console.error('Error during initial data refresh:', error);
       }
     };
 
-    if (initialLoadRef.current) {
+    if (initialLoadRef.current && warehouseId) {
       forceDataRefresh();
       initialLoadRef.current = false;
     }
@@ -86,172 +130,67 @@ function InventoryPage() {
       console.log('InventoryPage unmounting');
       isMountedRef.current = false;
     };
-  }, [shopId, queryClient]);
+  }, [shopId, queryClient, warehouseId]);
 
   const shouldAutoRefetchData = !showForm && !blockAutoUpdate;
 
-  // Запрос данных о продуктах
+  // Получаем список товаров с информацией о последней инвентаризации
   const {
     data: products,
-    isLoading,
+    isLoading: isLoadingProducts,
     refetch,
     error,
     isFetching,
   } = useQuery<ProductWithInventory[]>({
-    queryKey: ['products', shopId],
+    queryKey: ['products', warehouseId],
     queryFn: async () => {
-      if (blockAutoUpdate && tableData) {
-        console.log(
-          'Auto updates blocked, returning current table data without API call'
-        );
-        return tableData as ProductWithInventory[];
-      }
+      const products = await getProducts(warehouseId!);
 
-      console.log(`Fetching products and inventory data for shop: ${shopId}`);
-      setDataError(null);
+      // Получаем транзакции для каждого продукта
+      const productsWithInventory: ProductWithInventory[] = await Promise.all(
+        products.map(async (product) => {
+          try {
+            const transactions = await getProductTransactions(product.id);
+            const lastInventory = transactions
+              ?.filter((t) => t.type === 'ADJUSTMENT')
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+              )[0] as ExtendedInventoryTransaction;
 
-      try {
-        const startTime = performance.now();
-
-        const productsPromise = getProducts(shopId!).catch((error) => {
-          console.error('Error fetching products:', error);
-          setDataError('Не удалось загрузить товары');
-          throw new Error('Не удалось загрузить товары');
-        });
-
-        const transactionsPromise = getInventory(shopId!).catch((error) => {
-          console.error('Error fetching inventory transactions:', error);
-          setDataError('Не удалось загрузить данные инвентаризации');
-          throw new Error('Не удалось загрузить данные инвентаризации');
-        });
-
-        const [productsResponse, transactionsResponse] = await Promise.all([
-          productsPromise,
-          transactionsPromise,
-        ]);
-
-        const endTime = performance.now();
-        console.log(
-          `Data fetch completed in ${Math.round(endTime - startTime)}ms`
-        );
-
-        setLastUpdate(new Date());
-
-        console.log(
-          'Products API Response:',
-          productsResponse?.length || 0,
-          'items'
-        );
-        console.log(
-          'Transactions API Response:',
-          transactionsResponse?.length || 0,
-          'transactions'
-        );
-
-        if (!productsResponse || !transactionsResponse) {
-          console.error('Empty response from API');
-          setDataError('Пустой ответ от сервера');
-          throw new Error('Пустой ответ от сервера');
-        }
-
-        // Создаем Map для хранения информации о последней инвентаризации
-        const inventoryInfoMap = new Map<
-          string,
-          {
-            date: string;
-            hasDifference: boolean;
-            differencePercent?: number;
-          }
-        >();
-
-        if (transactionsResponse && transactionsResponse.length > 0) {
-          const adjustments = transactionsResponse
-            .filter((tr) => tr.type === 'ADJUSTMENT')
-            .sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime()
+            return {
+              ...product,
+              lastInventoryDate: lastInventory?.createdAt || null,
+              lastInventoryTransaction: lastInventory || null,
+              hasDifference: lastInventory
+                ? lastInventory.metadata?.difference !== 0
+                : false,
+              differencePercent: lastInventory?.metadata?.difference
+                ? (Math.abs(lastInventory.metadata.difference) /
+                    (lastInventory.metadata.currentQuantity || 1)) *
+                  100
+                : 0,
+            };
+          } catch (error) {
+            console.error(
+              `Error fetching transactions for product ${product.id}:`,
+              error
             );
+            return {
+              ...product,
+              lastInventoryDate: null,
+              lastInventoryTransaction: null,
+              hasDifference: false,
+              differencePercent: 0,
+            };
+          }
+        })
+      );
 
-          console.log(`Found ${adjustments.length} adjustment transactions`);
-
-          // Перебираем транзакции инвентаризации и сохраняем информацию
-          adjustments.forEach((transaction) => {
-            const productId = transaction.productId.toString();
-            if (!inventoryInfoMap.has(productId)) {
-              // Извлекаем информацию о расхождениях из metadata
-              const metadata = (transaction as any).metadata || {};
-              const difference = metadata.difference
-                ? Number(metadata.difference)
-                : 0;
-              const currentQuantity = metadata.currentQuantity
-                ? Number(metadata.currentQuantity)
-                : 0;
-
-              // Вычисляем процент расхождения
-              const differencePercent = currentQuantity
-                ? (Math.abs(difference) / currentQuantity) * 100
-                : 0;
-
-              inventoryInfoMap.set(productId, {
-                date: transaction.createdAt,
-                hasDifference: difference !== 0,
-                differencePercent: differencePercent,
-              });
-            }
-          });
-
-          console.log('Inventory info map created:', inventoryInfoMap);
-        } else {
-          console.log('No transactions received or empty array');
-        }
-
-        const enrichedProducts = productsResponse.map((product) => {
-          // Find the latest inventory transaction for this product
-          const latestAdjustment = transactionsResponse
-            .filter(
-              (tr) =>
-                tr.type === 'ADJUSTMENT' &&
-                tr.productId.toString() === product.id.toString()
-            )
-            .sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime()
-            )[0];
-
-          const lastInventoryDate = latestAdjustment
-            ? latestAdjustment.createdAt
-            : null;
-
-          // Create a properly typed ProductWithInventory object
-          return {
-            ...product,
-            lastInventoryDate,
-            hasDifference: false, // Set default values
-            differencePercent: 0, // Set default values
-            // Add other properties as needed
-          } as ProductWithInventory;
-        });
-
-        return enrichedProducts;
-      } catch (error) {
-        console.error('Error in queryFn:', error);
-        return [] as ProductWithInventory[]; // Return empty array on error with correct type
-      }
+      return productsWithInventory;
     },
-    enabled: !!shopId && shouldAutoRefetchData,
-    staleTime: 60000, // 1 minute
-  });
-
-  // Запрос для истории инвентаризаций
-  const { data: allTransactions, isLoading: isLoadingTransactions } = useQuery<
-    InventoryTransaction[]
-  >({
-    queryKey: ['inventory', shopId],
-    queryFn: () => getInventory(shopId!),
-    enabled: !!shopId,
-    staleTime: 0,
+    enabled: !!warehouseId && shouldAutoRefetchData,
   });
 
   useEffect(() => {
@@ -307,8 +246,8 @@ function InventoryPage() {
     });
 
     try {
-      queryClient.invalidateQueries({ queryKey: ['products', shopId] });
-      queryClient.invalidateQueries({ queryKey: ['inventory', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['products', warehouseId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', warehouseId] });
 
       setLastUpdate(new Date());
 
@@ -343,12 +282,13 @@ function InventoryPage() {
     setIsLoadingHistory(true);
 
     try {
-      if (allTransactions) {
-        // Фильтруем транзакции только для выбранного продукта и только инвентаризации (ADJUSTMENT)
-        const productAdjustments = allTransactions.filter(
-          (trans) =>
-            trans.productId.toString() === product.id.toString() &&
-            trans.type === 'ADJUSTMENT'
+      // Получаем историю транзакций для конкретного продукта
+      const transactions = await getProductTransactions(product.id.toString());
+
+      if (transactions) {
+        // Фильтруем транзакции только для инвентаризации (ADJUSTMENT)
+        const productAdjustments = transactions.filter(
+          (trans) => trans.type === 'ADJUSTMENT'
         );
 
         // Группируем транзакции по дате
@@ -398,21 +338,55 @@ function InventoryPage() {
     }
   };
 
+  // Функция для определения статуса инвентаризации
+  const getInventoryStatus = (product: ProductWithInventory) => {
+    if (!product.lastInventoryDate) {
+      return {
+        status: 'Требуется проверка',
+        type: 'error',
+      };
+    }
+
+    const daysSinceLastInventory = dayjs().diff(
+      dayjs(product.lastInventoryDate),
+      'day'
+    );
+    const hasDifference = product.hasDifference;
+    const differencePercent = product.differencePercent || 0;
+
+    if (daysSinceLastInventory <= 30) {
+      if (!hasDifference || differencePercent < 5) {
+        return {
+          status: 'В норме',
+          type: 'success',
+        };
+      }
+      return {
+        status: 'Требует внимания',
+        type: 'warning',
+      };
+    }
+
+    return {
+      status: 'Требуется проверка',
+      type: 'error',
+    };
+  };
+
   const columns = [
     {
       title: 'Название',
       dataIndex: 'name',
       key: 'name',
-    },
-    {
-      title: 'Артикул',
-      dataIndex: 'sku',
-      key: 'sku',
+      render: (_: unknown, record: ProductWithInventory) =>
+        record.barcode?.productName || 'Без названия',
     },
     {
       title: 'Штрих-код',
       dataIndex: 'barcode',
       key: 'barcode',
+      render: (_: unknown, record: ProductWithInventory) =>
+        record.barcode?.code || '—',
     },
     {
       title: 'Текущий остаток',
@@ -423,76 +397,30 @@ function InventoryPage() {
       title: 'Последняя инвентаризация',
       dataIndex: 'lastInventoryDate',
       key: 'lastInventoryDate',
-      render: (date: string) => {
-        if (!date) return <span className="text-red-500">Не проводилась</span>;
-
-        try {
-          const formattedDate = formatDate(date);
-          const dateObj = new Date(date);
-          const timeAgo = getTimeAgo(dateObj);
-
-          return (
-            <div>
-              <div>{formattedDate}</div>
-              <div className="text-xs text-gray-500">{timeAgo}</div>
-            </div>
-          );
-        } catch (e) {
-          console.error('Ошибка при форматировании даты:', e, date);
-          return <span className="text-red-500">Ошибка даты</span>;
-        }
+      render: (_: any, record: ProductWithInventory) => {
+        return record.lastInventoryDate
+          ? formatDate(record.lastInventoryDate)
+          : 'Не проводилась';
       },
     },
     {
       title: 'Статус',
       key: 'status',
-      render: (_: unknown, record: ProductWithInventory) => {
-        if (!record.lastInventoryDate) {
-          return <Tag color="red">Требуется проверка</Tag>;
-        }
-
-        try {
-          const lastInventoryTime = new Date(
-            record.lastInventoryDate
-          ).getTime();
-          const thirtyDaysAgo = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
-          const needsInventory = lastInventoryTime < thirtyDaysAgo;
-
-          // Определяем есть ли существенные расхождения (больше 5%)
-          const hasSignificantDifference =
-            record.hasDifference && (record.differencePercent ?? 0) > 5;
-
-          // Определяем цвет и текст статуса
-          if (needsInventory) {
-            // Если инвентаризация давно - красный
-            return (
-              <Tooltip title="Последняя инвентаризация проводилась более 30 дней назад">
-                <Tag color="red">Требуется проверка</Tag>
-              </Tooltip>
-            );
-          } else if (hasSignificantDifference) {
-            // Если недавно, но с большими расхождениями - желтый
-            return (
-              <Tooltip
-                title={`В последней инвентаризации обнаружены значительные расхождения (${(
-                  record.differencePercent ?? 0
-                ).toFixed(1)}%)`}
-              >
-                <Tag color="orange">Требует внимания</Tag>
-              </Tooltip>
-            );
-          } else {
-            // Если недавно и без больших расхождений - зеленый
-            return (
-              <Tooltip title="Инвентаризация проведена недавно, существенных расхождений не обнаружено">
-                <Tag color="green">В норме</Tag>
-              </Tooltip>
-            );
-          }
-        } catch (e) {
-          console.error('Ошибка при обработке даты инвентаризации:', e);
-          return <Tag color="red">Требуется проверка</Tag>;
-        }
+      render: (_: any, record: ProductWithInventory) => {
+        const { status, type } = getInventoryStatus(record);
+        return (
+          <Tag
+            color={
+              type === 'success'
+                ? 'green'
+                : type === 'warning'
+                ? 'orange'
+                : 'red'
+            }
+          >
+            {status}
+          </Tag>
+        );
       },
     },
     {
@@ -510,7 +438,28 @@ function InventoryPage() {
     },
   ];
 
-  if (isLoading && !tableData) {
+  if (isLoadingWarehouses) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <Spin size="large" tip="Загрузка складов..." />
+      </div>
+    );
+  }
+
+  if (!warehouseId) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Нет доступа к складу</h2>
+          <p className="text-gray-500">
+            У вас нет доступа к складам этого магазина
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingProducts && !tableData) {
     return (
       <div className="flex justify-center items-center h-full">
         <Spin size="large" tip="Загрузка данных инвентаризации..." />
@@ -651,7 +600,7 @@ function InventoryPage() {
 
       {showForm && (
         <InventoryForm
-          shopId={shopId!}
+          warehouseId={warehouseId!}
           onClose={handleCloseForm}
           onSuccess={handleInventorySuccess}
         />
@@ -705,6 +654,11 @@ function InventoryPage() {
                             {currentQuantity !== undefined && (
                               <Descriptions.Item label="Предыдущий остаток">
                                 {currentQuantity}
+                              </Descriptions.Item>
+                            )}
+                            {metadata.actualQuantity !== undefined && (
+                              <Descriptions.Item label="Фактический остаток">
+                                {metadata.actualQuantity}
                               </Descriptions.Item>
                             )}
                             {difference !== undefined && (
