@@ -1526,88 +1526,67 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
       const response = await api.get(`/manager/shops/${shopId}`);
       console.log('Shop data fetched successfully:', response.data);
 
-      // Создаем минимальный объект Shop на основе данных, полученных от сервера
-      // Менеджер получает доступ только к своему складу, а не ко всему магазину
+      if (!response.data) {
+        throw new Error('No data received from API');
+      }
+
+      // Создаем объект Shop на основе данных, полученных от сервера
       return {
         id: shopId,
         name: response.data.shopName || 'Неизвестный магазин',
         warehouse: response.data.warehouse || null,
-        // Добавляем остальные поля с значениями по умолчанию или из данных
-        type: '',
-        address: '',
-        phone: '',
-        email: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isActive: true,
+        type: response.data.type || '',
+        address: response.data.address || '',
+        phone: response.data.phone || '',
+        email: response.data.email || '',
+        createdAt: response.data.createdAt || new Date().toISOString(),
+        updatedAt: response.data.updatedAt || new Date().toISOString(),
+        isActive: response.data.isActive ?? true,
       };
     } catch (error) {
       console.error('Error in API request for shop data:', error);
 
-      // Запрашиваем данные о складе менеджера напрямую
-      console.log('Falling back to warehouse data fetch');
-
-      // Попробуем получить данные текущего склада из роли менеджера
+      // Запрашиваем данные о складе менеджера из профиля
+      console.log('Attempting to fetch warehouse data from profile');
       const roleResponse = await api.get('/profile');
+
+      if (!roleResponse.data?.roles) {
+        throw new Error('No roles data in profile');
+      }
+
       const managerRole = roleResponse.data.roles.find(
         (r: any) => r.type === 'manager' && r.isActive
       );
 
-      if (managerRole && managerRole.warehouse) {
-        console.log(
-          'Found manager warehouse from profile:',
-          managerRole.warehouse
-        );
-
-        // Используем данные склада из профиля
-        return {
-          id: shopId, // Используем переданный ID магазина
-          name: managerRole.shop?.name || 'Магазин',
-          warehouse: {
-            id: managerRole.warehouse.id,
-            name: managerRole.warehouse.name,
-            address: managerRole.warehouse.address,
-          },
-          type: '',
-          address: '',
-          phone: '',
-          email: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          isActive: true,
-        };
+      if (!managerRole || !managerRole.warehouse) {
+        throw new Error('No active manager role or warehouse found in profile');
       }
 
-      // Если все методы не сработали, возвращаем базовый объект
+      console.log(
+        'Found manager warehouse from profile:',
+        managerRole.warehouse
+      );
+
       return {
         id: shopId,
-        name: 'Магазин',
-        warehouse: null,
-        type: '',
-        address: '',
-        phone: '',
-        email: '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        isActive: true,
+        name: managerRole.shop?.name || 'Магазин',
+        warehouse: {
+          id: managerRole.warehouse.id,
+          name: managerRole.warehouse.name,
+          address: managerRole.warehouse.address,
+        },
+        type: managerRole.shop?.type || '',
+        address: managerRole.shop?.address || '',
+        phone: managerRole.shop?.phone || '',
+        email: managerRole.shop?.email || '',
+        createdAt: managerRole.shop?.createdAt || new Date().toISOString(),
+        updatedAt: managerRole.shop?.updatedAt || new Date().toISOString(),
+        isActive: managerRole.shop?.isActive ?? true,
       };
     }
   } catch (error) {
     console.error('Error in getManagerShop:', error);
-
-    // Вместо выбрасывания ошибки возвращаем заглушку
-    return {
-      id: shopId,
-      name: 'Магазин',
-      warehouse: null,
-      type: '',
-      address: '',
-      phone: '',
-      email: '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isActive: true,
-    };
+    throw error; // Пробрасываем ошибку вместо возврата заглушки
   }
 };
 

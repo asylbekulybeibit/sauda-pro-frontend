@@ -24,18 +24,25 @@ const { Title } = Typography;
 function IncomingPage() {
   const navigate = useNavigate();
   const shopContext = useContext(ShopContext);
-  const shopId = shopContext?.currentShop?.id || '';
   const { currentRole } = useRoleStore();
   const [warehouseId, setWarehouseId] = useState<string | undefined>();
 
   // Получаем ID склада из текущей роли менеджера
   useEffect(() => {
-    if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
-      setWarehouseId(currentRole.warehouse.id);
-      console.log(
-        '[IncomingPage] Установлен ID склада:',
-        currentRole.warehouse.id
-      );
+    if (currentRole && currentRole.type === 'shop') {
+      if (currentRole.warehouse) {
+        setWarehouseId(currentRole.warehouse.id);
+        console.log(
+          '[IncomingPage] Установлен ID склада:',
+          currentRole.warehouse.id
+        );
+      } else if (currentRole.shop) {
+        setWarehouseId(currentRole.shop.id);
+        console.log(
+          '[IncomingPage] Установлен ID магазина как склад:',
+          currentRole.shop.id
+        );
+      }
     }
   }, [currentRole]);
 
@@ -129,7 +136,9 @@ function IncomingPage() {
           <Button
             type="link"
             onClick={() =>
-              navigate(`/manager/${shopId}/warehouse/purchases/${record.id}`)
+              navigate(
+                `/manager/${warehouseId}/warehouse/purchases/${record.id}`
+              )
             }
           >
             Открыть
@@ -140,18 +149,21 @@ function IncomingPage() {
   ];
 
   const handleCreatePurchase = () => {
-    // Изменяем формат URL, чтобы shopId был частью пути, а не query-параметром
-    const targetUrl = `/manager/${shopId}/warehouse/purchases/create`;
+    if (!currentRole || currentRole.type !== 'shop' || !currentRole.shop?.id) {
+      message.error('Не удалось определить магазин');
+      return;
+    }
+    const targetUrl = `/manager/${currentRole.shop.id}/warehouse/purchases/create`;
     console.log('Create Purchase button clicked, navigating to:', targetUrl);
     navigate(targetUrl);
   };
 
-  if (!warehouseId) {
+  if (!warehouseId || shopContext?.loading) {
     return (
       <div className="p-6">
         <div className="flex justify-center items-center h-40">
           <Spin size="large" />
-          <p className="ml-2 text-gray-500">Загрузка данных о складе...</p>
+          <p className="ml-2 text-gray-500">Загрузка данных...</p>
         </div>
       </div>
     );

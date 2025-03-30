@@ -47,12 +47,14 @@ const { Title } = Typography;
 
 interface PurchaseFormProps {
   shopId: string;
-  warehouseId?: string;
+  warehouseId: string;
+  id?: string;
 }
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
   shopId,
   warehouseId: propWarehouseId,
+  id,
 }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -187,6 +189,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
               barcode: existingBarcode,
               minQuantity: 0,
               name: existingBarcode.productName,
+              isService: false,
             };
 
             const newProduct = await createProductMutation.mutateAsync(
@@ -259,6 +262,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         quantity: 0, // Устанавливаем 0 при создании
         barcode: existingBarcode || barcodeData,
         minQuantity: 0,
+        isService: false,
       };
 
       console.log('Creating product with data:', productData);

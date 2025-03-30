@@ -19,13 +19,30 @@ const PurchaseFormPage: React.FC = () => {
   const { currentRole } = useRoleStore();
   const [warehouseId, setWarehouseId] = useState<string | undefined>();
 
+  // Если контекст магазина загружается, показываем спиннер
+  if (!shopContext || shopContext.loading) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-40">
+          <Spin size="large" />
+          <p className="ml-2 text-gray-500">Загрузка данных магазина...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Получаем ID склада из текущей роли менеджера
   useEffect(() => {
     if (currentRole && currentRole.type === 'shop' && currentRole.warehouse) {
-      setWarehouseId(currentRole.warehouse.id);
       console.log(
-        '[PurchaseFormPage] Установлен ID склада:',
+        '[PurchaseFormPage] Setting warehouseId from currentRole:',
         currentRole.warehouse.id
+      );
+      setWarehouseId(currentRole.warehouse.id);
+    } else {
+      console.log(
+        '[PurchaseFormPage] No warehouse found in currentRole:',
+        currentRole
       );
     }
   }, [currentRole]);
@@ -34,13 +51,14 @@ const PurchaseFormPage: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const shopIdFromQuery = searchParams.get('shopId');
 
-  console.log('PurchaseFormPage rendered with ID param:', id);
-  console.log('PurchaseFormPage shopId sources:', {
-    fromPath: shopIdFromPath,
-    fromQuery: shopIdFromQuery,
-    fromContext: shopContext?.currentShop?.id,
+  console.log('[PurchaseFormPage] Current state:', {
+    id,
+    shopIdFromPath,
+    shopIdFromQuery,
+    shopContextId: shopContext?.currentShop?.id,
+    warehouseId,
+    currentRole,
   });
-  console.log('PurchaseFormPage warehouseId:', warehouseId);
 
   // Приоритет: 1) shopId из пути URL, 2) shopId из query параметра, 3) shopId из контекста
   const shopId =

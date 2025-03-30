@@ -3,6 +3,7 @@ import { Shop } from '@/types/shop';
 import { updateShop as apiUpdateShop } from '@/services/api';
 import { getManagerShop } from '@/services/managerApi';
 import { getShop as getOwnerShop } from '@/services/ownerApi';
+import { AxiosError } from 'axios';
 
 interface ShopContextType {
   currentShop: Shop | null;
@@ -20,75 +21,67 @@ interface ShopProviderProps {
 // Utility function to safely extract path parts without Router hooks
 const extractShopIdFromPath = () => {
   try {
-    // Check if window is available (for SSR safety)
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      console.log('Current path for shop extraction:', path);
+      console.log('[ShopContext] Extracting shop ID from path:', path);
 
-      // UUID regex for validation
+      // Пропускаем инициализацию для страниц аутентификации
+      if (
+        path.startsWith('/login') ||
+        path.startsWith('/register') ||
+        path === '/'
+      ) {
+        console.log(
+          '[ShopContext] Auth page detected, skipping shop initialization'
+        );
+        return { skip: true };
+      }
+
+      // UUID regex для валидации
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-      // Проверяем формат /owner/{shopId}/... для пути владельца
-      const ownerPathMatch = path.match(/\/owner\/([^\/]+)/);
-      if (ownerPathMatch && ownerPathMatch[1]) {
-        const possibleShopId = ownerPathMatch[1];
-
-        // If it's a valid UUID, return it with role info
-        if (uuidRegex.test(possibleShopId)) {
-          console.log('Found valid shop UUID in owner path:', possibleShopId);
-          return { id: possibleShopId, role: 'owner' };
-        }
-      }
-
-      // Стратегия 1а: Проверка стандартного формата /manager/{shopId}/...
+      // Проверяем путь менеджера /manager/{shopId}/...
       const managerPathMatch = path.match(/\/manager\/([^\/]+)/);
       if (managerPathMatch && managerPathMatch[1]) {
         const possibleShopId = managerPathMatch[1];
 
-        // If it's a valid UUID, return it
+        // Проверяем, является ли извлеченный ID валидным UUID
         if (uuidRegex.test(possibleShopId)) {
-          console.log('Found valid shop UUID in manager path:', possibleShopId);
-          return { id: possibleShopId, role: 'manager' };
+          console.log(
+            '[ShopContext] Found valid shop UUID in manager path:',
+            possibleShopId
+          );
+          return { shopId: possibleShopId, role: 'manager' };
         }
       }
 
-      // Стратегия 1б: Проверка формата /cashier/{shopId}/...
-      const cashierPathMatch = path.match(/\/cashier\/([^\/]+)/);
-      if (cashierPathMatch && cashierPathMatch[1]) {
-        const possibleShopId = cashierPathMatch[1];
-
-        // If it's a valid UUID, return it
-        if (uuidRegex.test(possibleShopId)) {
-          console.log('Found valid shop UUID in cashier path:', possibleShopId);
-          return { id: possibleShopId, role: 'cashier' };
+      // Если не нашли в URL, пробуем загрузить из localStorage
+      try {
+        const savedRole = localStorage.getItem('currentRole');
+        if (savedRole) {
+          const roleData = JSON.parse(savedRole);
+          if (roleData?.shop?.id && uuidRegex.test(roleData.shop.id)) {
+            console.log(
+              '[ShopContext] Found shop ID in localStorage:',
+              roleData.shop.id
+            );
+            return { shopId: roleData.shop.id, role: roleData.type };
+          }
         }
+      } catch (e) {
+        console.error('[ShopContext] Error parsing localStorage data:', e);
       }
 
-      // Стратегия 2: Попробовать извлечь из URL параметров
-      const params = new URLSearchParams(window.location.search);
-      const shopIdParam = params.get('shopId');
-
-      if (shopIdParam && uuidRegex.test(shopIdParam)) {
-        console.log('Found shop ID from URL query parameter:', shopIdParam);
-        return { id: shopIdParam, role: 'unknown' };
-      }
-
-      // Стратегия 3: Последняя попытка - поиск любого UUID в URL
-      const parts = path.split('/');
-      for (const part of parts) {
-        if (uuidRegex.test(part)) {
-          console.log('Found UUID in URL path parts:', part);
-          return { id: part, role: 'unknown' };
-        }
-      }
-
-      console.log('No valid shop ID found in URL');
+      console.log(
+        '[ShopContext] No valid shop ID found in path or localStorage'
+      );
+      return { skip: true };
     }
-    return null;
+    return { skip: true };
   } catch (error) {
-    console.error('Error extracting shopId from path:', error);
-    return null;
+    console.error('[ShopContext] Error in extractShopIdFromPath:', error);
+    return { skip: true };
   }
 };
 
@@ -99,75 +92,149 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
   const initializeShop = async () => {
     try {
       setLoading(true);
+      console.log('[ShopContext] Starting shop initialization');
       const shopInfo = extractShopIdFromPath();
+      console.log('[ShopContext] Extracted shop info:', shopInfo);
 
-      if (shopInfo && shopInfo.id) {
-        console.log(
-          'Initializing shop with ID from URL:',
-          shopInfo.id,
-          'Role:',
-          shopInfo.role
-        );
+      // Если это страница аутентификации, пропускаем инициализацию
+      if (shopInfo?.skip) {
+        console.log('[ShopContext] Skipping shop initialization for auth page');
+        setLoading(false);
+        return;
+      }
 
+      if (shopInfo && shopInfo.shopId) {
+        console.log('[ShopContext] Attempting to load shop data from API');
         try {
           let shopData;
-
-          // В зависимости от роли используем соответствующий API
           if (shopInfo.role === 'owner') {
-            console.log('Using owner API to get shop data');
-            shopData = await getOwnerShop(shopInfo.id);
+            console.log('[ShopContext] Using owner API');
+            shopData = await getOwnerShop(shopInfo.shopId);
           } else {
-            console.log('Using manager API to get shop data');
-            shopData = await getManagerShop(shopInfo.id);
+            console.log('[ShopContext] Using manager API');
+            shopData = await getManagerShop(shopInfo.shopId);
           }
 
-          console.log('Successfully loaded shop data:', shopData);
+          if (!shopData) {
+            console.error('[ShopContext] API returned no data');
+            throw new Error('No shop data received from API');
+          }
+
+          console.log('[ShopContext] Successfully loaded shop data:', shopData);
           setCurrentShop(shopData);
           localStorage.setItem('currentShop', JSON.stringify(shopData));
-          setLoading(false);
         } catch (error) {
           console.error(
-            'Failed to load shop data from API, falling back to localStorage:',
+            '[ShopContext] Failed to load shop data from API:',
             error
           );
-          loadFromLocalStorage();
+
+          // Проверяем есть ли данные в localStorage
+          const savedShop = localStorage.getItem('currentShop');
+          if (savedShop) {
+            try {
+              const parsedShop = JSON.parse(savedShop);
+              if (parsedShop && parsedShop.id === shopInfo.shopId) {
+                console.log('[ShopContext] Using shop data from localStorage');
+                setCurrentShop(parsedShop);
+                return;
+              }
+            } catch (e) {
+              console.error(
+                '[ShopContext] Error parsing shop from localStorage:',
+                e
+              );
+            }
+          }
+
+          // Если нет данных в localStorage или они не подходят, редиректим
+          console.log(
+            '[ShopContext] No valid shop data found, redirecting to profile'
+          );
+          window.location.href = '/profile';
+          return;
         }
       } else {
-        console.log('No valid shop ID found in URL, loading from localStorage');
-        loadFromLocalStorage();
+        // Если нет shopId в URL, проверяем localStorage
+        const savedShop = localStorage.getItem('currentShop');
+        if (savedShop) {
+          try {
+            const parsedShop = JSON.parse(savedShop);
+            if (parsedShop && parsedShop.id) {
+              console.log('[ShopContext] Using shop data from localStorage');
+              setCurrentShop(parsedShop);
+              return;
+            }
+          } catch (e) {
+            console.error(
+              '[ShopContext] Error parsing shop from localStorage:',
+              e
+            );
+          }
+        }
+
+        // Если нет данных в localStorage, редиректим
+        const path = window.location.pathname;
+        if (
+          !path.startsWith('/login') &&
+          !path.startsWith('/register') &&
+          path !== '/'
+        ) {
+          console.log(
+            '[ShopContext] No shop data found, redirecting to profile'
+          );
+          window.location.href = '/profile';
+          return;
+        }
       }
     } catch (error) {
-      console.error('Error in shop initialization:', error);
-      loadFromLocalStorage();
+      console.error('[ShopContext] Error in shop initialization:', error);
+      // Редиректим только если не на странице аутентификации
+      const path = window.location.pathname;
+      if (
+        !path.startsWith('/login') &&
+        !path.startsWith('/register') &&
+        path !== '/'
+      ) {
+        window.location.href = '/profile';
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const loadFromLocalStorage = () => {
     const savedShop = localStorage.getItem('currentShop');
     if (savedShop) {
-      console.log('Loading shop from localStorage');
+      console.log('[ShopContext] Loading shop from localStorage');
       try {
         const parsedShop = JSON.parse(savedShop);
 
         // Validate that we have a valid shop object with an ID
         if (parsedShop && parsedShop.id) {
-          console.log('Valid shop data found in localStorage:', parsedShop.id);
+          console.log(
+            '[ShopContext] Valid shop data found in localStorage:',
+            parsedShop.id
+          );
           setCurrentShop(parsedShop);
+          setLoading(false);
         } else {
           console.error(
-            'Invalid shop data format in localStorage:',
+            '[ShopContext] Invalid shop data format in localStorage:',
             parsedShop
           );
           localStorage.removeItem('currentShop');
+          // Оставляем loading в true, так как магазин не найден
         }
       } catch (e) {
-        console.error('Error parsing shop from localStorage:', e);
+        console.error('[ShopContext] Error parsing shop from localStorage:', e);
         localStorage.removeItem('currentShop');
+        // Оставляем loading в true, так как произошла ошибка
       }
     } else {
-      console.log('No shop data found in localStorage');
+      console.log('[ShopContext] No shop data found in localStorage');
+      // Оставляем loading в true, так как магазин не найден
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -189,8 +256,8 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
       const shopInfo = extractShopIdFromPath();
       if (
         shopInfo &&
-        shopInfo.id &&
-        (!currentShop || currentShop.id !== shopInfo.id)
+        shopInfo.shopId &&
+        (!currentShop || currentShop.id !== shopInfo.shopId)
       ) {
         setLoading(true);
 
@@ -203,12 +270,12 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
               console.log(
                 'Using owner API to get shop data after location change'
               );
-              shopData = await getOwnerShop(shopInfo.id);
+              shopData = await getOwnerShop(shopInfo.shopId);
             } else {
               console.log(
                 'Using manager API to get shop data after location change'
               );
-              shopData = await getManagerShop(shopInfo.id);
+              shopData = await getManagerShop(shopInfo.shopId);
             }
 
             setCurrentShop(shopData);

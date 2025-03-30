@@ -9,6 +9,7 @@ import {
   Input,
   Empty,
   Tabs,
+  Result,
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,6 +25,15 @@ import { ShopContext } from '@/contexts/ShopContext';
 const BarcodesPage: React.FC = () => {
   const shopContext = useContext(ShopContext);
   const shopId = shopContext?.currentShop?.id;
+
+  console.log('[BarcodesPage] Render with:', {
+    contextLoading: shopContext?.loading,
+    hasShopContext: !!shopContext,
+    hasCurrentShop: !!shopContext?.currentShop,
+    shopId,
+    path: window.location.pathname,
+  });
+
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState<any | undefined>(
     undefined
@@ -34,7 +44,10 @@ const BarcodesPage: React.FC = () => {
   // Загрузка штрихкодов
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['barcodes', shopId, activeTab],
-    queryFn: () => getBarcodes(shopId!, activeTab === 'services'),
+    queryFn: () => {
+      console.log('[BarcodesPage] Executing query with shopId:', shopId);
+      return getBarcodes(shopId!, activeTab === 'services');
+    },
     enabled: !!shopId,
   });
 
@@ -76,8 +89,32 @@ const BarcodesPage: React.FC = () => {
     setSearchText(e.target.value);
   };
 
-  if (!shopId || !shopContext?.currentShop) {
-    return <div>Магазин не выбран</div>;
+  // Показываем спиннер, если контекст загружается или если нет shopId
+  if (shopContext?.loading || !shopId) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}
+      >
+        <Spin size="large" tip="Загрузка данных магазина..." />
+      </div>
+    );
+  }
+
+  // Если контекст загружен, но нет shopId, значит что-то пошло не так
+  if (!shopContext?.loading && !shopId) {
+    console.error('[BarcodesPage] Shop context loaded but no shop ID found');
+    return (
+      <Result
+        status="error"
+        title="Ошибка загрузки"
+        subTitle="Не удалось загрузить данные магазина. Попробуйте обновить страницу."
+      />
+    );
   }
 
   if (isLoading) {

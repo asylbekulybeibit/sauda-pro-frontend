@@ -15,6 +15,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getProducts, createInventoryTransaction } from '@/services/managerApi';
 import dayjs from 'dayjs';
+import { Product } from '@/types/product';
 
 interface InventoryFormProps {
   warehouseId: string;
@@ -30,12 +31,18 @@ interface InventoryItem {
   comment?: string;
 }
 
+interface FormData {
+  date: dayjs.Dayjs;
+  comment?: string;
+  productId?: string;
+}
+
 export function InventoryForm({
   warehouseId,
   onClose,
   onSuccess,
 }: InventoryFormProps) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<FormData>();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchValue, setSearchValue] = useState('');
   const queryClient = useQueryClient();
@@ -43,12 +50,12 @@ export function InventoryForm({
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Загрузка списка товаров
-  const { data: products } = useQuery({
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery<
+    Product[]
+  >({
     queryKey: ['products', warehouseId],
     queryFn: () => getProducts(warehouseId),
-    onSuccess: (data) => {
-      console.log('Loaded products:', data);
-    },
+    enabled: !!warehouseId,
   });
 
   // Колонки для таблицы товаров
@@ -58,7 +65,7 @@ export function InventoryForm({
       dataIndex: 'productId',
       key: 'productId',
       render: (productId: string) => {
-        const product = products?.find((p) => p.id === productId);
+        const product = products.find((p: Product) => p.id === productId);
         return product?.barcode?.productName || 'Без названия';
       },
     },
@@ -71,10 +78,10 @@ export function InventoryForm({
       title: 'Фактический остаток',
       dataIndex: 'actualQuantity',
       key: 'actualQuantity',
-      render: (value: number, record: InventoryItem, index: number) => (
+      render: (_: unknown, record: InventoryItem, index: number) => (
         <InputNumber
           min={0}
-          value={value}
+          value={record.actualQuantity}
           onChange={(newValue) => handleQuantityChange(index, newValue || 0)}
         />
       ),
@@ -97,9 +104,9 @@ export function InventoryForm({
       title: 'Комментарий',
       dataIndex: 'comment',
       key: 'comment',
-      render: (value: string, record: InventoryItem, index: number) => (
+      render: (_: unknown, record: InventoryItem, index: number) => (
         <Input
-          value={value}
+          value={record.comment}
           onChange={(e) => handleCommentChange(index, e.target.value)}
           placeholder="Причина расхождения"
         />
@@ -108,13 +115,22 @@ export function InventoryForm({
     {
       title: 'Действия',
       key: 'actions',
-      render: (_: any, __: any, index: number) => (
+      render: (_: unknown, __: unknown, index: number) => (
         <Button type="link" danger onClick={() => handleRemoveItem(index)}>
           Удалить
         </Button>
       ),
     },
   ];
+
+  // Фильтрация товаров для поиска
+  const filteredProducts = products.filter((product: Product) => {
+    const searchLower = searchValue.toLowerCase();
+    return (
+      product.barcode?.productName?.toLowerCase().includes(searchLower) ||
+      product.barcode?.code?.includes(searchLower)
+    );
+  });
 
   // Обработчики изменений
   const handleQuantityChange = (index: number, value: number) => {
@@ -142,7 +158,7 @@ export function InventoryForm({
       return;
     }
 
-    const product = products?.find((p) => p.id === productId);
+    const product = products.find((p: Product) => p.id === productId);
     if (!product) return;
 
     setItems([
@@ -339,14 +355,6 @@ export function InventoryForm({
       setIsSubmitting(false);
     }
   };
-
-  // Фильтрация товаров для поиска
-  const filteredProducts = products?.filter(
-    (product) =>
-      (product.name || '').toLowerCase().includes(searchValue.toLowerCase()) ||
-      (product.barcode?.code || '').includes(searchValue) ||
-      (product.barcodes || []).some((code) => code.includes(searchValue))
-  );
 
   console.log('Filtered products:', filteredProducts);
 

@@ -235,7 +235,7 @@ export default function WriteOffForm({
                 onChange={handleAddProduct}
                 value={undefined}
                 options={products?.map((product) => ({
-                  label: `${product.name} (${product.sku})`,
+                  label: `${product.name} `,
                   value: product.id,
                 }))}
               />

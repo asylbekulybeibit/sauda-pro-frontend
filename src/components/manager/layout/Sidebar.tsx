@@ -108,10 +108,6 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
           name: 'Инвентаризация',
           href: `/manager/${shopId}/warehouse/inventory`,
         },
-        // {
-        //   name: 'Перемещения',
-        //   href: `/manager/${shopId}/warehouse/transfers`,
-        // },
       ],
     },
     {
@@ -137,7 +133,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       href: `/manager/${shopId}/vehicles`,
       icon: Car,
       color: 'bg-pink-100 text-pink-600',
-    },    
+    },
     {
       name: 'Приглашения',
       href: `/manager/${shopId}/invites`,
