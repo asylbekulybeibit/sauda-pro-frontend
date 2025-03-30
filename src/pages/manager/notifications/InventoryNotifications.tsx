@@ -12,6 +12,7 @@ import {
   Spin,
   Alert,
   Space,
+  Divider,
 } from 'antd';
 import {
   inventoryNotificationsApi,
@@ -21,6 +22,8 @@ import {
 import { useWarehouseProducts } from '@/hooks';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRoleStore } from '@/store/roleStore';
+import { api } from '@/services/api';
+import { LowStockPopoverRef } from '@/components/manager/notifications/LowStockPopover';
 
 const { Title, Text } = Typography;
 
@@ -34,6 +37,10 @@ const InventoryNotifications: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form] = Form.useForm();
+
+  // Создаем ref для доступа к функции обновления колокольчика
+  const lowStockPopoverRef = React.useRef<LowStockPopoverRef>(null);
 
   const { products, loading: loadingProducts } = useWarehouseProducts(
     shopId,
@@ -75,6 +82,8 @@ const InventoryNotifications: React.FC = () => {
           r.id === rule.id ? { ...r, isEnabled: !r.isEnabled } : r
         )
       );
+      // Обновляем колокольчик после изменения правила
+      lowStockPopoverRef.current?.refresh();
     } catch (err) {
       setError('Ошибка при обновлении правила');
       console.error(err);
@@ -84,13 +93,31 @@ const InventoryNotifications: React.FC = () => {
   const handleDeleteRule = async (ruleId: string) => {
     if (!shopId) return;
 
-    try {
-      await inventoryNotificationsApi.delete(shopId, ruleId);
-      setRules(rules.filter((r) => r.id !== ruleId));
-    } catch (err) {
-      setError('Ошибка при удалении правила');
-      console.error(err);
-    }
+    // Находим название товара для отображения в модальном окне
+    const rule = rules.find((r) => r.id === ruleId);
+    const productName = products?.find((p) => p.id === rule?.warehouseProductId)
+      ?.barcode?.productName;
+
+    Modal.confirm({
+      title: 'Подтверждение удаления',
+      content: `Вы действительно хотите удалить правило уведомления для товара "${productName}"? Это действие нельзя отменить.`,
+      okText: 'Удалить',
+      cancelText: 'Отмена',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await inventoryNotificationsApi.delete(shopId, ruleId);
+          setRules(rules.filter((r) => r.id !== ruleId));
+          // Обновляем колокольчик после удаления правила
+          lowStockPopoverRef.current?.refresh();
+        } catch (err: any) {
+          const errorMessage =
+            err.response?.data?.message || 'Ошибка при удалении правила';
+          setError(errorMessage);
+          console.error('Error deleting rule:', err);
+        }
+      },
+    });
   };
 
   // Опции для выбора продукта
@@ -105,14 +132,31 @@ const InventoryNotifications: React.FC = () => {
     if (!shopId || !warehouseId) return;
 
     try {
+      // Сначала обновляем интервал уведомлений
+      await api.patch(
+        `/shops/${shopId}/notifications/whatsapp/interval`,
+        {
+          intervalHours: values.intervalHours,
+        },
+        {
+          params: { warehouseId },
+        }
+      );
+
+      // Затем создаем правило
       const savedRule = await inventoryNotificationsApi.create(shopId, {
-        ...values,
+        warehouseProductId: values.warehouseProductId,
         warehouseId,
+        minQuantity: values.minQuantity,
         notifyVia: ['whatsapp'],
         isEnabled: true,
       });
+
       setRules([...rules, savedRule]);
       setIsModalOpen(false);
+      form.resetFields();
+      // Обновляем колокольчик после создания правила
+      lowStockPopoverRef.current?.refresh();
     } catch (err) {
       setError('Ошибка при сохранении правила');
       console.error(err);
@@ -149,10 +193,18 @@ const InventoryNotifications: React.FC = () => {
       <Modal
         title="Добавить правило"
         open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
+        onCancel={() => {
+          setIsModalOpen(false);
+          form.resetFields();
+        }}
         footer={null}
       >
-        <Form onFinish={handleCreate} layout="vertical">
+        <Form
+          form={form}
+          onFinish={handleCreate}
+          layout="vertical"
+          initialValues={{ intervalHours: 24 }}
+        >
           <Form.Item
             name="warehouseProductId"
             label="Товар"
@@ -179,9 +231,27 @@ const InventoryNotifications: React.FC = () => {
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
 
+          <Divider />
+
+          <Form.Item
+            name="intervalHours"
+            label="Интервал между уведомлениями (часов)"
+            rules={[{ required: true, message: 'Укажите интервал' }]}
+            extra="Этот интервал будет применяться ко всем товарам с низким остатком. После отправки уведомления, следующее будет отправлено только после истечения указанного времени."
+          >
+            <InputNumber min={1} max={168} style={{ width: '100%' }} />
+          </Form.Item>
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setIsModalOpen(false)}>Отмена</Button>
+              <Button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  form.resetFields();
+                }}
+              >
+                Отмена
+              </Button>
               <Button
                 type="primary"
                 htmlType="submit"

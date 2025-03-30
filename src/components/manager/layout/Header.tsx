@@ -8,7 +8,10 @@ import { ManagerSidebar } from '@/components/manager/layout/Sidebar';
 import { useAuthStore } from '@/store/authStore';
 import { RoleType } from '@/types/role';
 import { useMinQuantityWarning } from '@/hooks/useMinQuantityWarning';
-import { LowStockPopover } from '../notifications/LowStockPopover';
+import {
+  LowStockPopover,
+  LowStockPopoverRef,
+} from '../notifications/LowStockPopover';
 
 export function ManagerHeader() {
   const { shopId } = useParams<{ shopId: string }>();
@@ -18,6 +21,7 @@ export function ManagerHeader() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const lowStockPopoverRef = useRef<LowStockPopoverRef>(null);
 
   const warehouseId =
     currentRole?.type === 'shop' ? currentRole.warehouse?.id : undefined;
@@ -110,7 +114,7 @@ export function ManagerHeader() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <LowStockPopover />
+              <LowStockPopover ref={lowStockPopoverRef} />
               <div className="ml-4 relative flex-shrink-0" ref={menuRef}>
                 <button
                   onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
