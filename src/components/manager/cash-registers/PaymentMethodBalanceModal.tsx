@@ -403,7 +403,7 @@ export function PaymentMethodBalanceModal({
                 type="primary"
                 htmlType="submit"
                 loading={depositMutation.isPending}
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 Пополнить баланс
               </Button>
