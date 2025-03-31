@@ -35,6 +35,12 @@ const AnalyticsPage = lazy(
 );
 const DebtsPage = lazy(() => import('./pages/manager/warehouse/DebtsPage'));
 
+// Импорты для страниц кассира
+const CashierSalesPage = lazy(() => import('./pages/cashier/SalesPage'));
+const CashierShiftPage = lazy(() => import('./pages/cashier/ShiftPage'));
+const CashierHistoryPage = lazy(() => import('./pages/cashier/HistoryPage'));
+const CashierReturnsPage = lazy(() => import('./pages/cashier/ReturnsPage'));
+
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const ProductsPage = lazy(
   () => import('./pages/manager/products/ProductsPage')
@@ -224,6 +230,31 @@ export default function App() {
               {/* Защищенные маршруты */}
               <Route element={<AuthGuard />}>
                 <Route path="/profile" element={<ProfilePage />} />
+
+                {/* Маршруты для кассира */}
+                <Route
+                  path="/cashier/:warehouseId/*"
+                  element={
+                    <RoleGuard
+                      allowedRoles={[
+                        RoleType.CASHIER,
+                        RoleType.MANAGER,
+                        RoleType.OWNER,
+                      ]}
+                    >
+                      <Suspense fallback={<LoadingFallback />}>
+                        <Outlet />
+                      </Suspense>
+                    </RoleGuard>
+                  }
+                >
+                  <Route path="sales" element={<CashierSalesPage />} />
+                  <Route path="shift" element={<CashierShiftPage />} />
+                  <Route path="history" element={<CashierHistoryPage />} />
+                  <Route path="returns" element={<CashierReturnsPage />} />
+                  <Route index element={<Navigate to="sales" replace />} />
+                  {/* В будущем здесь будут другие маршруты кассира */}
+                </Route>
 
                 {/* Маршруты админ-панели */}
                 <Route

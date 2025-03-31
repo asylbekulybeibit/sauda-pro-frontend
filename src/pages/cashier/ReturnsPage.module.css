@@ -1,0 +1,297 @@
+.returnsPage {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.pageTitle {
+  margin: 0 0 1rem;
+  font-size: 1.8rem;
+  color: #333;
+}
+
+.searchSection {
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.searchForm {
+  display: flex;
+  gap: 1rem;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.searchButton {
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.searchButton:hover {
+  background-color: #40a9ff;
+}
+
+.searchButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #f5222d;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.success {
+  color: #52c41a;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  padding: 0.8rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.contentContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  overflow: hidden;
+}
+
+.receiptsList {
+  padding: 1rem;
+}
+
+.receiptsTable {
+  width: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 100px;
+  background-color: #fafafa;
+  font-weight: 500;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.headerCell {
+  padding: 0 0.5rem;
+}
+
+.tableBody {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px 100px;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tableRow:hover {
+  background-color: #f5f5f5;
+}
+
+.cell {
+  padding: 0 0.5rem;
+  align-self: center;
+}
+
+.selectButton {
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.selectButton:hover {
+  background-color: #40a9ff;
+}
+
+.returnForm {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.receiptHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.receiptHeader h2 {
+  margin: 0;
+  color: #333;
+}
+
+.receiptInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.itemsTable {
+  width: 100%;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.itemsTable .tableHeader {
+  grid-template-columns: 40px 1fr 100px 100px 120px;
+}
+
+.itemsTable .tableRow {
+  grid-template-columns: 40px 1fr 100px 100px 120px;
+}
+
+.checkboxCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.returnSummary {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.returnReasonSection {
+  margin-top: 1rem;
+}
+
+.returnReasonSection h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.reasonTextarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2rem;
+  font-weight: 500;
+  font-size: 1.2rem;
+}
+
+.totalLabel {
+  color: #555;
+}
+
+.totalValue {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cancelButton {
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.cancelButton:hover {
+  background-color: #f5f5f5;
+}
+
+.returnButton {
+  background-color: #1890ff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.returnButton:hover {
+  background-color: #40a9ff;
+}
+
+.returnButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  color: #999;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.loading {
+  color: #1890ff;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+/* Адаптация для печати */
+@media print {
+  .searchSection,
+  .actions,
+  .cancelButton,
+  .returnButton {
+    display: none;
+  }
+}

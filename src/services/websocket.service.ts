@@ -1,5 +1,6 @@
 import { Manager } from 'socket.io-client';
-import { API_URL } from '../config';
+// Локальное определение API_URL для веб-сокетов
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export interface WebSocketNotification {
   id: string;

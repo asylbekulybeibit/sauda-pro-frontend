@@ -1,0 +1,88 @@
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.productsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.productsTable th,
+.productsTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.productsTable th {
+  background-color: #f9f9f9;
+  font-weight: bold;
+  color: #333;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tableRow:hover {
+  background-color: #f5f5f5;
+}
+
+.checkboxColumn {
+  width: 40px;
+}
+
+.numberColumn {
+  width: 60px;
+}
+
+.nameColumn {
+  width: 30%;
+}
+
+.priceColumn,
+.quantityColumn,
+.discountColumn,
+.totalColumn {
+  width: 15%;
+}
+
+.quantityControl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100px;
+}
+
+.quantityButton {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: 4px;
+}
+
+.quantityButton:hover {
+  background-color: #e0e0e0;
+}
+
+.quantityValue {
+  padding: 0 10px;
+  font-weight: bold;
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
