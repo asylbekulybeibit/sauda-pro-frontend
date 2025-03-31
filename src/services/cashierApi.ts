@@ -75,31 +75,37 @@ export const cashierApi = {
    */
   async getCurrentShift(warehouseId: string) {
     console.log('API: Запрос текущей смены для warehouseId:', warehouseId);
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/shift/current`,
-      {
-        headers: getAuthHeader(),
+    try {
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/shift/current`,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      console.log('API: Получен ответ текущей смены:', response.data);
+      // Преобразуем данные, если нужно
+      if (response.data && response.data.status) {
+        console.log('API: Исходный статус смены:', response.data.status);
+        // Преобразование к нижнему регистру, если это строка
+        if (typeof response.data.status === 'string') {
+          response.data.status = response.data.status.toLowerCase();
+          console.log(
+            'API: Статус смены после преобразования:',
+            response.data.status
+          );
+        }
       }
-    );
-    console.log('API: Получен ответ текущей смены:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при получении текущей смены:', error);
 
-    // Если сервер не вернул статус смены, добавляем его
-    if (response.data) {
-      if (!response.data.status) {
-        console.log('API: Статус смены отсутствует, устанавливаем "open"');
-        response.data.status = 'open';
-      } else if (typeof response.data.status === 'string') {
-        // Приводим к нижнему регистру, если это строка
-        response.data.status = response.data.status.toLowerCase();
-        console.log(
-          'API: Статус смены после преобразования:',
-          response.data.status
-        );
+      // Проверяем, является ли ошибка отсутствием открытой смены (404)
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.log('API: Открытая смена не найдена (404)');
       }
+
+      throw error; // Пробрасываем ошибку дальше для обработки в компонентах
     }
-
-    console.log('API: Окончательный ответ:', response.data);
-    return response.data;
   },
 
   /**
@@ -118,20 +124,15 @@ export const cashierApi = {
       }
     );
     console.log('API: Получен ответ на открытие смены:', response.data);
-
-    // Если сервер не вернул статус смены, добавляем его
-    if (response.data) {
-      if (!response.data.status) {
-        console.log('API: Статус смены отсутствует, устанавливаем "open"');
-        response.data.status = 'open';
-      } else if (typeof response.data.status === 'string') {
-        // Приводим к нижнему регистру, если это строка
+    // Преобразуем данные, если нужно
+    if (response.data && response.data.status) {
+      console.log('API: Исходный статус:', response.data.status);
+      // Преобразование к нижнему регистру, если это строка
+      if (typeof response.data.status === 'string') {
         response.data.status = response.data.status.toLowerCase();
         console.log('API: Статус после преобразования:', response.data.status);
       }
     }
-
-    console.log('API: Окончательный ответ:', response.data);
     return response.data;
   },
 
@@ -142,14 +143,36 @@ export const cashierApi = {
     warehouseId: string,
     data: { shiftId: string; finalAmount: number; notes?: string }
   ) {
-    const response = await axios.post(
-      `${API_URL}/manager/${warehouseId}/cashier/shift/close`,
-      data,
-      {
-        headers: getAuthHeader(),
+    console.log('API: Запрос на закрытие смены:', { warehouseId, data });
+    try {
+      const response = await axios.post(
+        `${API_URL}/manager/${warehouseId}/cashier/shift/close`,
+        data,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      console.log('API: Получен ответ на закрытие смены:', response.data);
+      // Преобразуем данные, если нужно
+      if (response.data && response.data.status) {
+        console.log(
+          'API: Исходный статус после закрытия:',
+          response.data.status
+        );
+        // Преобразование к нижнему регистру, если это строка
+        if (typeof response.data.status === 'string') {
+          response.data.status = response.data.status.toLowerCase();
+          console.log(
+            'API: Статус после преобразования:',
+            response.data.status
+          );
+        }
       }
-    );
-    return response.data;
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при закрытии смены:', error);
+      throw error;
+    }
   },
 
   /**
@@ -248,27 +271,80 @@ export const cashierApi = {
    * Получение списка чеков
    */
   async getReceipts(warehouseId: string, filters?: { date?: string }) {
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/receipts`,
-      {
-        params: filters,
-        headers: getAuthHeader(),
+    try {
+      // Создаем URL с параметрами вручную, чтобы предотвратить автоматический показ ошибок в консоли
+      let url = `${API_URL}/manager/${warehouseId}/cashier/receipts`;
+
+      // Добавляем параметры запроса, если они есть
+      if (filters?.date) {
+        url += `?date=${encodeURIComponent(filters.date)}`;
       }
-    );
-    return response.data;
+
+      console.log(
+        'API: Запрос чеков для warehouseId:',
+        warehouseId,
+        'URL:',
+        url
+      );
+
+      const response = await axios.get(url, {
+        headers: getAuthHeader(),
+        // Если нужно предотвратить логирование ошибок 404 в консоли:
+        validateStatus: function (status) {
+          return status === 200 || status === 404; // 404 также считаем успешным ответом
+        },
+      });
+
+      // Проверяем статус ответа
+      if (response.status === 404) {
+        console.log(
+          'API: Чеки не найдены (статус 404), возвращаем пустой массив'
+        );
+        return [];
+      }
+
+      console.log('API: Получен ответ со списком чеков:', response.data);
+      return response.data;
+    } catch (error) {
+      // Эта часть выполнится только для реальных проблем, кроме 404
+      console.error('API: Ошибка при получении списка чеков:', error);
+      return [];
+    }
   },
 
   /**
    * Получение деталей чека
    */
   async getReceiptDetails(warehouseId: string, receiptId: string) {
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
-      {
-        headers: getAuthHeader(),
+    try {
+      console.log('API: Запрос деталей чека:', { warehouseId, receiptId });
+
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
+        {
+          headers: getAuthHeader(),
+          // Если нужно предотвратить логирование ошибок 404 в консоли:
+          validateStatus: function (status) {
+            return status === 200 || status === 404; // 404 также считаем успешным ответом
+          },
+        }
+      );
+
+      // Проверяем статус ответа
+      if (response.status === 404) {
+        console.log(
+          'API: Детали чека не найдены (статус 404), возвращаем пустой объект'
+        );
+        return { items: [] };
       }
-    );
-    return response.data;
+
+      console.log('API: Получен ответ с деталями чека:', response.data);
+      return response.data;
+    } catch (error) {
+      // Эта часть выполнится только для реальных проблем, кроме 404
+      console.error('API: Ошибка при получении деталей чека:', error);
+      return { items: [] };
+    }
   },
 
   /**

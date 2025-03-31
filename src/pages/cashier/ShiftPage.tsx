@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import CashierLayout, {
   useShift,
 } from '../../components/cashier/CashierLayout';
@@ -18,9 +18,6 @@ const ShiftPage: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   // Загрузка текущей смены и списка касс при монтировании компонента
   useEffect(() => {
@@ -44,12 +41,30 @@ const ShiftPage: React.FC = () => {
               : Number(data.currentAmount) || 0
           );
           setError(null);
-        } catch (err) {
-          console.error('Текущая смена не найдена:', err);
+        } catch (errUnknown: unknown) {
+          console.log('Текущая смена не найдена:', errUnknown);
           setCurrentShift(null);
-          setError(
-            'Текущая смена не найдена. Откройте новую смену для начала работы.'
-          );
+
+          // Приводим ошибку к типу с response
+          const err = errUnknown as {
+            response?: {
+              status: number;
+            };
+          };
+
+          // Проверяем, является ли ошибка 404 (смена не найдена)
+          const is404Error = err.response && err.response.status === 404;
+
+          if (is404Error) {
+            setError(
+              'Нет открытой смены. Откройте новую смену для начала работы.'
+            );
+          } else {
+            console.error('Ошибка при получении данных о смене:', errUnknown);
+            setError(
+              'Не удалось загрузить данные о смене. Пожалуйста, обновите страницу.'
+            );
+          }
         }
       } catch (err) {
         console.error('Ошибка при загрузке данных:', err);
@@ -81,89 +96,109 @@ const ShiftPage: React.FC = () => {
     }
   };
 
-  // Определение интерфейса для данных открытия смены
-  interface OpenShiftFormValues {
-    cashRegisterId: string;
-    initialAmount: string;
-  }
-
   const handleOpenShift = async () => {
     if (!warehouseId || !selectedRegisterId) return;
 
+    setLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      console.log('Пытаемся открыть смену с параметрами:', {
-        warehouseId,
+      console.log('=== ОТКРЫТИЕ СМЕНЫ ===');
+      console.log('warehouseId:', warehouseId);
+      console.log('cashRegisterId:', selectedRegisterId);
+      console.log('initialAmount:', initialAmount);
+
+      const data = await cashierApi.openShift(warehouseId, {
         cashRegisterId: selectedRegisterId,
         initialAmount: initialAmount,
       });
 
-      const data = await cashierApi.openShift(warehouseId as string, {
-        cashRegisterId: selectedRegisterId,
-        initialAmount: parseFloat(initialAmount.toString()),
-      });
-
+      console.log('=== ОТВЕТ ОТ СЕРВЕРА (СМЕНА ОТКРЫТА) ===');
       console.log('Данные новой смены (сырые):', JSON.stringify(data));
       console.log('Статус новой смены:', data?.status);
       console.log('Тип статуса:', typeof data?.status);
 
-      // Если статус не установлен, установим его явно
-      if (!data.status) {
-        console.log('Статус отсутствует, устанавливаем явно');
-        data.status = 'open';
-      }
-
-      // Убедимся, что статус будет строго строковый и в нижнем регистре
-      if (typeof data.status === 'string') {
-        data.status = data.status.toLowerCase();
-      }
-
       setCurrentShift(data);
       console.log('Установлен локальный currentShift:', data);
 
-      // Обновляем статус в CashierContext
-      if (updateShiftStatus) {
-        console.log('Вызываем updateShiftStatus из ShiftPage');
-        await updateShiftStatus();
-        console.log('updateShiftStatus завершён');
+      // Обновляем статус смены в CashierLayout
+      console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
+      try {
+        const updatedShift = await updateShiftStatus();
+        console.log('Статус обновлен, получена смена:', updatedShift);
+      } catch (updateError) {
+        console.error('Ошибка при обновлении статуса:', updateError);
       }
 
-      navigate('/cashier');
-    } catch (error: any) {
-      console.error('Ошибка при открытии смены:', error);
-      setErrorMessage(error.message || 'Произошла ошибка при открытии смены');
+      // Устанавливаем финальную сумму равной начальной
+      setFinalAmount(
+        typeof data.currentAmount === 'number'
+          ? data.currentAmount
+          : Number(data.currentAmount) || initialAmount
+      );
+      console.log('Установлена финальная сумма:', finalAmount);
+    } catch (err) {
+      console.error('=== ОШИБКА ПРИ ОТКРЫТИИ СМЕНЫ ===', err);
+      setError(
+        'Не удалось открыть смену. Проверьте, что такая смена еще не открыта.'
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const handleCloseShift = async () => {
     if (!warehouseId || !currentShift) return;
 
+    console.log('=== ЗАКРЫТИЕ СМЕНЫ ===');
+    console.log('warehouseId:', warehouseId);
+    console.log('shiftId:', currentShift.id);
+    console.log('finalAmount:', finalAmount);
+    console.log('notes:', notes);
+
     setLoading(true);
     setError(null);
     try {
-      await cashierApi.closeShift(warehouseId, {
+      console.log('Вызов API для закрытия смены...');
+      const response = await cashierApi.closeShift(warehouseId, {
         shiftId: currentShift.id,
         finalAmount: Number(finalAmount),
         notes: notes,
       });
+
+      console.log('=== ОТВЕТ ОТ СЕРВЕРА (СМЕНА ЗАКРЫТА) ===');
+      console.log('Данные закрытой смены:', response);
+      console.log('Статус закрытой смены:', response?.status);
+
       setCurrentShift(null);
+      console.log('Сброшен локальный currentShift на null');
 
       // Обновляем статус смены в CashierLayout
-      updateShiftStatus();
+      console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
+      try {
+        const updatedShift = await updateShiftStatus();
+        console.log('Статус обновлен, новая смена:', updatedShift);
+      } catch (updateError) {
+        console.error('Ошибка при обновлении статуса:', updateError);
+      }
 
       // Сбрасываем поля формы
       setInitialAmount(0);
       setFinalAmount(0);
       setNotes('');
       setSelectedRegisterId('');
-      alert('Смена успешно закрыта');
+      console.log('Поля формы сброшены');
     } catch (err) {
-      console.error('Ошибка при закрытии смены:', err);
+      console.error('=== ОШИБКА ПРИ ЗАКРЫТИИ СМЕНЫ ===', err);
+      console.log(
+        'Тип ошибки:',
+        err instanceof Error ? err.constructor.name : typeof err
+      );
+      console.log('Данные ошибки:', err);
+
       setError('Не удалось закрыть смену. Проверьте введенные данные.');
     } finally {
       setLoading(false);
+      console.log('=== ЗАВЕРШЕНО ЗАКРЫТИЕ СМЕНЫ ===');
     }
   };
 
@@ -296,8 +331,46 @@ const ShiftPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className={styles.error}>
-            Произошла ошибка при загрузке данных. Пожалуйста, обновите страницу.
+          <div className={styles.noShift}>
+            <div className={styles.info}>
+              Нет открытой смены. Откройте новую смену для начала работы.
+            </div>
+            <h2>Открытие смены</h2>
+            <div className={styles.formGroup}>
+              <label>Выберите кассу:</label>
+              <select
+                value={selectedRegisterId}
+                onChange={(e) => setSelectedRegisterId(e.target.value)}
+                className={styles.select}
+              >
+                <option value="">Выберите кассу</option>
+                {cashRegisters.map((register) => (
+                  <option key={register.id} value={register.id}>
+                    {register.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Начальная сумма в кассе:</label>
+              <input
+                type="number"
+                value={initialAmount}
+                onChange={(e) => setInitialAmount(Number(e.target.value))}
+                className={styles.input}
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <button
+              onClick={handleOpenShift}
+              className={styles.button}
+              disabled={!selectedRegisterId}
+            >
+              Открыть смену
+            </button>
           </div>
         )}
       </div>

@@ -40,19 +40,6 @@
   color: #ff3b30; /* Яркий красный цвет */
 }
 
-.refreshButton {
-  display: inline-block;
-  margin-left: 5px;
-  font-size: 18px;
-  cursor: pointer;
-  color: white;
-  transition: transform 0.3s ease;
-}
-
-.refreshButton:hover {
-  transform: rotate(180deg);
-}
-
 .navigation {
   display: flex;
   gap: 15px;

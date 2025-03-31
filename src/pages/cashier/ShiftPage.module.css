@@ -29,6 +29,15 @@
   margin: 20px 0;
 }
 
+.info {
+  color: #1976d2;
+  padding: 20px;
+  text-align: center;
+  background-color: #e3f2fd;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
 .noShift,
 .currentShift {
   background-color: #f9f9f9;
