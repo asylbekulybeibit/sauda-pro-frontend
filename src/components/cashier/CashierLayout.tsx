@@ -315,14 +315,10 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
       const isAuth = await checkAuthorization();
       if (!isAuth) return;
 
-      // Получаем данные о текущей смене, только если не находимся на странице истории
-      if (!location.pathname.includes('/history')) {
-        fetchCurrentShift();
-      } else {
-        console.log(
-          'Пропускаем начальный запрос смены для страницы истории продаж'
-        );
-      }
+      // Получаем данные о текущей смене при первой загрузке
+      // для всех страниц, чтобы корректно отображать индикатор
+      console.log('Первичная проверка текущей смены');
+      fetchCurrentShift();
 
       // Остальной код эффекта выполняется только если пользователь авторизован
       if (!warehouseId || warehouseId === 'undefined') {
@@ -349,12 +345,23 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
   // Обновляем информацию о смене при изменении маршрута
   useEffect(() => {
     if (isAuthorized && warehouseId) {
-      // Не запрашиваем смену для страницы истории продаж, так как она может работать без открытой смены
-      if (location.pathname.includes('/history')) {
-        console.log('Пропускаем запрос смены для страницы истории продаж');
+      // Запрашиваем смену один раз при инициализации даже для страницы истории
+      // чтобы корректно показать индикатор
+      if (!currentShift) {
+        console.log('Запрашиваем смену при инициализации для всех страниц');
+        fetchCurrentShift();
         return;
       }
-      fetchCurrentShift();
+
+      // Для остальных страниц кроме истории обновляем смену при каждой навигации
+      if (!location.pathname.includes('/history')) {
+        console.log('Обновляем смену при навигации на неисторической странице');
+        fetchCurrentShift();
+      } else {
+        console.log(
+          'Пропускаем запрос смены при навигации на страницу истории продаж'
+        );
+      }
     }
   }, [location.pathname, warehouseId, isAuthorized]);
 
@@ -450,15 +457,30 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
     }
   };
 
+  // Определяем класс для хедера в зависимости от текущей страницы
+  const getHeaderClass = () => {
+    if (location.pathname.includes('/sales')) {
+      return styles.headerSales;
+    } else if (location.pathname.includes('/returns')) {
+      return styles.headerReturns;
+    } else if (location.pathname.includes('/shift')) {
+      return styles.headerShift;
+    } else if (location.pathname.includes('/history')) {
+      return styles.headerHistory;
+    }
+    // По умолчанию возвращаем стиль для продаж
+    return styles.headerSales;
+  };
+
   return (
     <ShiftContext.Provider value={{ updateShiftStatus, currentShift }}>
       <div className={styles.cashierLayout}>
-        <header className={styles.header}>
+        <header className={`${styles.header} ${getHeaderClass()}`}>
           <div className={styles.headerInfo}>
             <div className={styles.cashInfo}>Касса - {cashRegisterName}</div>
             <div className={styles.timeInfo}>ВРЕМЯ: {currentTime}</div>
             <div className={styles.cashierInfo}>КАССИР: {cashierName}</div>
-            <div className={styles.versionInfo}>v 1.0.0</div>
+            <div className={styles.versionInfo}>v 4.0.8</div>
             <div
               className={`${styles.statusIndicator} ${
                 currentShift &&
@@ -498,10 +520,12 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
                     ? 'Зеленый (открыт)'
                     : 'Красный (закрыт)'
                 );
-                // Не обновляем статус на странице истории
-                if (!location.pathname.includes('/history')) {
-                  updateShiftStatus();
-                }
+
+                // Всегда обновляем статус смены при клике на индикатор для диагностики,
+                // даже на странице истории
+                updateShiftStatus().then((shift) => {
+                  console.log('Статус смены после обновления:', shift?.status);
+                });
               }}
             >
               ●
@@ -541,8 +565,12 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
               ИСТОРИЯ ПРОДАЖ
             </Link>
             <button
-              onClick={handleGoToProfile}
-              className={`${styles.navLink} ${styles.profileButton}`}
+              onClick={() => {
+                console.log('Выход из системы...');
+                localStorage.removeItem('accessToken');
+                navigate('/login', { replace: true });
+              }}
+              className={styles.profileButton}
             >
               ВЫЙТИ
             </button>

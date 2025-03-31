@@ -5,19 +5,78 @@
   background-color: #f5f5f5;
 }
 
+/* Базовый стиль хедера */
 .header {
-  background-color: #00a65a;
-  color: white;
-  padding: 5px 10px;
+  color: #000;
+  padding: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 40px; /* Фиксированная высота хедера */
+  position: relative; /* Для позиционирования активной вкладки */
+  overflow: visible; /* Чтобы активная вкладка могла выходить за границы */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Тень для хедера */
 }
 
+/* Информационная часть хедера */
 .headerInfo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
+  padding: 0 15px;
+}
+
+/* Разные цвета хедера в зависимости от активной страницы */
+.headerSales {
+  background-color: #00a65a; /* Зеленый для продаж */
+}
+.headerSales .cashInfo,
+.headerSales .timeInfo,
+.headerSales .cashierInfo,
+.headerSales .versionInfo {
+  color: #000; /* Черный текст */
+}
+.headerSales .profileButton {
+  color: #000; /* Черный текст */
+}
+
+.headerReturns {
+  background-color: #f7ca18; /* Желтый для возвратов */
+}
+.headerReturns .cashInfo,
+.headerReturns .timeInfo,
+.headerReturns .cashierInfo,
+.headerReturns .versionInfo {
+  color: #000; /* Черный текст */
+}
+.headerReturns .profileButton {
+  color: #000; /* Черный текст */
+}
+
+.headerShift {
+  background-color: #dd4b39; /* Красный для смены */
+}
+.headerShift .cashInfo,
+.headerShift .timeInfo,
+.headerShift .cashierInfo,
+.headerShift .versionInfo {
+  color: #000; /* Черный текст */
+}
+.headerShift .profileButton {
+  color: #000; /* Черный текст */
+}
+
+.headerHistory {
+  background-color: #808080; /* Серый для истории */
+}
+.headerHistory .cashInfo,
+.headerHistory .timeInfo,
+.headerHistory .cashierInfo,
+.headerHistory .versionInfo {
+  color: #000; /* Черный текст */
+}
+.headerHistory .profileButton {
+  color: #000; /* Черный текст */
 }
 
 .cashInfo,
@@ -26,62 +85,92 @@
 .versionInfo {
   font-weight: bold;
   font-size: 14px;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+  color: #000;
 }
 
 .statusIndicator {
   font-size: 20px;
+  margin-left: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
 }
 
 .statusIndicatorOpen {
-  color: #1ce01c; /* Яркий зеленый цвет */
+  color: #00ff00; /* Более яркий зеленый цвет */
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); /* Свечение для зеленого индикатора */
 }
 
 .statusIndicatorClosed {
-  color: #ff3b30; /* Яркий красный цвет */
+  color: #ff0000; /* Более яркий красный цвет */
+  text-shadow: 0 0 5px rgba(255, 0, 0, 0.7); /* Свечение для красного индикатора */
 }
 
 .navigation {
   display: flex;
-  gap: 15px;
+  height: 100%;
+  align-items: stretch;
 }
 
 .navLink {
-  color: white;
+  color: #000;
   text-decoration: none;
-  padding: 10px 20px;
+  padding: 0 16px;
   font-weight: bold;
-  border-radius: 4px;
-  transition: background-color 0.3s ease;
-}
-
-.navLink:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 40px; /* Такая же высота как у хедера */
+  margin: 0;
+  border: none;
 }
 
 .active {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: #fff; /* Белый фон для активной вкладки */
+  color: #000 !important; /* Принудительно черный цвет текста */
+  font-weight: bold;
+  z-index: 1; /* Поднимаем выше хедера */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); /* Тень для выделения активной вкладки */
+  height: 43px; /* Чуть больше чем хедер, чтобы выступать снизу и сверху */
+  margin-top: -2px; /* Смещаем вкладку вверх, чтобы выходила за границу хедера */
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
 }
 
 .profileButton {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1em;
-  color: white;
-  margin-left: 15px;
-  background-color: rgba(0, 0, 0, 0.2);
+  font-weight: bold;
+  padding: 0 16px;
+  font-size: 14px;
   display: flex;
   align-items: center;
+  height: 40px;
+  text-transform: uppercase;
+  margin-left: auto; /* Прижимает кнопку вправо */
+  transition: background-color 0.2s, color 0.2s;
+  color: #000;
 }
 
-.profileButton:hover {
-  background-color: rgba(0, 0, 0, 0.3);
+/* Стили для кнопки ВЫЙТИ по наведению курсора */
+.headerSales .profileButton:hover {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
-.profileButton::before {
-  content: '👤';
-  margin-right: 5px;
-  font-size: 1.1em;
+.headerReturns .profileButton:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.headerShift .profileButton:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.headerHistory .profileButton:hover {
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .mainContent {
