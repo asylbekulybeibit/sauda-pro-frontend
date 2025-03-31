@@ -41,20 +41,24 @@ import { formatPrice } from '@/utils/format';
 import { Product } from '@/types/product';
 import { PurchaseItem } from '@/types/purchase';
 import type { InputRef } from 'antd/lib/input';
+import { PurchasePaymentForm } from './PurchasePaymentForm';
+import { RegisterPaymentMethod } from '@/types/cash-register';
 
 const { Option } = Select;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface PurchaseFormProps {
   shopId: string;
   warehouseId: string;
   id?: string;
+  paymentMethods: RegisterPaymentMethod[];
 }
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
   shopId,
   warehouseId: propWarehouseId,
   id,
+  paymentMethods,
 }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -133,6 +137,16 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     isLoadingSuppliers ||
     isLoadingShop ||
     isLoadingWarehouse;
+
+  // Payments
+  const [payments, setPayments] = useState<
+    {
+      paymentMethodId: string;
+      amount: number;
+      note?: string;
+    }[]
+  >([]);
+  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
 
   // Handlers
   const handleBarcodeSubmit = async () => {
@@ -334,6 +348,14 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     message.success('Товар добавлен');
   };
 
+  const handlePayment = (payment: {
+    paymentMethodId: string;
+    amount: number;
+    note?: string;
+  }) => {
+    setPayments([...payments, payment]);
+  };
+
   const handleSubmit = async (values: any) => {
     if (purchaseItems.length === 0) {
       message.warning('Добавьте хотя бы один товар');
@@ -367,6 +389,20 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           id: warehouse.id,
           address: warehouse.address || '',
         },
+        // Рассчитываем общую сумму прихода
+        totalAmount: purchaseItems.reduce(
+          (sum, item) => sum + item.purchasePrice * item.quantity,
+          0
+        ),
+        // Рассчитываем оплаченную сумму из массива payments
+        paidAmount: payments.reduce((sum, payment) => sum + payment.amount, 0),
+        // Рассчитываем оставшуюся сумму
+        remainingAmount:
+          purchaseItems.reduce(
+            (sum, item) => sum + item.purchasePrice * item.quantity,
+            0
+          ) - payments.reduce((sum, payment) => sum + payment.amount, 0),
+        payments,
       };
 
       await createPurchaseMutation.mutateAsync(purchaseData);
@@ -715,6 +751,108 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
                   )}
                 </div>
               )}
+            />
+
+            <Divider>Оплата</Divider>
+
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <Typography.Text>
+                  Общая сумма:{' '}
+                  {formatPrice(
+                    purchaseItems.reduce(
+                      (sum, item) => sum + item.quantity * item.purchasePrice,
+                      0
+                    )
+                  )}
+                </Typography.Text>
+                <br />
+                <Typography.Text>
+                  Оплачено:{' '}
+                  {formatPrice(payments.reduce((sum, p) => sum + p.amount, 0))}
+                </Typography.Text>
+                <br />
+                <Typography.Text strong>
+                  Осталось оплатить:{' '}
+                  {formatPrice(
+                    purchaseItems.reduce(
+                      (sum, item) => sum + item.quantity * item.purchasePrice,
+                      0
+                    ) - payments.reduce((sum, p) => sum + p.amount, 0)
+                  )}
+                </Typography.Text>
+              </div>
+              <Button
+                type="primary"
+                onClick={() => setIsPaymentModalVisible(true)}
+                className="bg-blue-600 hover:bg-blue-600"
+              >
+                Добавить оплату
+              </Button>
+            </div>
+
+            {payments.length > 0 && (
+              <Table
+                dataSource={payments}
+                columns={[
+                  {
+                    title: 'Метод оплаты',
+                    key: 'paymentMethod',
+                    render: (_, record) => {
+                      const method = paymentMethods.find(
+                        (m) => m.id === record.paymentMethodId
+                      );
+                      return (
+                        method?.name ||
+                        method?.systemType ||
+                        'Неизвестный метод'
+                      );
+                    },
+                  },
+                  {
+                    title: 'Сумма',
+                    dataIndex: 'amount',
+                    key: 'amount',
+                    render: (amount: number) => formatPrice(amount),
+                  },
+                  {
+                    title: 'Примечание',
+                    dataIndex: 'note',
+                    key: 'note',
+                    render: (note: string) => note || '-',
+                  },
+                  {
+                    title: 'Действия',
+                    key: 'actions',
+                    render: (_, __, index) => (
+                      <Button
+                        type="link"
+                        danger
+                        onClick={() => {
+                          const newPayments = [...payments];
+                          newPayments.splice(index, 1);
+                          setPayments(newPayments);
+                        }}
+                      >
+                        Удалить
+                      </Button>
+                    ),
+                  },
+                ]}
+                pagination={false}
+              />
+            )}
+
+            <PurchasePaymentForm
+              totalAmount={purchaseItems.reduce(
+                (sum, item) => sum + item.quantity * item.purchasePrice,
+                0
+              )}
+              paidAmount={payments.reduce((sum, p) => sum + p.amount, 0)}
+              onSubmit={handlePayment}
+              paymentMethods={paymentMethods}
+              visible={isPaymentModalVisible}
+              onClose={() => setIsPaymentModalVisible(false)}
             />
 
             <div className="mt-4 flex justify-end space-x-2">

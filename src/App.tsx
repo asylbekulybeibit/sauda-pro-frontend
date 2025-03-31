@@ -33,6 +33,7 @@ const OwnerStaffPage = lazy(() => import('./pages/owner/StaffPage'));
 const AnalyticsPage = lazy(
   () => import('./pages/manager/analytics/AnalyticsPage')
 );
+const DebtsPage = lazy(() => import('./pages/manager/warehouse/DebtsPage'));
 
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
 const ProductsPage = lazy(
@@ -303,6 +304,7 @@ export default function App() {
                     <Route path="inventory" element={<InventoryPage />} />
                     <Route path="transfers" element={<TransfersPage />} />
                     <Route path="writeoffs" element={<WriteOffsPage />} />
+                    <Route path="debts" element={<DebtsPage />} />
                     <Route
                       path="products/:productId"
                       element={<ProductDetailsPage />}

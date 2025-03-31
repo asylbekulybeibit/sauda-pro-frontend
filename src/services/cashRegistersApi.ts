@@ -147,4 +147,12 @@ export const cashRegistersApi = {
     );
     return data;
   },
+
+  // Получение всех методов оплаты для склада (общие и кассовые)
+  getAllPaymentMethods: async (warehouseId: string) => {
+    const { data } = await api.get(
+      `/manager/${warehouseId}/cash-registers/payment-methods`
+    );
+    return data;
+  },
 };

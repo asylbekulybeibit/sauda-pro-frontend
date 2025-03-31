@@ -9,6 +9,7 @@ import {
   Spin,
   Typography,
   Tag,
+  Select,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,8 @@ import { useContext } from 'react';
 import { ShopContext } from '@/contexts/ShopContext';
 import { Purchase } from '@/types/purchase';
 import { useRoleStore } from '@/store/roleStore';
+import { useGetPaymentMethods } from '../../../hooks/usePaymentMethods';
+import { PurchaseDetails } from '@/components/manager/warehouse/PurchaseDetails';
 
 const { Title } = Typography;
 
@@ -26,6 +29,12 @@ function IncomingPage() {
   const shopContext = useContext(ShopContext);
   const { currentRole } = useRoleStore();
   const [warehouseId, setWarehouseId] = useState<string | undefined>();
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(
+    null
+  );
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'paid' | 'debt'>(
+    'all'
+  );
 
   // Получаем ID склада из текущей роли менеджера
   useEffect(() => {
@@ -51,11 +60,15 @@ function IncomingPage() {
     data: purchases,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ['purchases', warehouseId],
     queryFn: () => getPurchases(warehouseId!),
     enabled: !!warehouseId,
   });
+
+  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } =
+    useGetPaymentMethods(warehouseId!);
 
   useEffect(() => {
     if (error) {
@@ -63,6 +76,20 @@ function IncomingPage() {
       console.error('Error fetching purchases:', error);
     }
   }, [error]);
+
+  // Функция фильтрации приходов
+  const getFilteredPurchases = () => {
+    if (!purchases) return [];
+
+    return purchases.filter((purchase) => {
+      if (paymentFilter === 'all') return true;
+      if (paymentFilter === 'paid')
+        return purchase.paidAmount >= purchase.totalAmount;
+      if (paymentFilter === 'debt')
+        return purchase.paidAmount < purchase.totalAmount;
+      return true;
+    });
+  };
 
   // Table columns configuration
   const columns = [
@@ -129,6 +156,20 @@ function IncomingPage() {
       },
     },
     {
+      title: 'Статус оплаты',
+      key: 'paymentStatus',
+      render: (_: any, record: Purchase) => {
+        const isPaid = record.paidAmount >= record.totalAmount;
+        return (
+          <Tag color={isPaid ? 'green' : 'orange'}>
+            {isPaid
+              ? 'Оплачен'
+              : `Долг: ${formatPrice(record.totalAmount - record.paidAmount)}`}
+          </Tag>
+        );
+      },
+    },
+    {
       title: 'Действия',
       key: 'actions',
       render: (_: any, record: Purchase) => (
@@ -158,7 +199,16 @@ function IncomingPage() {
     navigate(targetUrl);
   };
 
-  if (!warehouseId || shopContext?.loading) {
+  const handlePurchaseClick = (purchase: Purchase) => {
+    setSelectedPurchase(purchase);
+  };
+
+  if (
+    !warehouseId ||
+    shopContext?.loading ||
+    isLoading ||
+    isLoadingPaymentMethods
+  ) {
     return (
       <div className="p-6">
         <div className="flex justify-center items-center h-40">
@@ -173,14 +223,25 @@ function IncomingPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <Title level={2}>Приход товара</Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreatePurchase}
-          className="bg-blue-500 hover:bg-blue-600"
-        >
-          Создать приход
-        </Button>
+        <Space>
+          <Select
+            value={paymentFilter}
+            onChange={setPaymentFilter}
+            style={{ width: 200 }}
+          >
+            <Select.Option value="all">Все приходы</Select.Option>
+            <Select.Option value="paid">Оплаченные</Select.Option>
+            <Select.Option value="debt">С долгом</Select.Option>
+          </Select>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleCreatePurchase}
+            className="bg-blue-500 hover:bg-blue-600"
+          >
+            Создать приход
+          </Button>
+        </Space>
       </div>
 
       <Card>
@@ -190,13 +251,13 @@ function IncomingPage() {
           </div>
         ) : (
           <Table
-            dataSource={purchases || []}
+            dataSource={getFilteredPurchases()}
             columns={columns}
             rowKey="id"
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total) => `Всего ${total} записей`,
             }}
             locale={{
               emptyText: 'Нет данных о приходах',
@@ -204,6 +265,15 @@ function IncomingPage() {
           />
         )}
       </Card>
+
+      {selectedPurchase && (
+        <PurchaseDetails
+          purchase={selectedPurchase}
+          onClose={() => setSelectedPurchase(null)}
+          onUpdate={refetch}
+          paymentMethods={paymentMethods}
+        />
+      )}
     </div>
   );
 }

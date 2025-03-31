@@ -100,6 +100,10 @@ export interface RegisterPaymentMethod {
   currentBalance: number;
   accountDetails?: string;
   cashRegisterId?: string;
+  cashRegister?: {
+    id: string;
+    name: string;
+  };
   warehouseId: string;
   isShared: boolean;
 }

@@ -108,6 +108,10 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
           name: 'Инвентаризация',
           href: `/manager/${shopId}/warehouse/inventory`,
         },
+        {
+          name: 'Долги',
+          href: `/manager/${warehouseId}/debts`,
+        },
       ],
     },
     {

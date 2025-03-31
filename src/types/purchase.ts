@@ -30,21 +30,25 @@ export interface PurchaseItem {
 }
 
 export interface Purchase {
-  id?: string;
+  id: string;
   date: string;
   supplierId?: string;
   warehouseId: string;
-  warehouseName?: string;
-  warehouseAddress?: string;
   comment?: string;
   number?: string;
   items: PurchaseItem[];
-  totalAmount?: number;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  payments?: Array<{
+    paymentMethodId: string;
+    amount: number;
+    note?: string;
+  }>;
   createdAt?: string;
   updatedAt?: string;
   status?: 'draft' | 'completed' | 'cancelled';
   supplierName?: string;
-  warehouseName?: string;
   invoiceNumber?: string;
   supplier?: {
     name: string;
@@ -72,4 +76,10 @@ export interface PurchaseSummary {
   itemsCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PurchasePayment {
+  paymentMethodId: string;
+  amount: number;
+  note?: string;
 }

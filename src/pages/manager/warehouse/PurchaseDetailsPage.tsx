@@ -1,8 +1,13 @@
 import React, { useContext } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import PurchaseDetails from '../../../components/manager/warehouse/PurchaseDetails';
 import { ShopContext } from '@/contexts/ShopContext';
-import { Card, Alert } from 'antd';
+import { Card, Alert, Spin } from 'antd';
+import { getPurchaseById } from '@/services/managerApi';
+import { useGetPaymentMethods } from '@/hooks/usePaymentMethods';
+import { useRoleStore } from '@/store/roleStore';
+import { UserRoleDetails } from '@/types/role';
 
 // Хелпер-функция для извлечения shopId из URL
 const extractShopIdFromPath = (path: string): string | null => {
@@ -15,33 +20,45 @@ const extractShopIdFromPath = (path: string): string | null => {
 };
 
 const PurchaseDetailsPage: React.FC = () => {
-  // Получаем параметры из URL, включая shopId и id прихода
-  const { id, shopId: shopIdFromParams } = useParams<{
-    id: string;
-    shopId: string;
-  }>();
-  const location = useLocation();
-  const shopContext = useContext(ShopContext);
+  const { id } = useParams<{ id: string }>();
+  const { currentRole } = useRoleStore();
 
-  // Пробуем получить shopId разными способами в порядке приоритета
-  const shopIdFromPath = extractShopIdFromPath(location.pathname);
-  const shopId =
-    shopIdFromParams || shopIdFromPath || shopContext?.currentShop?.id;
+  // Получаем warehouseId из текущей роли
+  const warehouseId =
+    (currentRole as UserRoleDetails)?.warehouse?.id ||
+    (currentRole as UserRoleDetails)?.warehouseId;
 
-  console.log('PurchaseDetailsPage rendered with ID param:', id);
-  console.log('PurchaseDetailsPage shopId sources:', {
-    fromParams: shopIdFromParams,
-    fromPath: shopIdFromPath,
-    fromContext: shopContext?.currentShop?.id,
-    used: shopId,
+  console.log('PurchaseDetailsPage rendered with:', {
+    id,
+    warehouseId,
+    currentRole,
   });
 
-  if (!shopId) {
+  // Получаем данные о приходе
+  const {
+    data: purchase,
+    isLoading: isLoadingPurchase,
+    error: purchaseError,
+    refetch: refetchPurchase,
+  } = useQuery({
+    queryKey: ['purchase', id, warehouseId],
+    queryFn: () => getPurchaseById(id!, warehouseId!),
+    enabled: !!id && !!warehouseId,
+  });
+
+  // Получаем методы оплаты
+  const {
+    data: paymentMethods = [],
+    isLoading: isLoadingPaymentMethods,
+    error: paymentMethodsError,
+  } = useGetPaymentMethods(warehouseId || '');
+
+  if (!warehouseId) {
     return (
       <Card>
         <Alert
           message="Ошибка доступа"
-          description="Не удалось определить ID магазина. Пожалуйста, вернитесь на страницу списка приходов и попробуйте снова."
+          description="Не удалось определить ID склада. Пожалуйста, проверьте ваши права доступа."
           type="error"
           showIcon
         />
@@ -62,8 +79,50 @@ const PurchaseDetailsPage: React.FC = () => {
     );
   }
 
-  // Передаем компоненту все возможные параметры через URL
-  return <PurchaseDetails />;
+  if (isLoadingPurchase || isLoadingPaymentMethods) {
+    return (
+      <Card>
+        <div className="flex justify-center items-center p-8">
+          <Spin size="large" />
+        </div>
+      </Card>
+    );
+  }
+
+  if (purchaseError) {
+    return (
+      <Card>
+        <Alert
+          message="Ошибка загрузки"
+          description="Не удалось загрузить данные о приходе. Пожалуйста, попробуйте позже."
+          type="error"
+          showIcon
+        />
+      </Card>
+    );
+  }
+
+  if (paymentMethodsError) {
+    return (
+      <Card>
+        <Alert
+          message="Ошибка загрузки"
+          description="Не удалось загрузить методы оплаты. Пожалуйста, попробуйте позже."
+          type="error"
+          showIcon
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <PurchaseDetails
+      purchase={purchase}
+      paymentMethods={paymentMethods}
+      onClose={() => window.history.back()}
+      onUpdate={refetchPurchase}
+    />
+  );
 };
 
 export default PurchaseDetailsPage;

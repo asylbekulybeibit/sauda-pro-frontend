@@ -6,6 +6,7 @@ import PurchaseForm from '../../../components/manager/warehouse/PurchaseForm';
 import { ShopContext } from '@/contexts/ShopContext';
 import { getPurchaseById } from '@/services/managerApi';
 import { useRoleStore } from '@/store/roleStore';
+import { useGetPaymentMethods } from '@/hooks/usePaymentMethods';
 
 const PurchaseFormPage: React.FC = () => {
   // Получаем параметры из URL, включая shopId из пути
@@ -18,6 +19,9 @@ const PurchaseFormPage: React.FC = () => {
   const shopContext = useContext(ShopContext);
   const { currentRole } = useRoleStore();
   const [warehouseId, setWarehouseId] = useState<string | undefined>();
+
+  const { data: paymentMethods = [], isLoading: isLoadingPaymentMethods } =
+    useGetPaymentMethods(warehouseId!);
 
   // Если контекст магазина загружается, показываем спиннер
   if (!shopContext || shopContext.loading) {
@@ -188,24 +192,19 @@ const PurchaseFormPage: React.FC = () => {
     };
   }, [id, shopId]);
 
-  // Проверка статуса прихода, если это режим редактирования
+  // Получаем данные прихода, если есть id
   const {
     data: purchase,
-    isLoading,
-    error,
+    isLoading: isLoadingPurchase,
+    error: purchaseError,
   } = useQuery({
-    queryKey: ['purchase', id, warehouseId],
-    queryFn: () => {
-      if (!warehouseId) {
-        throw new Error('warehouseId не определен');
-      }
-      return getPurchaseById(id!, warehouseId);
-    },
+    queryKey: ['purchase', id],
+    queryFn: () => getPurchaseById(id!, warehouseId!),
     enabled: !!id && !!warehouseId,
   });
 
   // Если не загружен warehouseId, показываем индикатор загрузки
-  if (!warehouseId) {
+  if (!warehouseId || isLoadingPaymentMethods) {
     return (
       <div className="p-6">
         <div className="flex justify-center items-center h-40">
@@ -233,14 +232,16 @@ const PurchaseFormPage: React.FC = () => {
   }
 
   // Если есть ошибка загрузки существующего прихода
-  if (error && id) {
+  if (purchaseError && id) {
     return (
       <div className="p-6">
         <Card>
           <Alert
             message="Ошибка при загрузке прихода"
             description={`Не удалось загрузить данные прихода. ${
-              error instanceof Error ? error.message : 'Неизвестная ошибка'
+              purchaseError instanceof Error
+                ? purchaseError.message
+                : 'Неизвестная ошибка'
             }`}
             type="error"
             showIcon
@@ -288,7 +289,12 @@ const PurchaseFormPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <PurchaseForm shopId={shopId} id={id} warehouseId={warehouseId} />
+      <PurchaseForm
+        shopId={shopId}
+        id={id}
+        warehouseId={warehouseId}
+        paymentMethods={paymentMethods}
+      />
     </div>
   );
 };

@@ -15,6 +15,8 @@ import { RoleType } from '@/types/role';
 import { Purchase } from '@/types/purchase';
 import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
+import { RegisterPaymentMethod } from '@/types/cash-register';
+import { Debt, DebtType, DebtStatus, DebtStatistics } from '@/types/debt';
 
 // Simple error handler for API requests
 const handleApiError = (
@@ -1153,6 +1155,11 @@ export interface CreatePurchaseRequest {
   markup?: number;
   markupType?: 'percentage' | 'fixed';
   status?: 'draft' | 'completed' | 'cancelled';
+  payments?: Array<{
+    paymentMethodId: string;
+    amount: number;
+    note?: string;
+  }>;
 }
 
 export interface PurchaseResponse {
@@ -1176,6 +1183,8 @@ export interface PurchaseResponse {
   }>;
   totalAmount: number;
   comment?: string;
+  paidAmount: number;
+  remainingAmount: number;
 }
 
 export const createPurchase = async (
@@ -1935,4 +1944,113 @@ export const createServiceProduct = async (
   } catch (error) {
     throw handleApiError(error);
   }
+};
+
+// Добавляем новые методы для работы с оплатами
+export const addPurchasePayment = async (
+  purchaseId: string,
+  payment: {
+    paymentMethodId: string;
+    amount: number;
+    note?: string;
+  }
+): Promise<PurchaseResponse> => {
+  try {
+    console.log('[addPurchasePayment] Adding payment:', {
+      purchaseId,
+      payment,
+    });
+
+    const response = await api.post(
+      `/manager/purchases/${purchaseId}/payments`,
+      payment
+    );
+
+    console.log(
+      '[addPurchasePayment] Payment added successfully:',
+      response.data
+    );
+    return response.data;
+  } catch (error) {
+    console.error('[addPurchasePayment] Error adding payment:', error);
+    throw ApiErrorHandler.handle(error);
+  }
+};
+
+export const getPaymentMethods = async (
+  shopId: string
+): Promise<RegisterPaymentMethod[]> => {
+  const response = await api.get(`/api/shops/${shopId}/payment-methods`);
+  return response.data;
+};
+
+export const getDebts = async (warehouseId: string): Promise<Debt[]> => {
+  const response = await api.get(`/api/manager/debts/${warehouseId}`);
+  return response.data;
+};
+
+export const getActiveDebts = async (warehouseId: string): Promise<Debt[]> => {
+  const response = await api.get(`/api/manager/debts/${warehouseId}/active`);
+  return response.data;
+};
+
+export const getDebtsStatistics = async (
+  warehouseId: string
+): Promise<DebtStatistics> => {
+  const response = await api.get(
+    `/api/manager/debts/${warehouseId}/statistics`
+  );
+  return response.data;
+};
+
+export const getDebtsBySupplier = async (
+  supplierId: string
+): Promise<Debt[]> => {
+  const response = await api.get(`/api/manager/debts/supplier/${supplierId}`);
+  return response.data;
+};
+
+export const createDebt = async (data: {
+  warehouseId: string;
+  type: DebtType;
+  status?: DebtStatus;
+  supplierId?: string;
+  totalAmount: number;
+  paidAmount?: number;
+  dueDate?: string;
+  purchaseId?: string;
+  comment?: string;
+}): Promise<Debt> => {
+  const response = await api.post('/api/manager/debts', data);
+  return response.data;
+};
+
+export const addDebtPayment = async (
+  debtId: string,
+  payment: {
+    paymentMethodId: string;
+    amount: number;
+    note?: string;
+  }
+): Promise<Debt> => {
+  const response = await api.post(
+    `/api/manager/debts/${debtId}/payments`,
+    payment
+  );
+  return response.data;
+};
+
+export const cancelDebt = async (debtId: string): Promise<Debt> => {
+  const response = await api.post(`/api/manager/debts/${debtId}/cancel`);
+  return response.data;
+};
+
+export const getPurchasePayments = async (
+  purchaseId: string,
+  warehouseId: string
+) => {
+  const { data } = await api.get(
+    `/manager/purchases/${warehouseId}/${purchaseId}/payments`
+  );
+  return data;
 };
