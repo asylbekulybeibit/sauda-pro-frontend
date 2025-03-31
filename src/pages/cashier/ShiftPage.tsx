@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import CashierLayout, {
   useShift,
 } from '../../components/cashier/CashierLayout';
@@ -18,6 +18,9 @@ const ShiftPage: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Загрузка текущей смены и списка касс при монтировании компонента
   useEffect(() => {
@@ -78,38 +81,59 @@ const ShiftPage: React.FC = () => {
     }
   };
 
+  // Определение интерфейса для данных открытия смены
+  interface OpenShiftFormValues {
+    cashRegisterId: string;
+    initialAmount: string;
+  }
+
   const handleOpenShift = async () => {
     if (!warehouseId || !selectedRegisterId) return;
 
-    setLoading(true);
-    setError(null);
     try {
-      console.log('Отправляем запрос на открытие смены...');
-      const data = await cashierApi.openShift(warehouseId, {
+      setIsLoading(true);
+      console.log('Пытаемся открыть смену с параметрами:', {
+        warehouseId,
         cashRegisterId: selectedRegisterId,
         initialAmount: initialAmount,
       });
-      console.log('Смена успешно открыта:', data);
+
+      const data = await cashierApi.openShift(warehouseId as string, {
+        cashRegisterId: selectedRegisterId,
+        initialAmount: parseFloat(initialAmount.toString()),
+      });
+
+      console.log('Данные новой смены (сырые):', JSON.stringify(data));
+      console.log('Статус новой смены:', data?.status);
+      console.log('Тип статуса:', typeof data?.status);
+
+      // Если статус не установлен, установим его явно
+      if (!data.status) {
+        console.log('Статус отсутствует, устанавливаем явно');
+        data.status = 'open';
+      }
+
+      // Убедимся, что статус будет строго строковый и в нижнем регистре
+      if (typeof data.status === 'string') {
+        data.status = data.status.toLowerCase();
+      }
+
       setCurrentShift(data);
+      console.log('Установлен локальный currentShift:', data);
 
-      // Обновляем статус смены в CashierLayout
-      console.log('Вызываем обновление статуса смены...');
-      await updateShiftStatus();
-      console.log('Обновление статуса смены выполнено');
+      // Обновляем статус в CashierContext
+      if (updateShiftStatus) {
+        console.log('Вызываем updateShiftStatus из ShiftPage');
+        await updateShiftStatus();
+        console.log('updateShiftStatus завершён');
+      }
 
-      // Устанавливаем финальную сумму равной начальной
-      setFinalAmount(
-        typeof data.currentAmount === 'number'
-          ? data.currentAmount
-          : Number(data.currentAmount) || initialAmount
-      );
-    } catch (err) {
-      console.error('Ошибка при открытии смены:', err);
-      setError(
-        'Не удалось открыть смену. Проверьте, что такая смена еще не открыта.'
-      );
+      navigate('/cashier');
+    } catch (error: any) {
+      console.error('Ошибка при открытии смены:', error);
+      setErrorMessage(error.message || 'Произошла ошибка при открытии смены');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 

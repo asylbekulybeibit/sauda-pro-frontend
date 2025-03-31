@@ -74,12 +74,31 @@ export const cashierApi = {
    * Получение информации о текущей смене
    */
   async getCurrentShift(warehouseId: string) {
+    console.log('API: Запрос текущей смены для warehouseId:', warehouseId);
     const response = await axios.get(
       `${API_URL}/manager/${warehouseId}/cashier/shift/current`,
       {
         headers: getAuthHeader(),
       }
     );
+    console.log('API: Получен ответ текущей смены:', response.data);
+
+    // Если сервер не вернул статус смены, добавляем его
+    if (response.data) {
+      if (!response.data.status) {
+        console.log('API: Статус смены отсутствует, устанавливаем "open"');
+        response.data.status = 'open';
+      } else if (typeof response.data.status === 'string') {
+        // Приводим к нижнему регистру, если это строка
+        response.data.status = response.data.status.toLowerCase();
+        console.log(
+          'API: Статус смены после преобразования:',
+          response.data.status
+        );
+      }
+    }
+
+    console.log('API: Окончательный ответ:', response.data);
     return response.data;
   },
 
@@ -90,6 +109,7 @@ export const cashierApi = {
     warehouseId: string,
     data: { cashRegisterId: string; initialAmount: number }
   ) {
+    console.log('API: Запрос на открытие смены:', { warehouseId, data });
     const response = await axios.post(
       `${API_URL}/manager/${warehouseId}/cashier/shift/open`,
       data,
@@ -97,6 +117,21 @@ export const cashierApi = {
         headers: getAuthHeader(),
       }
     );
+    console.log('API: Получен ответ на открытие смены:', response.data);
+
+    // Если сервер не вернул статус смены, добавляем его
+    if (response.data) {
+      if (!response.data.status) {
+        console.log('API: Статус смены отсутствует, устанавливаем "open"');
+        response.data.status = 'open';
+      } else if (typeof response.data.status === 'string') {
+        // Приводим к нижнему регистру, если это строка
+        response.data.status = response.data.status.toLowerCase();
+        console.log('API: Статус после преобразования:', response.data.status);
+      }
+    }
+
+    console.log('API: Окончательный ответ:', response.data);
     return response.data;
   },
 

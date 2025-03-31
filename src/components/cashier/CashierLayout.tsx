@@ -4,6 +4,7 @@ import React, {
   useState,
   createContext,
   useContext,
+  useCallback,
 } from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
@@ -142,25 +143,122 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
   const fetchCurrentShift = async () => {
     if (!warehouseId) return;
 
+    console.log('=== ЗАПРОС ДАННЫХ О СМЕНЕ ===');
+    console.log('warehouseId:', warehouseId);
+
     try {
       const shift = await cashierApi.getCurrentShift(warehouseId);
-      console.log('Получены данные о смене:', shift);
+      console.log('=== ПОЛУЧЕН ОТВЕТ О СМЕНЕ ===');
+      console.log('Данные смены (сырые):', JSON.stringify(shift));
+      console.log('Статус смены:', shift?.status);
+      console.log('Тип статуса:', typeof shift?.status);
+
       setCurrentShift(shift);
+      console.log('Установлен currentShift:', shift);
 
       // Обновляем название кассы из полученной смены
       if (shift && shift.cashRegister && shift.cashRegister.name) {
         setCashRegisterName(shift.cashRegister.name);
+        console.log('Установлено имя кассы:', shift.cashRegister.name);
       } else {
         // Если смена не найдена, показываем информацию о складе
         setCashRegisterName(warehouseName);
+        console.log('Смена не найдена, установлено имя склада:', warehouseName);
       }
     } catch (error) {
-      console.error('Ошибка при получении данных смены:', error);
+      console.error('=== ОШИБКА ПРИ ПОЛУЧЕНИИ ДАННЫХ СМЕНЫ ===', error);
       // В случае ошибки показываем информацию о складе
       setCashRegisterName(warehouseName);
       setCurrentShift(null); // Убедимся, что currentShift сбрасывается при ошибке
+      console.log('Сброшен currentShift в null из-за ошибки');
     }
   };
+
+  // Обрабатываем обновление статуса смены от API
+  const updateShiftStatus = useCallback(async () => {
+    if (!warehouseId) {
+      console.error('updateShiftStatus: warehouseId отсутствует');
+      return;
+    }
+
+    console.log('updateShiftStatus: Начало запроса смены');
+    try {
+      const response = await cashierApi.getCurrentShift(warehouseId);
+      console.log('updateShiftStatus: Получен ответ:', response);
+
+      if (!response) {
+        console.log(
+          'updateShiftStatus: Получен пустой ответ, смена не найдена'
+        );
+        // Обновляем состояние только если текущая смена не равна null
+        if (currentShift !== null) {
+          setCurrentShift(null);
+        }
+        return;
+      }
+
+      console.log('CashierLayout - текущий статус:', response?.status);
+      console.log('CashierLayout - тип статуса:', typeof response?.status);
+
+      // Если статус не установлен, но объект смены существует, установим его вручную
+      let updated = false;
+      if (response && !response.status) {
+        console.log('CashierLayout: Статус отсутствует, устанавливаем "open"');
+        response.status = 'open';
+        response._statusFixed = true;
+        updated = true;
+      }
+
+      // Копируем маркер _statusFixed из текущего состояния, если он есть
+      if (!response._statusFixed && currentShift && currentShift._statusFixed) {
+        response._statusFixed = true;
+        updated = true;
+      }
+
+      // Глубокое сравнение с текущим состоянием, чтобы избежать лишних обновлений
+      let shouldUpdate = false;
+
+      // Сравниваем только если у нас есть текущее состояние
+      if (currentShift) {
+        // Проверяем основные свойства для изменений
+        shouldUpdate =
+          currentShift.id !== response.id ||
+          currentShift.status !== response.status ||
+          currentShift._statusFixed !== response._statusFixed;
+
+        // Если нет изменений в основных свойствах, можно использовать строковое представление
+        if (!shouldUpdate) {
+          const currentShiftStr = JSON.stringify(currentShift);
+          const responseStr = JSON.stringify(response);
+          shouldUpdate = currentShiftStr !== responseStr;
+        }
+      } else {
+        // Если у нас нет текущего состояния, но получен ответ - обновляем
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        console.log('updateShiftStatus: Обнаружены изменения, обновляем state');
+        setCurrentShift(response);
+      } else {
+        console.log(
+          'updateShiftStatus: Изменений не обнаружено, state не обновляем'
+        );
+      }
+
+      console.log(
+        'CashierLayout: Завершение обработки смены:',
+        updated ? 'с изменениями' : 'без изменений'
+      );
+    } catch (error) {
+      console.error('Ошибка при получении данных текущей смены:', error);
+    }
+  }, [
+    warehouseId,
+    currentShift?.id,
+    currentShift?.status,
+    currentShift?._statusFixed,
+  ]); // Уменьшаем зависимости
 
   // Проверка авторизации при загрузке компонента
   useEffect(() => {
@@ -300,9 +398,135 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
   // Обновляем информацию о смене при изменении маршрута
   useEffect(() => {
     if (isAuthorized && warehouseId) {
+      console.log(
+        'Обновление смены при изменении маршрута:',
+        location.pathname
+      );
       fetchCurrentShift();
     }
   }, [location.pathname, warehouseId, isAuthorized]);
+
+  // Отслеживаем изменения currentShift только при изменении id или status
+  useEffect(() => {
+    // Пропускаем, если смены нет или статус уже есть или уже отмечен как исправленный
+    if (!currentShift || currentShift.status || currentShift._statusFixed) {
+      return;
+    }
+
+    console.log(
+      'CashierLayout: обнаружена смена без статуса, устанавливаем "open"'
+    );
+
+    // Используем функциональную форму setState для предотвращения проблем
+    setCurrentShift((prevShift: CashShift | null) => {
+      if (prevShift && !prevShift.status && !prevShift._statusFixed) {
+        return {
+          ...prevShift,
+          status: 'open',
+          _statusFixed: true,
+        };
+      }
+      return prevShift;
+    });
+  }, [currentShift?.id]); // Зависим только от id смены
+
+  // Хук для обновления референса функции updateShiftStatus
+  const updateStatusRef = React.useRef(updateShiftStatus);
+
+  // Обновляем референс при изменении функции
+  useEffect(() => {
+    updateStatusRef.current = updateShiftStatus;
+  }, [updateShiftStatus]);
+
+  // Устанавливаем интервал для периодического обновления статуса
+  useEffect(() => {
+    // Выполняем один раз при монтировании компонента
+    if (warehouseId) {
+      console.log(
+        'Первоначальный запрос статуса смены для warehouseId:',
+        warehouseId
+      );
+      updateShiftStatus();
+    }
+
+    // Обновляем статус каждые 30 секунд
+    const interval = setInterval(() => {
+      if (warehouseId) {
+        console.log('Запрос по интервалу для warehouseId:', warehouseId);
+        // Используем референс функции, чтобы всегда использовать актуальную версию
+        updateStatusRef.current();
+      }
+    }, 30000);
+
+    return () => {
+      console.log('Очистка интервала обновления статуса');
+      clearInterval(interval);
+    };
+  }, [warehouseId]); // Зависим только от warehouseId
+
+  // Получаем имя склада из currentRole
+  const warehouseName =
+    currentRole?.type === 'shop' &&
+    'warehouse' in currentRole &&
+    currentRole.warehouse
+      ? currentRole.warehouse.name
+      : 'Загрузка...';
+
+  // Выводим информацию о текущей роли для диагностики
+  console.log('Текущая роль пользователя:', currentRole);
+
+  const handleGoToProfile = () => {
+    navigate('/profile');
+  };
+
+  const renderStatusIndicator = () => {
+    console.log('Рендеринг индикатора статуса - currentShift:', currentShift);
+
+    // Если смена не загружена или статус не установлен
+    if (!currentShift) {
+      return (
+        <div className={styles.statusIndicatorClosed} title="Смена закрыта">
+          ●
+        </div>
+      );
+    }
+
+    // Выведем информацию о статусе для отладки
+    console.log('Статус смены:', currentShift.status);
+    console.log('Тип статуса:', typeof currentShift.status);
+
+    // Принудительно установим статус, если он равен undefined, но смена существует
+    let status = currentShift.status;
+    if (status === undefined) {
+      console.log('Статус undefined, устанавливаем "open"');
+      status = 'open';
+    }
+
+    // Переведем в нижний регистр для сравнения
+    const lowercaseStatus =
+      typeof status === 'string' ? status.toLowerCase() : status;
+    console.log('Статус в нижнем регистре:', lowercaseStatus);
+    console.log('Условие (open):', lowercaseStatus === 'open');
+
+    return (
+      <div
+        className={
+          lowercaseStatus === 'open'
+            ? styles.statusIndicatorOpen
+            : styles.statusIndicatorClosed
+        }
+        title={lowercaseStatus === 'open' ? 'Смена открыта' : 'Смена закрыта'}
+        onClick={() => {
+          console.log(
+            'ТЕКУЩАЯ СМЕНА (при клике):',
+            JSON.stringify(currentShift, null, 2)
+          );
+        }}
+      >
+        ●
+      </div>
+    );
+  };
 
   // Показываем загрузку, пока не определен статус авторизации
   if (isAuthorized === null) {
@@ -323,36 +547,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
     );
   }
 
-  const handleGoToProfile = () => {
-    navigate('/profile');
-  };
-
-  // Получаем имя склада из currentRole
-  const warehouseName =
-    currentRole?.type === 'shop' &&
-    'warehouse' in currentRole &&
-    currentRole.warehouse
-      ? currentRole.warehouse.name
-      : 'Загрузка...';
-
-  // Выводим информацию о текущей роли для диагностики
-  console.log('Текущая роль пользователя:', currentRole);
-
-  // Функция обновления статуса смены
-  const updateShiftStatus = async () => {
-    console.log('Вызвана функция updateShiftStatus');
-    try {
-      const shift = await cashierApi.getCurrentShift(warehouseId);
-      console.log('Получены новые данные о смене:', shift);
-      setCurrentShift(shift);
-      return shift; // Возвращаем полученные данные
-    } catch (error) {
-      console.error('Ошибка при обновлении статуса смены:', error);
-      setCurrentShift(null);
-      return null;
-    }
-  };
-
   return (
     <ShiftContext.Provider value={{ updateShiftStatus, currentShift }}>
       <div className={styles.cashierLayout}>
@@ -362,24 +556,10 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
             <div className={styles.timeInfo}>ВРЕМЯ: {currentTime}</div>
             <div className={styles.cashierInfo}>КАССИР: {cashierName}</div>
             <div className={styles.versionInfo}>v 1.0.0</div>
-            <div
-              className={`${styles.statusIndicator} ${
-                currentShift &&
-                (currentShift.status === 'open' ||
-                  currentShift.status === 'OPEN')
-                  ? styles.statusIndicatorOpen
-                  : styles.statusIndicatorClosed
-              }`}
-              title={
-                currentShift &&
-                (currentShift.status === 'open' ||
-                  currentShift.status === 'OPEN')
-                  ? 'Смена открыта'
-                  : 'Смена закрыта'
-              }
-            >
-              ●
+            <div className={styles.statusIndicator}>
+              {renderStatusIndicator()}
             </div>
+            
           </div>
           <nav className={styles.navigation}>
             <Link

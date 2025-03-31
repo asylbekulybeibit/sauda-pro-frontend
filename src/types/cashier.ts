@@ -25,6 +25,7 @@ export interface CashShift {
   currentAmount: number | string;
   finalAmount?: number | string;
   status: 'open' | 'closed' | 'interrupted' | 'OPEN' | 'CLOSED' | 'INTERRUPTED';
+  _statusFixed?: boolean;
   cashRegister: {
     id: string;
     name: string;
