@@ -43,10 +43,10 @@ interface DecodedToken {
 
 // Создаем контекст для передачи функции обновления статуса смены
 export const ShiftContext = createContext<{
-  updateShiftStatus: () => void;
+  updateShiftStatus: () => Promise<CashShift | null>;
   currentShift: CashShift | null;
 }>({
-  updateShiftStatus: () => {},
+  updateShiftStatus: async () => null,
   currentShift: null,
 });
 
@@ -358,6 +358,20 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
     }
   }, [location.pathname, warehouseId, isAuthorized]);
 
+  // Отслеживаем изменения в currentShift для отладки
+  useEffect(() => {
+    console.log('=== CashierLayout: ОБНОВЛЕНИЕ СОСТОЯНИЯ СМЕНЫ ===');
+    console.log('currentShift:', currentShift);
+    console.log(
+      'Индикатор смены:',
+      currentShift &&
+        (currentShift.status === 'open' ||
+          (currentShift.startTime && !currentShift.endTime))
+        ? 'зеленый (открыта)'
+        : 'красный (закрыта)'
+    );
+  }, [currentShift]);
+
   // Показываем загрузку, пока не определен статус авторизации
   if (isAuthorized === null) {
     return <div className={styles.loading}>Проверка авторизации...</div>;
@@ -398,11 +412,40 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
     try {
       const shift = await cashierApi.getCurrentShift(warehouseId);
       console.log('Получены новые данные о смене:', shift);
+
+      // Если смена существует, но не имеет поля status, определяем его сами
+      if (shift) {
+        // Если нет статуса, но есть startTime и нет endTime - считаем смену открытой
+        if (!shift.status && shift.startTime && !shift.endTime) {
+          console.log(
+            'Статус отсутствует, но определен по времени как открытый'
+          );
+          shift.status = 'open';
+        }
+        // Если есть status как строка, нормализуем его к нижнему регистру
+        else if (typeof shift.status === 'string') {
+          shift.status = shift.status.toLowerCase();
+          console.log('Статус смены нормализован:', shift.status);
+        }
+      }
+
       setCurrentShift(shift);
+      console.log(
+        'Обновление индикатора:',
+        shift
+          ? `Смена ${
+              shift.status === 'open' || (shift.startTime && !shift.endTime)
+                ? 'открыта (зелёный)'
+                : 'закрыта (красный)'
+            }`
+          : 'Нет смены (красный)'
+      );
+
       return shift; // Возвращаем полученные данные
     } catch (error) {
       console.error('Ошибка при обновлении статуса смены:', error);
       setCurrentShift(null);
+      console.log('Сброс индикатора из-за ошибки: красный');
       return null;
     }
   };
@@ -418,12 +461,16 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
             <div className={styles.versionInfo}>v 1.0.0</div>
             <div
               className={`${styles.statusIndicator} ${
-                currentShift && currentShift.status === 'open'
+                currentShift &&
+                (currentShift.status === 'open' ||
+                  (currentShift.startTime && !currentShift.endTime))
                   ? styles.statusIndicatorOpen
                   : styles.statusIndicatorClosed
               }`}
               title={
-                currentShift && currentShift.status === 'open'
+                currentShift &&
+                (currentShift.status === 'open' ||
+                  (currentShift.startTime && !currentShift.endTime))
                   ? 'Смена открыта'
                   : 'Смена закрыта'
               }
@@ -432,13 +479,22 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
                 console.log('Текущая смена:', currentShift ? 'Есть' : 'Нет');
                 console.log(
                   'Статус смены:',
-                  currentShift?.status || 'Нет смены'
+                  currentShift?.status ||
+                    (currentShift?.startTime && !currentShift?.endTime
+                      ? 'Открыта (определено по времени)'
+                      : 'Нет смены')
                 );
                 console.log('Тип статуса:', typeof currentShift?.status);
                 console.log('Условие (open):', currentShift?.status === 'open');
                 console.log(
+                  'Условие (startTime && !endTime):',
+                  !!(currentShift?.startTime && !currentShift?.endTime)
+                );
+                console.log(
                   'Класс индикатора:',
-                  currentShift && currentShift.status === 'open'
+                  currentShift &&
+                    (currentShift.status === 'open' ||
+                      (currentShift.startTime && !currentShift.endTime))
                     ? 'Зеленый (открыт)'
                     : 'Красный (закрыт)'
                 );

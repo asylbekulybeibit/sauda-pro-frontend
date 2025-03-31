@@ -83,11 +83,26 @@ export const cashierApi = {
         }
       );
       console.log('API: Получен ответ текущей смены:', response.data);
-      // Преобразуем данные, если нужно
-      if (response.data && response.data.status) {
-        console.log('API: Исходный статус смены:', response.data.status);
-        // Преобразование к нижнему регистру, если это строка
-        if (typeof response.data.status === 'string') {
+
+      // Проверяем и обрабатываем данные смены
+      if (response.data) {
+        // Если отсутствует поле status, но есть startTime и нет endTime, определяем статус как 'open'
+        if (
+          !response.data.status &&
+          response.data.startTime &&
+          !response.data.endTime
+        ) {
+          console.log(
+            'API: Статус смены отсутствует, определяем как "open" на основе времени'
+          );
+          response.data.status = 'open';
+        }
+        // Если поле status есть, нормализуем его к нижнему регистру
+        else if (
+          response.data.status &&
+          typeof response.data.status === 'string'
+        ) {
+          console.log('API: Исходный статус смены:', response.data.status);
           response.data.status = response.data.status.toLowerCase();
           console.log(
             'API: Статус смены после преобразования:',
@@ -124,11 +139,26 @@ export const cashierApi = {
       }
     );
     console.log('API: Получен ответ на открытие смены:', response.data);
-    // Преобразуем данные, если нужно
-    if (response.data && response.data.status) {
-      console.log('API: Исходный статус:', response.data.status);
-      // Преобразование к нижнему регистру, если это строка
-      if (typeof response.data.status === 'string') {
+
+    // Проверяем и обрабатываем данные смены
+    if (response.data) {
+      // Если отсутствует поле status, но есть startTime и нет endTime, определяем статус как 'open'
+      if (
+        !response.data.status &&
+        response.data.startTime &&
+        !response.data.endTime
+      ) {
+        console.log(
+          'API: Статус смены после открытия отсутствует, устанавливаем "open"'
+        );
+        response.data.status = 'open';
+      }
+      // Если поле status есть, нормализуем его к нижнему регистру
+      else if (
+        response.data.status &&
+        typeof response.data.status === 'string'
+      ) {
+        console.log('API: Исходный статус:', response.data.status);
         response.data.status = response.data.status.toLowerCase();
         console.log('API: Статус после преобразования:', response.data.status);
       }
@@ -153,14 +183,25 @@ export const cashierApi = {
         }
       );
       console.log('API: Получен ответ на закрытие смены:', response.data);
-      // Преобразуем данные, если нужно
-      if (response.data && response.data.status) {
-        console.log(
-          'API: Исходный статус после закрытия:',
-          response.data.status
-        );
-        // Преобразование к нижнему регистру, если это строка
-        if (typeof response.data.status === 'string') {
+
+      // Проверяем и обрабатываем данные смены
+      if (response.data) {
+        // Если отсутствует поле status, но есть endTime, определяем статус как 'closed'
+        if (!response.data.status && response.data.endTime) {
+          console.log(
+            'API: Статус закрытой смены отсутствует, устанавливаем "closed"'
+          );
+          response.data.status = 'closed';
+        }
+        // Если поле status есть, нормализуем его к нижнему регистру
+        else if (
+          response.data.status &&
+          typeof response.data.status === 'string'
+        ) {
+          console.log(
+            'API: Исходный статус после закрытия:',
+            response.data.status
+          );
           response.data.status = response.data.status.toLowerCase();
           console.log(
             'API: Статус после преобразования:',

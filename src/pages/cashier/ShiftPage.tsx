@@ -41,6 +41,14 @@ const ShiftPage: React.FC = () => {
               : Number(data.currentAmount) || 0
           );
           setError(null);
+
+          // Обновляем статус смены в CashierLayout
+          updateShiftStatus().then((shift) => {
+            console.log(
+              'Обновлен статус смены при загрузке страницы:',
+              shift?.status
+            );
+          });
         } catch (errUnknown: unknown) {
           console.log('Текущая смена не найдена:', errUnknown);
           setCurrentShift(null);
@@ -65,6 +73,11 @@ const ShiftPage: React.FC = () => {
               'Не удалось загрузить данные о смене. Пожалуйста, обновите страницу.'
             );
           }
+
+          // Также обновляем статус смены в CashierLayout, даже если произошла ошибка
+          updateShiftStatus().then(() => {
+            console.log('Обновлен статус смены после ошибки загрузки');
+          });
         }
       } catch (err) {
         console.error('Ошибка при загрузке данных:', err);
@@ -117,17 +130,31 @@ const ShiftPage: React.FC = () => {
       console.log('Статус новой смены:', data?.status);
       console.log('Тип статуса:', typeof data?.status);
 
+      // Убедимся, что статус в нижнем регистре
+      if (data && typeof data.status === 'string') {
+        data.status = data.status.toLowerCase();
+        console.log('Нормализованный статус:', data.status);
+      }
+
       setCurrentShift(data);
       console.log('Установлен локальный currentShift:', data);
 
-      // Обновляем статус смены в CashierLayout
+      // Обновляем статус смены в CashierLayout с небольшой задержкой
       console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
-      try {
-        const updatedShift = await updateShiftStatus();
-        console.log('Статус обновлен, получена смена:', updatedShift);
-      } catch (updateError) {
-        console.error('Ошибка при обновлении статуса:', updateError);
-      }
+      setTimeout(async () => {
+        try {
+          const updatedShift = await updateShiftStatus();
+          console.log('Статус обновлен, получена смена:', updatedShift);
+
+          if (updatedShift) {
+            console.log('Статус обновленной смены:', updatedShift.status);
+          } else {
+            console.warn('Не удалось получить обновленную смену');
+          }
+        } catch (updateError) {
+          console.error('Ошибка при обновлении статуса:', updateError);
+        }
+      }, 100); // Небольшая задержка для обеспечения обновления
 
       // Устанавливаем финальную сумму равной начальной
       setFinalAmount(
@@ -172,14 +199,16 @@ const ShiftPage: React.FC = () => {
       setCurrentShift(null);
       console.log('Сброшен локальный currentShift на null');
 
-      // Обновляем статус смены в CashierLayout
+      // Обновляем статус смены в CashierLayout с небольшой задержкой
       console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
-      try {
-        const updatedShift = await updateShiftStatus();
-        console.log('Статус обновлен, новая смена:', updatedShift);
-      } catch (updateError) {
-        console.error('Ошибка при обновлении статуса:', updateError);
-      }
+      setTimeout(async () => {
+        try {
+          const updatedShift = await updateShiftStatus();
+          console.log('Статус обновлен, новая смена:', updatedShift);
+        } catch (updateError) {
+          console.error('Ошибка при обновлении статуса:', updateError);
+        }
+      }, 100); // Небольшая задержка для обеспечения обновления
 
       // Сбрасываем поля формы
       setInitialAmount(0);
