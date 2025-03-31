@@ -1,7 +1,14 @@
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, {
+  ReactNode,
+  useEffect,
+  useState,
+  createContext,
+  useContext,
+} from 'react';
 import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
 import { cashierApi } from '../../services/cashierApi';
+import { CashShift } from '../../types/cashier';
 import styles from './CashierLayout.module.css';
 
 interface CashierLayoutProps {
@@ -33,6 +40,18 @@ interface DecodedToken {
   iat: number;
   [key: string]: any; // Для любых других полей, которые могут быть в токене
 }
+
+// Создаем контекст для передачи функции обновления статуса смены
+export const ShiftContext = createContext<{
+  updateShiftStatus: () => void;
+  currentShift: CashShift | null;
+}>({
+  updateShiftStatus: () => {},
+  currentShift: null,
+});
+
+// Hook для использования контекста в дочерних компонентах
+export const useShift = () => useContext(ShiftContext);
 
 const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
@@ -125,6 +144,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
 
     try {
       const shift = await cashierApi.getCurrentShift(warehouseId);
+      console.log('Получены данные о смене:', shift);
       setCurrentShift(shift);
 
       // Обновляем название кассы из полученной смены
@@ -138,6 +158,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
       console.error('Ошибка при получении данных смены:', error);
       // В случае ошибки показываем информацию о складе
       setCashRegisterName(warehouseName);
+      setCurrentShift(null); // Убедимся, что currentShift сбрасывается при ошибке
     }
   };
 
@@ -314,72 +335,96 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
       ? currentRole.warehouse.name
       : 'Загрузка...';
 
+  // Выводим информацию о текущей роли для диагностики
+  console.log('Текущая роль пользователя:', currentRole);
+
+  // Функция обновления статуса смены
+  const updateShiftStatus = async () => {
+    console.log('Вызвана функция updateShiftStatus');
+    try {
+      const shift = await cashierApi.getCurrentShift(warehouseId);
+      console.log('Получены новые данные о смене:', shift);
+      setCurrentShift(shift);
+      return shift; // Возвращаем полученные данные
+    } catch (error) {
+      console.error('Ошибка при обновлении статуса смены:', error);
+      setCurrentShift(null);
+      return null;
+    }
+  };
+
   return (
-    <div className={styles.cashierLayout}>
-      <header className={styles.header}>
-        <div className={styles.headerInfo}>
-          <div className={styles.cashInfo}>Касса - {cashRegisterName}</div>
-          <div className={styles.timeInfo}>ВРЕМЯ: {currentTime}</div>
-          <div className={styles.cashierInfo}>КАССИР: {cashierName}</div>
-          <div className={styles.versionInfo}>v 1.0.0</div>
-          <div
-            className={`${styles.statusIndicator} ${
-              currentShift && currentShift.status === 'open'
-                ? styles.statusIndicatorOpen
-                : styles.statusIndicatorClosed
-            }`}
-            title={
-              currentShift && currentShift.status === 'open'
-                ? 'Смена открыта'
-                : 'Смена закрыта'
-            }
-          >
-            ●
+    <ShiftContext.Provider value={{ updateShiftStatus, currentShift }}>
+      <div className={styles.cashierLayout}>
+        <header className={styles.header}>
+          <div className={styles.headerInfo}>
+            <div className={styles.cashInfo}>Касса - {cashRegisterName}</div>
+            <div className={styles.timeInfo}>ВРЕМЯ: {currentTime}</div>
+            <div className={styles.cashierInfo}>КАССИР: {cashierName}</div>
+            <div className={styles.versionInfo}>v 1.0.0</div>
+            <div
+              className={`${styles.statusIndicator} ${
+                currentShift &&
+                (currentShift.status === 'open' ||
+                  currentShift.status === 'OPEN')
+                  ? styles.statusIndicatorOpen
+                  : styles.statusIndicatorClosed
+              }`}
+              title={
+                currentShift &&
+                (currentShift.status === 'open' ||
+                  currentShift.status === 'OPEN')
+                  ? 'Смена открыта'
+                  : 'Смена закрыта'
+              }
+            >
+              ●
+            </div>
           </div>
-        </div>
-        <nav className={styles.navigation}>
-          <Link
-            to={`/cashier/${warehouseId}/sales`}
-            className={`${styles.navLink} ${
-              location.pathname.includes('/sales') ? styles.active : ''
-            }`}
-          >
-            ПРОДАЖИ
-          </Link>
-          <Link
-            to={`/cashier/${warehouseId}/returns`}
-            className={`${styles.navLink} ${
-              location.pathname.includes('/returns') ? styles.active : ''
-            }`}
-          >
-            ВОЗВРАТ
-          </Link>
-          <Link
-            to={`/cashier/${warehouseId}/shift`}
-            className={`${styles.navLink} ${
-              location.pathname.includes('/shift') ? styles.active : ''
-            }`}
-          >
-            СМЕНА
-          </Link>
-          <Link
-            to={`/cashier/${warehouseId}/history`}
-            className={`${styles.navLink} ${
-              location.pathname.includes('/history') ? styles.active : ''
-            }`}
-          >
-            ИСТОРИЯ ПРОДАЖ
-          </Link>
-          <button
-            onClick={handleGoToProfile}
-            className={`${styles.navLink} ${styles.profileButton}`}
-          >
-            ВЫЙТИ
-          </button>
-        </nav>
-      </header>
-      <main className={styles.mainContent}>{children}</main>
-    </div>
+          <nav className={styles.navigation}>
+            <Link
+              to={`/cashier/${warehouseId}/sales`}
+              className={`${styles.navLink} ${
+                location.pathname.includes('/sales') ? styles.active : ''
+              }`}
+            >
+              ПРОДАЖИ
+            </Link>
+            <Link
+              to={`/cashier/${warehouseId}/returns`}
+              className={`${styles.navLink} ${
+                location.pathname.includes('/returns') ? styles.active : ''
+              }`}
+            >
+              ВОЗВРАТ
+            </Link>
+            <Link
+              to={`/cashier/${warehouseId}/shift`}
+              className={`${styles.navLink} ${
+                location.pathname.includes('/shift') ? styles.active : ''
+              }`}
+            >
+              СМЕНА
+            </Link>
+            <Link
+              to={`/cashier/${warehouseId}/history`}
+              className={`${styles.navLink} ${
+                location.pathname.includes('/history') ? styles.active : ''
+              }`}
+            >
+              ИСТОРИЯ ПРОДАЖ
+            </Link>
+            <button
+              onClick={handleGoToProfile}
+              className={`${styles.navLink} ${styles.profileButton}`}
+            >
+              ВЫЙТИ
+            </button>
+          </nav>
+        </header>
+        <main className={styles.mainContent}>{children}</main>
+      </div>
+    </ShiftContext.Provider>
   );
 };
 

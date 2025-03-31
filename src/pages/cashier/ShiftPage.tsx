@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import CashierLayout from '../../components/cashier/CashierLayout';
+import CashierLayout, {
+  useShift,
+} from '../../components/cashier/CashierLayout';
 import { cashierApi } from '../../services/cashierApi';
 import { CashShift, CashRegister } from '../../types/cashier';
 import styles from './ShiftPage.module.css';
 
 const ShiftPage: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
+  const { updateShiftStatus } = useShift(); // Получаем функцию обновления из контекста
   const [currentShift, setCurrentShift] = useState<CashShift | null>(null);
   const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([]);
   const [selectedRegisterId, setSelectedRegisterId] = useState<string>('');
@@ -32,7 +35,11 @@ const ShiftPage: React.FC = () => {
           const data = await cashierApi.getCurrentShift(warehouseId);
           setCurrentShift(data);
           // По умолчанию установим финальную сумму равной текущей
-          setFinalAmount(data.currentAmount);
+          setFinalAmount(
+            typeof data.currentAmount === 'number'
+              ? data.currentAmount
+              : Number(data.currentAmount) || 0
+          );
           setError(null);
         } catch (err) {
           console.error('Текущая смена не найдена:', err);
@@ -58,6 +65,11 @@ const ShiftPage: React.FC = () => {
 
     try {
       const registers = await cashierApi.getCashRegisters(warehouseId);
+
+      if (!registers || registers.length === 0) {
+        setError('Не найдены доступные кассы для данного склада');
+      }
+
       return registers;
     } catch (err) {
       console.error('Ошибка при загрузке списка касс:', err);
@@ -72,13 +84,25 @@ const ShiftPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('Отправляем запрос на открытие смены...');
       const data = await cashierApi.openShift(warehouseId, {
         cashRegisterId: selectedRegisterId,
         initialAmount: initialAmount,
       });
+      console.log('Смена успешно открыта:', data);
       setCurrentShift(data);
+
+      // Обновляем статус смены в CashierLayout
+      console.log('Вызываем обновление статуса смены...');
+      await updateShiftStatus();
+      console.log('Обновление статуса смены выполнено');
+
       // Устанавливаем финальную сумму равной начальной
-      setFinalAmount(initialAmount);
+      setFinalAmount(
+        typeof data.currentAmount === 'number'
+          ? data.currentAmount
+          : Number(data.currentAmount) || initialAmount
+      );
     } catch (err) {
       console.error('Ошибка при открытии смены:', err);
       setError(
@@ -97,10 +121,14 @@ const ShiftPage: React.FC = () => {
     try {
       await cashierApi.closeShift(warehouseId, {
         shiftId: currentShift.id,
-        finalAmount: finalAmount,
+        finalAmount: Number(finalAmount),
         notes: notes,
       });
       setCurrentShift(null);
+
+      // Обновляем статус смены в CashierLayout
+      updateShiftStatus();
+
       // Сбрасываем поля формы
       setInitialAmount(0);
       setFinalAmount(0);
@@ -196,14 +224,18 @@ const ShiftPage: React.FC = () => {
               <div className={styles.infoRow}>
                 <span className={styles.label}>Начальная сумма:</span>
                 <span className={styles.value}>
-                  {currentShift.initialAmount.toFixed(2)}
+                  {typeof currentShift.initialAmount === 'number'
+                    ? currentShift.initialAmount.toFixed(2)
+                    : Number(currentShift.initialAmount).toFixed(2)}
                 </span>
               </div>
 
               <div className={styles.infoRow}>
                 <span className={styles.label}>Текущая сумма:</span>
                 <span className={styles.value}>
-                  {currentShift.currentAmount.toFixed(2)}
+                  {typeof currentShift.currentAmount === 'number'
+                    ? currentShift.currentAmount.toFixed(2)
+                    : Number(currentShift.currentAmount).toFixed(2)}
                 </span>
               </div>
             </div>

@@ -264,12 +264,18 @@ export const cashierApi = {
    * Получение списка касс
    */
   async getCashRegisters(warehouseId: string) {
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/registers`,
-      {
-        headers: getAuthHeader(),
-      }
-    );
-    return response.data;
+    try {
+      // Получаем кассы через стандартный эндпоинт
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cash-registers`,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка при получении кассовых аппаратов:', error);
+      throw error; // Пробрасываем ошибку дальше для обработки в компоненте
+    }
   },
 };

@@ -56,6 +56,20 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
+  background-color: white;
+  color: #333;
+}
+
+.select {
+  appearance: menulist;
+  height: auto;
+  padding-right: 30px;
+}
+
+.select option {
+  padding: 8px;
+  background-color: white;
+  color: #333;
 }
 
 .input:focus,

@@ -21,10 +21,10 @@ export interface CashShift {
   id: string;
   startTime: string;
   endTime?: string;
-  initialAmount: number;
-  currentAmount: number;
-  finalAmount?: number;
-  status: 'open' | 'closed' | 'interrupted';
+  initialAmount: number | string;
+  currentAmount: number | string;
+  finalAmount?: number | string;
+  status: 'open' | 'closed' | 'interrupted' | 'OPEN' | 'CLOSED' | 'INTERRUPTED';
   cashRegister: {
     id: string;
     name: string;
