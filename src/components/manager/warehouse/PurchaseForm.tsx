@@ -90,6 +90,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     queryKey: ['products', propWarehouseId],
     queryFn: () => getProducts(propWarehouseId!),
     enabled: !!propWarehouseId,
+    select: (data) => data.filter((product) => !product.isService),
   });
 
   const { data: suppliers, isLoading: isLoadingSuppliers } = useQuery({
