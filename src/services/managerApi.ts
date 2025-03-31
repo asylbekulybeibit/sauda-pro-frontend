@@ -17,6 +17,7 @@ import { Transfer } from '@/types/transfer';
 import { Shop } from '@/types/shop';
 import { RegisterPaymentMethod } from '@/types/cash-register';
 import { Debt, DebtType, DebtStatus, DebtStatistics } from '@/types/debt';
+import { useRoleStore } from '@/store/roleStore';
 
 // Simple error handler for API requests
 const handleApiError = (
@@ -1985,29 +1986,74 @@ export const getPaymentMethods = async (
 };
 
 export const getDebts = async (warehouseId: string): Promise<Debt[]> => {
-  const response = await api.get(`/api/manager/debts/${warehouseId}`);
-  return response.data;
+  console.log('[API] Getting debts for warehouse:', warehouseId);
+  try {
+    const { currentRole } = useRoleStore.getState();
+    const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+    if (!shopId) {
+      throw new Error('Shop ID not found in current role');
+    }
+    const response = await api.get(
+      `/manager/${shopId}/warehouse/debts/${warehouseId}`
+    );
+    console.log('[API] Received debts response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching debts:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getActiveDebts = async (warehouseId: string): Promise<Debt[]> => {
-  const response = await api.get(`/api/manager/debts/${warehouseId}/active`);
-  return response.data;
+  console.log('[API] Getting active debts for warehouse:', warehouseId);
+  try {
+    const { currentRole } = useRoleStore.getState();
+    const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+    if (!shopId) {
+      throw new Error('Shop ID not found in current role');
+    }
+    const response = await api.get(
+      `/manager/${shopId}/warehouse/debts/${warehouseId}/active`
+    );
+    console.log('[API] Received active debts response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching active debts:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getDebtsStatistics = async (
   warehouseId: string
 ): Promise<DebtStatistics> => {
-  const response = await api.get(
-    `/api/manager/debts/${warehouseId}/statistics`
-  );
-  return response.data;
+  console.log('[API] Getting debt statistics for warehouse:', warehouseId);
+  try {
+    const { currentRole } = useRoleStore.getState();
+    const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+    if (!shopId) {
+      throw new Error('Shop ID not found in current role');
+    }
+    const response = await api.get(
+      `/manager/${shopId}/warehouse/debts/${warehouseId}/statistics`
+    );
+    console.log('[API] Received debt statistics response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[API] Error fetching debt statistics:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const getDebtsBySupplier = async (
   supplierId: string
 ): Promise<Debt[]> => {
-  const response = await api.get(`/api/manager/debts/supplier/${supplierId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/manager/debts/supplier/${supplierId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching supplier debts:', error);
+    throw ApiErrorHandler.handle(error);
+  }
 };
 
 export const createDebt = async (data: {
@@ -2021,7 +2067,12 @@ export const createDebt = async (data: {
   purchaseId?: string;
   comment?: string;
 }): Promise<Debt> => {
-  const response = await api.post('/api/manager/debts', data);
+  const { currentRole } = useRoleStore.getState();
+  const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+  if (!shopId) {
+    throw new Error('Shop ID not found in current role');
+  }
+  const response = await api.post(`/manager/${shopId}/warehouse/debts`, data);
   return response.data;
 };
 
@@ -2033,15 +2084,27 @@ export const addDebtPayment = async (
     note?: string;
   }
 ): Promise<Debt> => {
+  const { currentRole } = useRoleStore.getState();
+  const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+  if (!shopId) {
+    throw new Error('Shop ID not found in current role');
+  }
   const response = await api.post(
-    `/api/manager/debts/${debtId}/payments`,
+    `/manager/${shopId}/warehouse/debts/${debtId}/payments`,
     payment
   );
   return response.data;
 };
 
 export const cancelDebt = async (debtId: string): Promise<Debt> => {
-  const response = await api.post(`/api/manager/debts/${debtId}/cancel`);
+  const { currentRole } = useRoleStore.getState();
+  const shopId = (currentRole as UserRoleDetails)?.shop?.id;
+  if (!shopId) {
+    throw new Error('Shop ID not found in current role');
+  }
+  const response = await api.post(
+    `/manager/${shopId}/warehouse/debts/${debtId}/cancel`
+  );
   return response.data;
 };
 

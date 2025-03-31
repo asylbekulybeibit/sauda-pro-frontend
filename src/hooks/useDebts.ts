@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+import { Debt, DebtStatistics } from '@/types/debt';
 import {
   getDebts,
   getActiveDebts,
@@ -7,14 +8,19 @@ import {
 } from '@/services/managerApi';
 
 export const useDebts = (warehouseId: string) => {
+  console.log('[useDebts] Hook called with warehouse ID:', warehouseId);
+
   const {
     data: debts = [],
     isLoading: isLoadingDebts,
     error: debtsError,
     refetch: refetchDebts,
-  } = useQuery({
+  } = useQuery<Debt[]>({
     queryKey: ['debts', warehouseId],
-    queryFn: () => getDebts(warehouseId),
+    queryFn: () => {
+      console.log('[useDebts] Fetching debts for warehouse:', warehouseId);
+      return getDebts(warehouseId);
+    },
     enabled: !!warehouseId,
   });
 
@@ -22,9 +28,15 @@ export const useDebts = (warehouseId: string) => {
     data: activeDebts = [],
     isLoading: isLoadingActiveDebts,
     error: activeDebtsError,
-  } = useQuery({
+  } = useQuery<Debt[]>({
     queryKey: ['active-debts', warehouseId],
-    queryFn: () => getActiveDebts(warehouseId),
+    queryFn: () => {
+      console.log(
+        '[useDebts] Fetching active debts for warehouse:',
+        warehouseId
+      );
+      return getActiveDebts(warehouseId);
+    },
     enabled: !!warehouseId,
   });
 
@@ -32,23 +44,37 @@ export const useDebts = (warehouseId: string) => {
     data: statistics,
     isLoading: isLoadingStatistics,
     error: statisticsError,
-  } = useQuery({
-    queryKey: ['debts-statistics', warehouseId],
-    queryFn: () => getDebtsStatistics(warehouseId),
+    refetch: refetchStatistics,
+  } = useQuery<DebtStatistics>({
+    queryKey: ['debtsStatistics', warehouseId],
+    queryFn: () => {
+      console.log('[useDebts] Fetching statistics for warehouse:', warehouseId);
+      return getDebtsStatistics(warehouseId);
+    },
     enabled: !!warehouseId,
+  });
+
+  console.log('[useDebts] Current state:', {
+    debtsLoading: isLoadingDebts,
+    statisticsLoading: isLoadingStatistics,
+    debtsError,
+    statisticsError,
+    debtsCount: debts?.length,
+    hasStatistics: !!statistics,
   });
 
   return {
     debts,
+    statistics,
     isLoadingDebts,
+    isLoadingStatistics,
     debtsError,
+    statisticsError,
     refetchDebts,
+    refetchStatistics,
     activeDebts,
     isLoadingActiveDebts,
     activeDebtsError,
-    statistics,
-    isLoadingStatistics,
-    statisticsError,
   };
 };
 

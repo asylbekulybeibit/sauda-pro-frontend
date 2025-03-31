@@ -3,6 +3,7 @@ import { Modal, Form, InputNumber, Select, Input, message } from 'antd';
 import { Debt } from '@/types/debt';
 import { RegisterPaymentMethod } from '@/types/cash-register';
 import { addDebtPayment } from '@/services/managerApi';
+import { formatPrice } from '@/utils/format';
 
 interface DebtPaymentModalProps {
   debt: Debt;
@@ -46,6 +47,9 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
     }
   };
 
+  // Преобразуем remainingAmount в число
+  const remainingAmount = Number(debt.remainingAmount);
+
   return (
     <Modal
       title="Добавить оплату"
@@ -53,6 +57,10 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
       onOk={handleSubmit}
       onCancel={onClose}
       confirmLoading={loading}
+      okButtonProps={{
+        className: 'bg-blue-600 hover:bg-blue-600',
+        style: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+      }}
     >
       <Form form={form} layout="vertical">
         <Form.Item
@@ -65,7 +73,7 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
               <Select.Option key={method.id} value={method.id}>
                 {method.name || method.systemType}
                 {method.currentBalance !== undefined &&
-                  ` (Баланс: ${method.currentBalance.toFixed(2)})`}
+                  ` (Баланс: ${formatPrice(method.currentBalance)} KZT)`}
               </Select.Option>
             ))}
           </Select>
@@ -79,10 +87,10 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
             {
               type: 'number',
               min: 0.01,
-              max: debt.remainingAmount,
-              message: `Сумма должна быть от 0.01 до ${debt.remainingAmount.toFixed(
-                2
-              )}`,
+              max: remainingAmount,
+              message: `Сумма должна быть от 0.01 до ${formatPrice(
+                remainingAmount
+              )} KZT`,
             },
           ]}
         >
@@ -102,9 +110,9 @@ export const DebtPaymentModal: React.FC<DebtPaymentModalProps> = ({
         </Form.Item>
 
         <div className="text-sm text-gray-500">
-          <p>Общая сумма: {debt.totalAmount.toFixed(2)}</p>
-          <p>Оплачено: {debt.paidAmount.toFixed(2)}</p>
-          <p>Осталось оплатить: {debt.remainingAmount.toFixed(2)}</p>
+          <p>Общая сумма: {formatPrice(Number(debt.totalAmount))} KZT</p>
+          <p>Оплачено: {formatPrice(Number(debt.paidAmount))} KZT</p>
+          <p>Осталось оплатить: {formatPrice(remainingAmount)} KZT</p>
         </div>
       </Form>
     </Modal>

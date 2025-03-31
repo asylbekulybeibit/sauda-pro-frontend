@@ -110,7 +110,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
         },
         {
           name: 'Долги',
-          href: `/manager/${warehouseId}/debts`,
+          href: `/manager/${shopId}/warehouse/debts`,
         },
       ],
     },

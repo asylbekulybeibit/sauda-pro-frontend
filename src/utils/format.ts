@@ -13,8 +13,9 @@ export const formatPrice = (price: number | string | null | undefined) => {
   }
 
   return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: 'KZT',
+    style: 'decimal',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(numPrice);
 };
 
