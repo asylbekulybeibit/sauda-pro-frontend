@@ -177,6 +177,34 @@
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  animation: fadeIn 0.2s ease-out;
+  opacity: 1;
+  will-change: opacity, transform;
+  transform-origin: top center;
+  position: relative;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Добавляем стили для плавного перехода между страницами */
+.mainContent > * {
+  position: absolute;
+  width: calc(100% - 40px); /* учитываем padding */
+  transition: opacity 0.2s ease-out;
+}
+
+.mainContent > *:not(:last-child) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Стиль для индикатора загрузки */

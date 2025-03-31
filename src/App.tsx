@@ -17,6 +17,7 @@ import { ShopProvider } from '@/contexts/ShopContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManagerHeader } from '@/components/manager/layout/Header';
 import './styles/price-analytics.css';
+import CashierLayout from '@/components/cashier/CashierLayout';
 
 // Ленивая загрузка компонентов
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
@@ -243,7 +244,7 @@ export default function App() {
                       ]}
                     >
                       <Suspense fallback={<LoadingFallback />}>
-                        <Outlet />
+                        <CashierLayout />
                       </Suspense>
                     </RoleGuard>
                   }
@@ -253,7 +254,6 @@ export default function App() {
                   <Route path="history" element={<CashierHistoryPage />} />
                   <Route path="returns" element={<CashierReturnsPage />} />
                   <Route index element={<Navigate to="sales" replace />} />
-                  {/* В будущем здесь будут другие маршруты кассира */}
                 </Route>
 
                 {/* Маршруты админ-панели */}

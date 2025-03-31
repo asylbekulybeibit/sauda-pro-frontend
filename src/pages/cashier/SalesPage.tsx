@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import CashierLayout from '../../components/cashier/CashierLayout';
 import ProductSearch from '../../components/cashier/ProductSearch';
 import ProductsTable from '../../components/cashier/ProductsTable';
 import TotalPanel from '../../components/cashier/TotalPanel';
@@ -529,75 +528,73 @@ const SalesPage: React.FC = () => {
   };
 
   return (
-    <CashierLayout>
-      <div className={styles.salesPage}>
-        {error && (
-          <div className={styles.errorMessage}>
-            {error}
-            {error.includes('Нет открытой кассовой смены') && (
-              <button
-                className={styles.openShiftButton}
-                onClick={handleGoToShiftPage}
-              >
-                Открыть кассовую смену
-              </button>
-            )}
-            {error.includes('401') && (
-              <button
-                className={styles.openShiftButton}
-                onClick={handleGoToShiftPage}
-              >
-                Открыть кассовую смену
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className={styles.receiptHeader}>
-          <div className={styles.receiptNumber}>
-            Номер чека: {receiptNumber || 'Новый чек'}
-          </div>
-          <div className={styles.searchContainer}>
-            <ProductSearch
-              warehouseId={warehouseId || ''}
-              onProductSelect={handleProductSelect}
-            />
-          </div>
+    <div className={styles.salesPage}>
+      {error && (
+        <div className={styles.errorMessage}>
+          {error}
+          {error.includes('Нет открытой кассовой смены') && (
+            <button
+              className={styles.openShiftButton}
+              onClick={handleGoToShiftPage}
+            >
+              Открыть кассовую смену
+            </button>
+          )}
+          {error.includes('401') && (
+            <button
+              className={styles.openShiftButton}
+              onClick={handleGoToShiftPage}
+            >
+              Открыть кассовую смену
+            </button>
+          )}
         </div>
+      )}
 
-        <ProductsTable
-          items={receiptItems}
-          onRemoveItem={handleRemoveItem}
-          onUpdateQuantity={handleQuantityChange}
-        />
-
-        <TotalPanel
-          total={finalAmount}
-          received={0}
-          change={0}
-          onPay={handlePayment}
-          onClear={handleCancelReceipt}
-          onAddFastProduct={handleAddFastProduct}
-          onChangeQuantity={handleChangeQuantity}
-          onExtraFunctions={handleExtraFunctions}
-          onRemove={handleRemove}
-        />
-
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          totalAmount={finalAmount}
-          onSubmit={handlePaymentSubmit}
-        />
-
-        {loading && (
-          <div className={styles.loadingOverlay}>
-            <div className={styles.loadingSpinner}></div>
-            <div className={styles.loadingText}>Обработка платежа...</div>
-          </div>
-        )}
+      <div className={styles.receiptHeader}>
+        <div className={styles.receiptNumber}>
+          Номер чека: {receiptNumber || 'Новый чек'}
+        </div>
+        <div className={styles.searchContainer}>
+          <ProductSearch
+            warehouseId={warehouseId || ''}
+            onProductSelect={handleProductSelect}
+          />
+        </div>
       </div>
-    </CashierLayout>
+
+      <ProductsTable
+        items={receiptItems}
+        onRemoveItem={handleRemoveItem}
+        onUpdateQuantity={handleQuantityChange}
+      />
+
+      <TotalPanel
+        total={finalAmount}
+        received={0}
+        change={0}
+        onPay={handlePayment}
+        onClear={handleCancelReceipt}
+        onAddFastProduct={handleAddFastProduct}
+        onChangeQuantity={handleChangeQuantity}
+        onExtraFunctions={handleExtraFunctions}
+        onRemove={handleRemove}
+      />
+
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        totalAmount={finalAmount}
+        onSubmit={handlePaymentSubmit}
+      />
+
+      {loading && (
+        <div className={styles.loadingOverlay}>
+          <div className={styles.loadingSpinner}></div>
+          <div className={styles.loadingText}>Обработка платежа...</div>
+        </div>
+      )}
+    </div>
   );
 };
 

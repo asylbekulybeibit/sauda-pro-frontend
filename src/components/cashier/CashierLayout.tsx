@@ -5,40 +5,41 @@ import React, {
   createContext,
   useContext,
 } from 'react';
-import { Link, useLocation, useParams, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  useLocation,
+  useParams,
+  useNavigate,
+  Outlet,
+} from 'react-router-dom';
 import { useRoleStore } from '@/store/roleStore';
 import { cashierApi } from '../../services/cashierApi';
 import { CashShift } from '../../types/cashier';
 import styles from './CashierLayout.module.css';
 
-interface CashierLayoutProps {
-  children: ReactNode;
-}
-
 // Интерфейс для данных из JWT токена
 interface DecodedToken {
   id: string;
-  userId?: string; // Некоторые JWT могут иметь userId вместо id
+  userId?: string;
   firstName?: string;
   lastName?: string;
-  name?: string; // Некоторые JWT могут хранить полное имя в одном поле
+  name?: string;
   phone?: string;
   email?: string;
-  username?: string; // Имя пользователя может быть в разных полях
-  sub?: string; // subject - может содержать идентификатор пользователя
+  username?: string;
+  sub?: string;
   user?: {
-    // Некоторые токены содержат данные пользователя в поле user
     id?: string;
     name?: string;
     firstName?: string;
     lastName?: string;
     phone?: string;
     email?: string;
-    username?: string; // Имя пользователя в поле user
+    username?: string;
   };
   exp: number;
   iat: number;
-  [key: string]: any; // Для любых других полей, которые могут быть в токене
+  [key: string]: any;
 }
 
 // Создаем контекст для передачи функции обновления статуса смены
@@ -53,7 +54,7 @@ export const ShiftContext = createContext<{
 // Hook для использования контекста в дочерних компонентах
 export const useShift = () => useContext(ShiftContext);
 
-const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
+const CashierLayout: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
           minute: '2-digit',
         })
       );
-    }, 60000); // Обновляем каждую минуту
+    }, 60000);
 
     return () => clearInterval(timeInterval);
   }, []);
@@ -97,14 +98,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
           .join('')
       );
       const decoded = JSON.parse(jsonPayload) as DecodedToken;
-      console.log('Содержимое декодированного токена:', decoded);
-
-      // Детальный разбор полей токена для диагностики
-      console.log('Детали токена:');
-      Object.keys(decoded).forEach((key) => {
-        console.log(`  ${key}:`, decoded[key]);
-      });
-
       return decoded;
     } catch (error) {
       console.error('Ошибка при декодировании токена:', error);
@@ -114,13 +107,8 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
 
   // Форматирование номера телефона
   const formatPhoneNumber = (phone: string): string => {
-    // Если телефон не строка или пустая строка, возвращаем как есть
     if (!phone || typeof phone !== 'string') return String(phone);
-
-    // Очищаем от всех нецифровых символов
     const cleaned = phone.replace(/\D/g, '');
-
-    // Если номер начинается с 7 и имеет 11 цифр (российский формат)
     if (
       cleaned.length === 11 &&
       (cleaned.startsWith('7') || cleaned.startsWith('8'))
@@ -130,11 +118,8 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
       const firstPart = cleaned.slice(4, 7);
       const secondPart = cleaned.slice(7, 9);
       const thirdPart = cleaned.slice(9, 11);
-
       return `${countryCode} ${areaCode} ${firstPart}-${secondPart}-${thirdPart}`;
     }
-
-    // Если другой формат номера, просто ставим плюс в начале и группируем по 3-4 цифры
     return `+${cleaned}`;
   };
 
@@ -142,32 +127,16 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
   const fetchCurrentShift = async () => {
     if (!warehouseId) return;
 
-    console.log('=== ЗАПРОС ДАННЫХ О СМЕНЕ ===');
-    console.log('warehouseId:', warehouseId);
-
     try {
       const shift = await cashierApi.getCurrentShift(warehouseId);
-      console.log('=== ПОЛУЧЕН ОТВЕТ О СМЕНЕ ===');
-      console.log('Данные смены (сырые):', JSON.stringify(shift));
-      console.log('Статус смены:', shift?.status);
-      console.log('Тип статуса:', typeof shift?.status);
-
       setCurrentShift(shift);
-      console.log('Установлен currentShift:', shift);
 
-      // Обновляем название кассы из полученной смены
       if (shift && shift.cashRegister && shift.cashRegister.name) {
         setCashRegisterName(shift.cashRegister.name);
-        console.log('Установлено имя кассы:', shift.cashRegister.name);
       } else {
-        // Если смена не найдена, показываем информацию о складе
         setCashRegisterName(warehouseName);
-        console.log('Смена не найдена, установлено имя склада:', warehouseName);
       }
     } catch (errorUnknown: unknown) {
-      console.error('=== ОШИБКА ПРИ ПОЛУЧЕНИИ ДАННЫХ СМЕНЫ ===', errorUnknown);
-
-      // Приводим ошибку к типу с response
       const error = errorUnknown as {
         response?: {
           status: number;
@@ -177,7 +146,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
         };
       };
 
-      // Проверяем, является ли ошибка 404 Not Found (нет открытой смены)
       const isNotFoundException =
         error.response &&
         (error.response.status === 404 ||
@@ -185,222 +153,103 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
             error.response.data.message &&
             error.response.data.message.includes('не найдена')));
 
-      if (isNotFoundException) {
-        console.log(
-          'Открытая смена не найдена (это нормально после закрытия смены)'
-        );
-      } else {
+      if (!isNotFoundException) {
         console.error(
           'Неожиданная ошибка при получении данных смены:',
           errorUnknown
         );
       }
 
-      // В любом случае показываем информацию о складе
       setCashRegisterName(warehouseName);
-      setCurrentShift(null); // Убедимся, что currentShift сбрасывается при ошибке
-      console.log(
-        'Сброшен currentShift в null из-за ошибки или отсутствия смены'
-      );
+      setCurrentShift(null);
     }
   };
 
-  // Проверка авторизации при загрузке компонента
+  // Проверка авторизации при монтировании компонента
   useEffect(() => {
-    const checkAuthorization = async () => {
-      const token = localStorage.getItem('accessToken');
-      console.log(
-        'CashierLayout: Проверка авторизации, токен:',
-        token ? 'Найден' : 'Не найден'
-      );
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      setIsAuthorized(false);
+      navigate('/login', { replace: true });
+      return;
+    }
 
-      if (!token) {
-        console.warn(
-          'CashierLayout: Токен не найден, перенаправление на страницу логина'
-        );
-        setIsAuthorized(false);
-        navigate('/login', { replace: true });
-        return false;
-      }
+    setIsAuthorized(true);
 
-      // Декодируем токен для получения информации о пользователе
+    // Получаем информацию о пользователе
+    const fetchUserInfo = async () => {
       const decodedToken = decodeJwtToken(token);
-      if (decodedToken) {
-        // Получаем телефон из токена
-        const phone = decodedToken.phone || decodedToken.user?.phone;
+      if (!decodedToken) return;
 
-        try {
-          // Получаем профиль текущего пользователя, который уже авторизован
-          // с этим токеном
-          console.log('Запрашиваем информацию о текущем пользователе');
-          const userProfile = await cashierApi.getCurrentUserProfile();
+      const phone = decodedToken.phone || decodedToken.user?.phone;
 
-          console.log(
-            'Получена информация о текущем пользователе:',
-            userProfile
-          );
-
-          if (userProfile && (userProfile.firstName || userProfile.lastName)) {
-            // Если получили информацию с именем/фамилией, используем ее
-            const name = `${userProfile.firstName || ''} ${
-              userProfile.lastName || ''
-            }`.trim();
-
-            // Если есть телефон, добавляем его в скобках
-            if (phone && !name.includes('+')) {
-              setCashierName(`${name}`);
-            } else {
-              setCashierName(name);
-            }
-
-            console.log('Имя кассира установлено из API профиля:', name);
-            setIsAuthorized(true);
-            return true;
-          }
-        } catch (error) {
-          console.error(
-            'Ошибка при получении информации о пользователе:',
-            error
-          );
-          // В случае ошибки продолжаем работу с информацией из токена
-        }
-
-        // Если не смогли получить информацию из API или произошла ошибка,
-        // используем данные из токена как запасной вариант
-
-        // Формируем имя кассира из данных токена
-        let name = 'Кассир';
-
-        // Проверяем различные форматы хранения данных пользователя
-        if (decodedToken.firstName || decodedToken.lastName) {
-          name = `${decodedToken.firstName || ''} ${
-            decodedToken.lastName || ''
+      try {
+        const userProfile = await cashierApi.getCurrentUserProfile();
+        if (userProfile && (userProfile.firstName || userProfile.lastName)) {
+          const name = `${userProfile.firstName || ''} ${
+            userProfile.lastName || ''
           }`.trim();
-        } else if (decodedToken.name) {
-          name = decodedToken.name;
-        } else if (
-          decodedToken.user?.firstName ||
-          decodedToken.user?.lastName
-        ) {
-          name = `${decodedToken.user.firstName || ''} ${
-            decodedToken.user.lastName || ''
-          }`.trim();
-        } else if (decodedToken.user?.name) {
-          name = decodedToken.user.name;
-        } else if (decodedToken.username) {
-          name = decodedToken.username;
-        } else if (decodedToken.user?.username) {
-          name = decodedToken.user.username;
-        } else if (phone) {
-          // Если имя и фамилия не указаны, используем отформатированный номер телефона
-          name = formatPhoneNumber(phone);
-        }
-
-        // Вне зависимости от того, что найдено,
-        // если есть телефон, отобразим его как дополнительную информацию
-        if (phone && !name.includes('+')) {
-          setCashierName(`${name} (${formatPhoneNumber(phone)})`);
+          setCashierName(name);
         } else {
+          let name =
+            decodedToken.name ||
+            `${decodedToken.firstName || ''} ${
+              decodedToken.lastName || ''
+            }`.trim() ||
+            decodedToken.username ||
+            'Кассир';
+
+          if (phone) {
+            name = `${name} (${formatPhoneNumber(phone)})`;
+          }
           setCashierName(name);
         }
-
-        console.log('Имя кассира установлено из токена:', name);
-      }
-
-      setIsAuthorized(true);
-      return true;
-    };
-
-    const checkAuthAndFetch = async () => {
-      const isAuth = await checkAuthorization();
-      if (!isAuth) return;
-
-      // Получаем данные о текущей смене при первой загрузке
-      // для всех страниц, чтобы корректно отображать индикатор
-      console.log('Первичная проверка текущей смены');
-      fetchCurrentShift();
-
-      // Остальной код эффекта выполняется только если пользователь авторизован
-      if (!warehouseId || warehouseId === 'undefined') {
-        // Если warehouseId отсутствует или undefined, пытаемся получить его из currentRole
-        if (
-          currentRole &&
-          currentRole.type === 'shop' &&
-          'warehouse' in currentRole &&
-          currentRole.warehouse
-        ) {
-          navigate(`/cashier/${currentRole.warehouse.id}/sales`, {
-            replace: true,
-          });
-        } else {
-          // Если не можем получить id склада, перенаправляем на профиль
-          navigate('/profile', { replace: true });
-        }
+      } catch (error) {
+        console.error('Ошибка при получении информации о пользователе:', error);
+        setCashierName('Кассир');
       }
     };
 
-    checkAuthAndFetch();
-  }, [warehouseId, currentRole, navigate, location.pathname]);
+    fetchUserInfo();
+  }, []); // Выполняется только при монтировании
 
-  // Обновляем информацию о смене при изменении маршрута
+  // Инициализация данных о смене
   useEffect(() => {
     if (isAuthorized && warehouseId) {
-      // Запрашиваем смену один раз при инициализации даже для страницы истории
-      // чтобы корректно показать индикатор
-      if (!currentShift) {
-        console.log('Запрашиваем смену при инициализации для всех страниц');
-        fetchCurrentShift();
-        return;
-      }
-
-      // Для остальных страниц кроме истории обновляем смену при каждой навигации
-      if (!location.pathname.includes('/history')) {
-        console.log('Обновляем смену при навигации на неисторической странице');
-        fetchCurrentShift();
-      } else {
-        console.log(
-          'Пропускаем запрос смены при навигации на страницу истории продаж'
-        );
-      }
+      fetchCurrentShift();
     }
-  }, [location.pathname, warehouseId, isAuthorized]);
+  }, [warehouseId, isAuthorized]);
 
-  // Отслеживаем изменения в currentShift для отладки
+  // Периодическое обновление данных о смене
   useEffect(() => {
-    console.log('=== CashierLayout: ОБНОВЛЕНИЕ СОСТОЯНИЯ СМЕНЫ ===');
-    console.log('currentShift:', currentShift);
-    console.log(
-      'Индикатор смены:',
-      currentShift &&
-        (currentShift.status === 'open' ||
-          (currentShift.startTime && !currentShift.endTime))
-        ? 'зеленый (открыта)'
-        : 'красный (закрыта)'
-    );
-  }, [currentShift]);
+    if (
+      isAuthorized &&
+      warehouseId &&
+      !location.pathname.includes('/history')
+    ) {
+      const intervalId = setInterval(fetchCurrentShift, 30000);
+      return () => clearInterval(intervalId);
+    }
+  }, [warehouseId, isAuthorized, location.pathname]);
 
   // Показываем загрузку, пока не определен статус авторизации
   if (isAuthorized === null) {
     return <div className={styles.loading}>Проверка авторизации...</div>;
   }
 
-  // Если не авторизован, не рендерим компонент (перенаправление происходит в useEffect)
+  // Если не авторизован, не рендерим компонент
   if (isAuthorized === false) {
     return (
       <div className={styles.loading}>Перенаправление на страницу входа...</div>
     );
   }
 
-  // Если warehouseId не определен (пустая строка или undefined), показываем загрузку
+  // Если warehouseId не определен, показываем загрузку
   if (!warehouseId || warehouseId === 'undefined') {
     return (
       <div className={styles.loading}>Загрузка информации о складе...</div>
     );
   }
-
-  const handleGoToProfile = () => {
-    navigate('/profile');
-  };
 
   // Получаем имя склада из currentRole
   const warehouseName =
@@ -410,65 +259,32 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
       ? currentRole.warehouse.name
       : 'Загрузка...';
 
-  // Выводим информацию о текущей роли для диагностики
-  console.log('Текущая роль пользователя:', currentRole);
-
   // Функция обновления статуса смены
   const updateShiftStatus = async () => {
-    console.log('Вызвана функция updateShiftStatus');
     try {
       const shift = await cashierApi.getCurrentShift(warehouseId);
-      console.log('Получены новые данные о смене:', shift);
-
-      // Если смена существует, но не имеет поля status, определяем его сами
       if (shift) {
-        // Если нет статуса, но есть startTime и нет endTime - считаем смену открытой
         if (!shift.status && shift.startTime && !shift.endTime) {
-          console.log(
-            'Статус отсутствует, но определен по времени как открытый'
-          );
           shift.status = 'open';
-        }
-        // Если есть status как строка, нормализуем его к нижнему регистру
-        else if (typeof shift.status === 'string') {
+        } else if (typeof shift.status === 'string') {
           shift.status = shift.status.toLowerCase();
-          console.log('Статус смены нормализован:', shift.status);
         }
       }
-
       setCurrentShift(shift);
-      console.log(
-        'Обновление индикатора:',
-        shift
-          ? `Смена ${
-              shift.status === 'open' || (shift.startTime && !shift.endTime)
-                ? 'открыта (зелёный)'
-                : 'закрыта (красный)'
-            }`
-          : 'Нет смены (красный)'
-      );
-
-      return shift; // Возвращаем полученные данные
+      return shift;
     } catch (error) {
       console.error('Ошибка при обновлении статуса смены:', error);
       setCurrentShift(null);
-      console.log('Сброс индикатора из-за ошибки: красный');
       return null;
     }
   };
 
   // Определяем класс для хедера в зависимости от текущей страницы
   const getHeaderClass = () => {
-    if (location.pathname.includes('/sales')) {
-      return styles.headerSales;
-    } else if (location.pathname.includes('/returns')) {
-      return styles.headerReturns;
-    } else if (location.pathname.includes('/shift')) {
-      return styles.headerShift;
-    } else if (location.pathname.includes('/history')) {
-      return styles.headerHistory;
-    }
-    // По умолчанию возвращаем стиль для продаж
+    if (location.pathname.includes('/sales')) return styles.headerSales;
+    if (location.pathname.includes('/returns')) return styles.headerReturns;
+    if (location.pathname.includes('/shift')) return styles.headerShift;
+    if (location.pathname.includes('/history')) return styles.headerHistory;
     return styles.headerSales;
   };
 
@@ -496,37 +312,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
                   ? 'Смена открыта'
                   : 'Смена закрыта'
               }
-              onClick={() => {
-                console.log('ИНФОРМАЦИЯ ОБ ИНДИКАТОРЕ СМЕНЫ:');
-                console.log('Текущая смена:', currentShift ? 'Есть' : 'Нет');
-                console.log(
-                  'Статус смены:',
-                  currentShift?.status ||
-                    (currentShift?.startTime && !currentShift?.endTime
-                      ? 'Открыта (определено по времени)'
-                      : 'Нет смены')
-                );
-                console.log('Тип статуса:', typeof currentShift?.status);
-                console.log('Условие (open):', currentShift?.status === 'open');
-                console.log(
-                  'Условие (startTime && !endTime):',
-                  !!(currentShift?.startTime && !currentShift?.endTime)
-                );
-                console.log(
-                  'Класс индикатора:',
-                  currentShift &&
-                    (currentShift.status === 'open' ||
-                      (currentShift.startTime && !currentShift.endTime))
-                    ? 'Зеленый (открыт)'
-                    : 'Красный (закрыт)'
-                );
-
-                // Всегда обновляем статус смены при клике на индикатор для диагностики,
-                // даже на странице истории
-                updateShiftStatus().then((shift) => {
-                  console.log('Статус смены после обновления:', shift?.status);
-                });
-              }}
+              onClick={updateShiftStatus}
             >
               ●
             </div>
@@ -566,7 +352,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
             </Link>
             <button
               onClick={() => {
-                console.log('Выход из системы...');
                 localStorage.removeItem('accessToken');
                 navigate('/login', { replace: true });
               }}
@@ -576,7 +361,9 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children }) => {
             </button>
           </nav>
         </header>
-        <main className={styles.mainContent}>{children}</main>
+        <main className={styles.mainContent}>
+          <Outlet />
+        </main>
       </div>
     </ShiftContext.Provider>
   );
