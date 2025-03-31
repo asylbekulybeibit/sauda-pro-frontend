@@ -288,6 +288,10 @@ const CashierLayout: React.FC = () => {
     return styles.headerSales;
   };
 
+  const handleLogout = () => {
+    navigate('/profile');
+  };
+
   return (
     <ShiftContext.Provider value={{ updateShiftStatus, currentShift }}>
       <div className={styles.cashierLayout}>
@@ -350,13 +354,7 @@ const CashierLayout: React.FC = () => {
             >
               ИСТОРИЯ ПРОДАЖ
             </Link>
-            <button
-              onClick={() => {
-                localStorage.removeItem('accessToken');
-                navigate('/login', { replace: true });
-              }}
-              className={styles.profileButton}
-            >
+            <button className={styles.profileButton} onClick={handleLogout}>
               ВЫЙТИ
             </button>
           </nav>
