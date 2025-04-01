@@ -17,13 +17,13 @@ import styles from './SalesPage.module.css';
 
 // Ключи для localStorage
 const STORAGE_KEYS = {
-  RECEIPT_ITEMS: 'cashier_receipt_items',
   RECEIPT_ID: 'cashier_receipt_id',
   RECEIPT_NUMBER: 'cashier_receipt_number',
+  RECEIPT_ITEMS: 'cashier_receipt_items',
   TOTAL_AMOUNT: 'cashier_total_amount',
   DISCOUNT_AMOUNT: 'cashier_discount_amount',
   FINAL_AMOUNT: 'cashier_final_amount',
-};
+} as const;
 
 const SalesPage: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
@@ -41,272 +41,217 @@ const SalesPage: React.FC = () => {
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
-    if (!warehouseId) return;
+    // Получаем текущие данные из localStorage
+    const currentStoredData = {
+      receiptId: localStorage.getItem(STORAGE_KEYS.RECEIPT_ID),
+      receiptNumber: localStorage.getItem(STORAGE_KEYS.RECEIPT_NUMBER),
+      items: localStorage.getItem(STORAGE_KEYS.RECEIPT_ITEMS),
+      totalAmount: localStorage.getItem(STORAGE_KEYS.TOTAL_AMOUNT),
+      discountAmount: localStorage.getItem(STORAGE_KEYS.DISCOUNT_AMOUNT),
+      finalAmount: localStorage.getItem(STORAGE_KEYS.FINAL_AMOUNT),
+    };
 
-    const storagePrefix = `${warehouseId}_`;
+    // Проверяем, есть ли активный чек или товары для сохранения
+    const hasReceipt = Boolean(receiptId && receiptNumber);
+    const hasItems = receiptItems.length > 0;
+
+    if (!hasReceipt && !hasItems) {
+      console.log('Нет данных для сохранения (нет товаров и нет чека)');
+      return;
+    }
+
+    // Создаем объект с новыми данными
+    const newData = {
+      [STORAGE_KEYS.RECEIPT_ID]: receiptId,
+      [STORAGE_KEYS.RECEIPT_NUMBER]: receiptNumber,
+      [STORAGE_KEYS.RECEIPT_ITEMS]: receiptItems,
+      [STORAGE_KEYS.TOTAL_AMOUNT]: totalAmount,
+      [STORAGE_KEYS.DISCOUNT_AMOUNT]: discountAmount,
+      [STORAGE_KEYS.FINAL_AMOUNT]: finalAmount,
+    };
+
+    // Проверяем, изменились ли данные
+    const currentItemsStr = currentStoredData.items
+      ? JSON.parse(currentStoredData.items)
+      : [];
+    const hasChanges =
+      currentStoredData.receiptId !== receiptId ||
+      currentStoredData.receiptNumber !== receiptNumber ||
+      JSON.stringify(currentItemsStr) !== JSON.stringify(receiptItems) ||
+      currentStoredData.totalAmount !== totalAmount?.toString() ||
+      currentStoredData.discountAmount !== discountAmount?.toString() ||
+      currentStoredData.finalAmount !== finalAmount?.toString();
+
+    if (!hasChanges) {
+      console.log('Данные не изменились, пропускаем сохранение');
+      return;
+    }
+
     try {
-      // Сохраняем данные в любом случае, если есть товары
-      if (receiptItems.length > 0) {
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS,
-          JSON.stringify(receiptItems)
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.RECEIPT_ID,
-          receiptId || ''
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER,
-          receiptNumber || ''
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT,
-          totalAmount.toString()
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT,
-          discountAmount.toString()
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.FINAL_AMOUNT,
-          finalAmount.toString()
-        );
-        console.log('Состояние успешно сохранено в localStorage');
-      } else if (receiptId) {
-        // Если нет товаров, но есть ID чека - сохраняем только ID и номер
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.RECEIPT_ID,
-          receiptId
-        );
-        localStorage.setItem(
-          storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER,
-          receiptNumber || ''
-        );
-        console.log('Сохранен ID и номер чека в localStorage');
-      } else {
-        // Если нет ни товаров, ни ID чека - очищаем хранилище
-        clearStorageState();
-        console.log('Хранилище очищено, так как нет данных для сохранения');
-      }
+      // Сохраняем только если есть изменения
+      Object.entries(newData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          const valueToStore =
+            typeof value === 'object' ? JSON.stringify(value) : String(value);
+          localStorage.setItem(key, valueToStore);
+          console.log(`Сохранено ${key}:`, valueToStore);
+        }
+      });
+      console.log('Состояние успешно сохранено в localStorage');
     } catch (error) {
       console.error('Ошибка при сохранении состояния:', error);
-      // Пытаемся очистить хранилище при ошибке
-      try {
-        clearStorageState();
-      } catch (clearError) {
-        console.error('Не удалось очистить хранилище:', clearError);
-      }
     }
   };
 
   // Восстановление состояния из localStorage
-  const restoreStateFromStorage = async () => {
-    if (!warehouseId) return;
+  const restoreStateFromStorage = async (shift: CashShift) => {
+    console.log('[restoreStateFromStorage] Начало восстановления состояния:', {
+      warehouseId,
+      shiftId: shift?.id,
+      shiftStatus: shift?.status,
+    });
 
-    const storagePrefix = `${warehouseId}_`;
-    try {
-      // Получаем все данные из localStorage
-      const storedReceiptId = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_ID
-      );
-      const storedItems = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS
-      );
-      const storedReceiptNumber = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER
-      );
-      const storedTotalAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT
-      );
-      const storedDiscountAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT
-      );
-      const storedFinalAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.FINAL_AMOUNT
-      );
-
-      // Сначала проверяем наличие сохраненных товаров
-      if (storedItems) {
-        try {
-          const localItems = JSON.parse(storedItems);
-          if (localItems && localItems.length > 0) {
-            console.log('Найдены сохраненные товары в localStorage');
-
-            // Если есть сохраненный ID чека, пытаемся получить его с сервера
-            if (storedReceiptId) {
-              console.log(
-                'Попытка получить данные чека с сервера:',
-                storedReceiptId
-              );
-              try {
-                const receiptDetails = await cashierApi.getReceiptDetails(
-                  warehouseId,
-                  storedReceiptId
-                );
-
-                // Если чек найден и активен, используем данные с сервера
-                if (
-                  receiptDetails &&
-                  receiptDetails.id &&
-                  receiptDetails.status !== 'CANCELLED' &&
-                  receiptDetails.status !== 'PAID'
-                ) {
-                  console.log(
-                    'Чек найден на сервере, используем серверные данные'
-                  );
-                  setReceiptId(storedReceiptId);
-                  setReceiptNumber(receiptDetails.receiptNumber || '');
-
-                  if (receiptDetails.items && receiptDetails.items.length > 0) {
-                    const updatedItems = receiptDetails.items.map(
-                      (item: ReceiptItem) => ({
-                        ...item,
-                        id: item.id || uuidv4(),
-                        serverItemId: item.id,
-                        finalAmount:
-                          item.finalAmount ||
-                          (item.price || 0) * (item.quantity || 1) -
-                            (item.discountAmount || 0),
-                      })
-                    );
-                    setReceiptItems(updatedItems);
-                    setTotalAmount(receiptDetails.totalAmount || 0);
-                    setDiscountAmount(receiptDetails.discountAmount || 0);
-                    setFinalAmount(receiptDetails.finalAmount || 0);
-                    console.log('Данные успешно восстановлены с сервера');
-                    return;
-                  }
-                } else {
-                  console.log('Чек найден, но не активен. Создаем новый чек');
-                  clearStorageState();
-                  await createNewReceipt(currentShift);
-                  return;
-                }
-              } catch (error: any) {
-                // Если чек не найден (404) или другая ошибка - используем локальные данные
-                console.log(
-                  'Чек не найден на сервере или ошибка связи, используем локальные данные'
-                );
-                setReceiptItems(localItems);
-                setReceiptId(null); // Сбрасываем ID, так как чек не найден на сервере
-                setReceiptNumber('Новый чек');
-                setTotalAmount(
-                  storedTotalAmount ? parseFloat(storedTotalAmount) : 0
-                );
-                setDiscountAmount(
-                  storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
-                );
-                setFinalAmount(
-                  storedFinalAmount ? parseFloat(storedFinalAmount) : 0
-                );
-
-                // Создаем новый чек на сервере с существующими товарами
-                const newReceiptId = await createNewReceipt(currentShift);
-                if (newReceiptId) {
-                  // Добавляем все товары в новый чек
-                  for (const item of localItems) {
-                    await addItemToReceiptOnServer(newReceiptId, item);
-                  }
-                }
-                return;
-              }
-            } else {
-              // Если нет ID чека, но есть товары - создаем новый чек
-              console.log('Нет ID чека, но есть товары. Создаем новый чек');
-              setReceiptItems(localItems);
-              setTotalAmount(
-                storedTotalAmount ? parseFloat(storedTotalAmount) : 0
-              );
-              setDiscountAmount(
-                storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
-              );
-              setFinalAmount(
-                storedFinalAmount ? parseFloat(storedFinalAmount) : 0
-              );
-
-              const newReceiptId = await createNewReceipt(currentShift);
-              if (newReceiptId) {
-                // Добавляем все товары в новый чек
-                for (const item of localItems) {
-                  await addItemToReceiptOnServer(newReceiptId, item);
-                }
-              }
-              return;
-            }
-          }
-        } catch (parseError) {
-          console.error(
-            'Ошибка при разборе данных из localStorage:',
-            parseError
-          );
-        }
-      }
-
-      // Если нет сохраненных данных или произошла ошибка - очищаем состояние
+    if (!warehouseId || !shift?.id) {
       console.log(
-        'Нет сохраненных данных или произошла ошибка, очищаем состояние'
+        '[restoreStateFromStorage] Невозможно восстановить состояние: нет warehouseId или смены'
       );
-      clearReceipt();
-    } catch (error) {
-      console.error('Критическая ошибка при восстановлении состояния:', error);
-      clearReceipt();
+      return;
     }
-  };
 
-  // Восстановление данных из localStorage (резервный вариант)
-  const restoreFromLocalStorage = () => {
-    if (!warehouseId) return;
+    const storedReceiptId = localStorage.getItem(STORAGE_KEYS.RECEIPT_ID);
+    const storedItems = localStorage.getItem(STORAGE_KEYS.RECEIPT_ITEMS);
+    const storedReceiptNumber = localStorage.getItem(
+      STORAGE_KEYS.RECEIPT_NUMBER
+    );
+    const storedTotalAmount = localStorage.getItem(STORAGE_KEYS.TOTAL_AMOUNT);
+    const storedDiscountAmount = localStorage.getItem(
+      STORAGE_KEYS.DISCOUNT_AMOUNT
+    );
+    const storedFinalAmount = localStorage.getItem(STORAGE_KEYS.FINAL_AMOUNT);
 
-    const storagePrefix = `${warehouseId}_`;
+    console.log('[restoreStateFromStorage] Данные из localStorage:', {
+      receiptId: storedReceiptId,
+      items: storedItems,
+      receiptNumber: storedReceiptNumber,
+      totalAmount: storedTotalAmount,
+      discountAmount: storedDiscountAmount,
+      finalAmount: storedFinalAmount,
+    });
+
+    if (!storedReceiptId || !storedItems) {
+      console.log(
+        '[restoreStateFromStorage] Нет сохраненных данных для восстановления'
+      );
+      return;
+    }
+
     try {
-      const storedItems = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS
+      console.log(
+        '[restoreStateFromStorage] Получаем детали чека с сервера:',
+        storedReceiptId
       );
-      const storedReceiptId = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_ID
+      const receiptDetails = await cashierApi.getReceiptDetails(
+        warehouseId,
+        storedReceiptId
       );
-      const storedReceiptNumber = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER
-      );
-      const storedTotalAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT
-      );
-      const storedDiscountAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT
-      );
-      const storedFinalAmount = localStorage.getItem(
-        storagePrefix + STORAGE_KEYS.FINAL_AMOUNT
+      console.log(
+        '[restoreStateFromStorage] Получены детали чека:',
+        receiptDetails
       );
 
-      // Устанавливаем значения с проверкой на null/undefined
-      setReceiptItems(storedItems ? JSON.parse(storedItems) : []);
-      setReceiptId(storedReceiptId || null);
-      setReceiptNumber(storedReceiptNumber || '');
-      setTotalAmount(storedTotalAmount ? parseFloat(storedTotalAmount) : 0);
-      setDiscountAmount(
-        storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
-      );
-      setFinalAmount(storedFinalAmount ? parseFloat(storedFinalAmount) : 0);
+      if (
+        receiptDetails &&
+        receiptDetails.status !== 'CANCELLED' &&
+        receiptDetails.status !== 'PAID'
+      ) {
+        console.log(
+          '[restoreStateFromStorage] Чек активен, восстанавливаем состояние'
+        );
 
-      console.log('Состояние успешно восстановлено из localStorage');
+        const parsedItems = JSON.parse(storedItems);
+        console.log(
+          '[restoreStateFromStorage] Распарсенные товары:',
+          parsedItems
+        );
+
+        setReceiptId(storedReceiptId);
+        setReceiptNumber(storedReceiptNumber || '');
+        setReceiptItems(parsedItems);
+        setTotalAmount(Number(storedTotalAmount) || 0);
+        setDiscountAmount(Number(storedDiscountAmount) || 0);
+        setFinalAmount(Number(storedFinalAmount) || 0);
+
+        console.log(
+          '[restoreStateFromStorage] Состояние успешно восстановлено'
+        );
+      } else {
+        console.log(
+          '[restoreStateFromStorage] Чек не активен, очищаем состояние'
+        );
+        clearStorageState();
+      }
     } catch (error) {
       console.error(
-        'Ошибка при восстановлении состояния из localStorage:',
+        '[restoreStateFromStorage] Ошибка при восстановлении состояния:',
         error
       );
-      clearReceipt(); // В случае ошибки очищаем состояние
+      clearStorageState();
     }
   };
 
   // Очистка состояния в localStorage
-  const clearStorageState = () => {
-    if (!warehouseId) return;
-
-    const storagePrefix = `${warehouseId}_`;
+  const clearStorageState = async () => {
     try {
+      console.log('Проверка необходимости очистки состояния в localStorage');
+
+      // Проверяем текущее состояние
+      const currentState = {
+        receiptId: localStorage.getItem(STORAGE_KEYS.RECEIPT_ID),
+        receiptNumber: localStorage.getItem(STORAGE_KEYS.RECEIPT_NUMBER),
+        items: localStorage.getItem(STORAGE_KEYS.RECEIPT_ITEMS),
+      };
+
+      // Если нет данных, нет необходимости очищать
+      if (
+        !currentState.receiptId &&
+        !currentState.receiptNumber &&
+        !currentState.items
+      ) {
+        console.log('Нет данных для очистки в localStorage');
+        return;
+      }
+
+      console.log('Текущее состояние перед очисткой:', currentState);
+
+      // Проверяем, связаны ли сохраненные данные с текущей сменой
+      if (currentShift && currentState.receiptId) {
+        try {
+          // Пытаемся получить детали чека
+          const receiptDetails = await cashierApi.getReceiptDetails(
+            warehouseId!,
+            currentState.receiptId
+          );
+
+          // Если чек существует и активен, не очищаем хранилище
+          if (
+            receiptDetails &&
+            receiptDetails.status !== 'CANCELLED' &&
+            receiptDetails.status !== 'PAID'
+          ) {
+            console.log('Найден активный чек, пропускаем очистку хранилища');
+            return;
+          }
+        } catch (error) {
+          console.log('Не удалось проверить статус чека:', error);
+        }
+      }
+
+      // Очищаем хранилище
       Object.values(STORAGE_KEYS).forEach((key) => {
-        localStorage.removeItem(storagePrefix + key);
+        localStorage.removeItem(key);
+        console.log(`Очищен ключ ${key}`);
       });
+      console.log('Состояние успешно очищено');
     } catch (error) {
       console.error('Ошибка при очистке состояния:', error);
     }
@@ -314,49 +259,54 @@ const SalesPage: React.FC = () => {
 
   // Проверка наличия открытой кассовой смены при загрузке страницы
   const checkCurrentShift = async () => {
+    console.log('[checkCurrentShift] Начало проверки текущей смены:', {
+      warehouseId,
+      currentShift,
+    });
+
     if (!warehouseId) {
-      console.error('warehouseId не определен, невозможно проверить смену');
+      console.log('[checkCurrentShift] warehouseId не определен');
       return;
     }
 
     try {
-      setLoading(true);
+      console.log('[checkCurrentShift] Запрос текущей смены с сервера');
       const response = await cashierApi.getCurrentShift(warehouseId);
-      console.log('Ответ API по текущей смене:', response);
+      console.log('[checkCurrentShift] Ответ от сервера:', response);
 
-      // Проверим наличие объекта response и необходимых полей
-      if (!response || !response.id) {
-        console.error('API вернул пустой объект или отсутствует ID смены');
-        setError('Необходимо открыть кассовую смену');
-        setCurrentShift(null);
-        clearStorageState(); // Очищаем хранилище, так как смена не открыта
-        clearReceipt(); // Очищаем состояние чека
-        setLoading(false);
-        return;
-      }
+      if (response && response.id) {
+        console.log('[checkCurrentShift] Проверка статуса смены:', {
+          shiftId: response.id,
+          status: response.status,
+          expectedStatus: 'OPEN',
+          areEqual: response.status === 'OPEN',
+        });
 
-      // Проверяем статус смены
-      if (response.status && response.status.toLowerCase() === 'open') {
-        console.log('Смена открыта! ID смены:', response.id);
-        setCurrentShift(response);
-        setError(null); // Сбрасываем ошибку, если она была
-        // После подтверждения открытой смены восстанавливаем состояние
-        await restoreStateFromStorage();
+        if (response.status === 'OPEN') {
+          console.log(
+            '[checkCurrentShift] Смена открыта, устанавливаем текущую смену'
+          );
+          setCurrentShift(response);
+
+          // После установки смены пытаемся восстановить состояние
+          await restoreStateFromStorage(response);
+        } else {
+          console.log(
+            '[checkCurrentShift] Смена не открыта, статус:',
+            response.status
+          );
+          setCurrentShift(null);
+          clearStorageState();
+        }
       } else {
-        console.log('Смена не открыта. Статус:', response.status);
-        setError('Необходимо открыть кассовую смену');
+        console.log('[checkCurrentShift] Нет активной смены');
         setCurrentShift(null);
-        clearStorageState(); // Очищаем хранилище, так как смена не открыта
-        clearReceipt(); // Очищаем состояние чека
+        clearStorageState();
       }
-      setLoading(false);
     } catch (error) {
-      console.error('Ошибка при проверке текущей смены:', error);
-      setError('Ошибка при проверке текущей смены');
+      console.error('[checkCurrentShift] Ошибка при проверке смены:', error);
       setCurrentShift(null);
-      clearStorageState(); // Очищаем хранилище при ошибке
-      clearReceipt(); // Очищаем состояние чека
-      setLoading(false);
+      clearStorageState();
     }
   };
 
@@ -366,14 +316,29 @@ const SalesPage: React.FC = () => {
       // Сначала проверяем смену, она сама вызовет восстановление состояния если смена открыта
       checkCurrentShift();
     }
+
+    // Добавляем обработчик для сохранения состояния при переключении вкладок
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        saveStateToStorage();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [warehouseId]);
 
   // Сохранение состояния при изменении данных
   useEffect(() => {
-    if (warehouseId) {
+    if (warehouseId && currentShift) {
       saveStateToStorage();
     }
   }, [
+    warehouseId,
+    currentShift,
     receiptItems,
     receiptId,
     receiptNumber,

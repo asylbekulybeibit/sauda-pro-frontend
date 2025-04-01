@@ -82,44 +82,11 @@ export const cashierApi = {
           headers: getAuthHeader(),
         }
       );
-      console.log('API: Получен ответ текущей смены:', response.data);
-
-      // Проверяем и обрабатываем данные смены
-      if (response.data) {
-        // Если отсутствует поле status, но есть startTime и нет endTime, определяем статус как 'open'
-        if (
-          !response.data.status &&
-          response.data.startTime &&
-          !response.data.endTime
-        ) {
-          console.log(
-            'API: Статус смены отсутствует, определяем как "open" на основе времени'
-          );
-          response.data.status = 'open';
-        }
-        // Если поле status есть, нормализуем его к нижнему регистру
-        else if (
-          response.data.status &&
-          typeof response.data.status === 'string'
-        ) {
-          console.log('API: Исходный статус смены:', response.data.status);
-          response.data.status = response.data.status.toLowerCase();
-          console.log(
-            'API: Статус смены после преобразования:',
-            response.data.status
-          );
-        }
-      }
+      console.log('API: Ответ API по текущей смене:', response.data);
       return response.data;
     } catch (error) {
       console.error('API: Ошибка при получении текущей смены:', error);
-
-      // Проверяем, является ли ошибка отсутствием открытой смены (404)
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        console.log('API: Открытая смена не найдена (404)');
-      }
-
-      throw error; // Пробрасываем ошибку дальше для обработки в компонентах
+      throw error;
     }
   },
 
@@ -138,31 +105,7 @@ export const cashierApi = {
         headers: getAuthHeader(),
       }
     );
-    console.log('API: Получен ответ на открытие смены:', response.data);
-
-    // Проверяем и обрабатываем данные смены
-    if (response.data) {
-      // Если отсутствует поле status, но есть startTime и нет endTime, определяем статус как 'open'
-      if (
-        !response.data.status &&
-        response.data.startTime &&
-        !response.data.endTime
-      ) {
-        console.log(
-          'API: Статус смены после открытия отсутствует, устанавливаем "open"'
-        );
-        response.data.status = 'open';
-      }
-      // Если поле status есть, нормализуем его к нижнему регистру
-      else if (
-        response.data.status &&
-        typeof response.data.status === 'string'
-      ) {
-        console.log('API: Исходный статус:', response.data.status);
-        response.data.status = response.data.status.toLowerCase();
-        console.log('API: Статус после преобразования:', response.data.status);
-      }
-    }
+    console.log('API: Ответ API на открытие смены:', response.data);
     return response.data;
   },
 
@@ -182,33 +125,7 @@ export const cashierApi = {
           headers: getAuthHeader(),
         }
       );
-      console.log('API: Получен ответ на закрытие смены:', response.data);
-
-      // Проверяем и обрабатываем данные смены
-      if (response.data) {
-        // Если отсутствует поле status, но есть endTime, определяем статус как 'closed'
-        if (!response.data.status && response.data.endTime) {
-          console.log(
-            'API: Статус закрытой смены отсутствует, устанавливаем "closed"'
-          );
-          response.data.status = 'closed';
-        }
-        // Если поле status есть, нормализуем его к нижнему регистру
-        else if (
-          response.data.status &&
-          typeof response.data.status === 'string'
-        ) {
-          console.log(
-            'API: Исходный статус после закрытия:',
-            response.data.status
-          );
-          response.data.status = response.data.status.toLowerCase();
-          console.log(
-            'API: Статус после преобразования:',
-            response.data.status
-          );
-        }
-      }
+      console.log('API: Ответ API на закрытие смены:', response.data);
       return response.data;
     } catch (error) {
       console.error('API: Ошибка при закрытии смены:', error);

@@ -300,7 +300,7 @@ const CashierLayout: React.FC = () => {
             <div className={styles.cashInfo}>Касса - {cashRegisterName}</div>
             <div className={styles.timeInfo}>ВРЕМЯ: {currentTime}</div>
             <div className={styles.cashierInfo}>КАССИР: {cashierName}</div>
-            <div className={styles.versionInfo}>v 4.0.8</div>
+            
             <div
               className={`${styles.statusIndicator} ${
                 currentShift &&
