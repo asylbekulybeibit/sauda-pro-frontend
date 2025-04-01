@@ -1,86 +1,106 @@
 .totalPanel {
   display: flex;
   background-color: #444;
-  border-radius: 4px;
-  padding: 15px;
-  margin-top: 20px;
+  padding: 10px;
+  margin: 0;
+  width: 100%;
+  height: 35vh;
 }
 
 .totals {
-  flex: 0 0 30%;
-  background-color: #eee;
+  flex: 0 0 300px;
+  background-color: #fff;
   border-radius: 4px;
-  padding: 15px;
+  padding: 20px;
+  margin-right: 10px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 15px;
 }
 
 .totalItem {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #ddd;
+  align-items: center;
+  padding: 5px 0;
 }
 
-.totalItem:last-child {
-  border-bottom: none;
+.totalItem:first-child {
+  margin-bottom: 10px;
+}
+
+.totalItem:first-child .totalLabel,
+.totalItem:first-child .totalValue {
+  font-size: 24px;
+  font-weight: bold;
+  color: #000;
 }
 
 .totalLabel {
-  font-weight: bold;
-  color: #555;
+  font-size: 16px;
+  color: #000;
 }
 
 .totalValue {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 18px;
+  color: #000;
 }
 
 .actions {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 15px;
+  gap: 8px;
+  height: calc(35vh - 20px); /* Учитываем padding панели */
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-left: 20px;
 }
 
 .actionRow {
   display: flex;
-  flex: 1;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.actionRow:last-child {
-  margin-bottom: 0;
+  gap: 8px;
+  justify-content: flex-end;
+  height: calc(
+    (35vh - 36px) / 3
+  ); /* (Высота панели - padding верх и низ - отступы между рядами) / 3 */
 }
 
 .actionButton {
-  flex: 1;
+  width: 130px;
+  height: 100%;
   background-color: #eee;
   border: none;
   border-radius: 4px;
-  padding: 10px;
-  font-size: 14px;
+  padding: 5px;
+  font-size: 13px;
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: pre-line;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actionButton:hover {
   background-color: #ddd;
 }
 
-.plusButton {
-  background-color: #ccc;
-  font-size: 24px;
-}
-
+.plusButton,
 .minusButton {
-  background-color: #ccc;
+  background-color: #eee;
   font-size: 24px;
 }
 
 .deleteButton {
   background-color: #f44336;
   color: white;
+  width: 130px;
 }
 
 .deleteButton:hover {
@@ -90,8 +110,16 @@
 .payButton {
   background-color: #00a65a;
   color: white;
+  width: 268px;
+  font-size: 20px;
 }
 
 .payButton:hover {
   background-color: #008d4c;
+}
+
+/* Стили для кнопок + и - */
+.actionButton:nth-last-child(1) {
+  font-size: 40px;
+  font-weight: normal;
 }

@@ -175,7 +175,7 @@
 
 .mainContent {
   flex: 1;
-  padding: 20px;
+  padding: 0;
   overflow-y: auto;
   animation: fadeIn 0.2s ease-out;
   opacity: 1;
@@ -198,7 +198,7 @@
 /* Добавляем стили для плавного перехода между страницами */
 .mainContent > * {
   position: absolute;
-  width: calc(100% - 40px); /* учитываем padding */
+  width: calc(100% - 0px); /* учитываем padding */
   transition: opacity 0.2s ease-out;
 }
 

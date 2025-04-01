@@ -1,21 +1,75 @@
 .searchContainer {
   position: relative;
-  width: 100%;
+  width: 33.33%; /* 1/3 of the page width */
   margin-bottom: 10px;
+  padding-left: 20px; /* Left padding */
 }
 
 .searchInput {
   width: 100%;
-  padding: 10px 15px;
+  padding: 6px 15px; /* Reduced padding for smaller height */
+  padding-right: 40px;
   border: 2px solid #ccc;
   border-radius: 4px;
-  font-size: 16px;
+  font-size: 14px; /* Slightly smaller font */
   transition: border-color 0.3s;
+  height: 32px; /* Fixed height */
 }
 
 .searchInput:focus {
   outline: none;
   border-color: #00a65a;
+}
+
+.keyboardIcon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px; /* Smaller icon */
+  height: 20px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px; /* Icon size */
+}
+
+.keyboardIcon:hover {
+  color: #333;
+}
+
+.virtualKeyboard {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background: white;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.virtualKeyboard :global(.simple-keyboard) {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.virtualKeyboard :global(.simple-keyboard .hg-button) {
+  height: 40px;
+  border-radius: 4px;
+  background: white;
+  border: 1px solid #ddd;
+  color: #333;
+  font-size: 16px;
+  margin: 2px;
+}
+
+.virtualKeyboard :global(.simple-keyboard .hg-button:hover) {
+  background: #e6e6e6;
 }
 
 .searchResults {

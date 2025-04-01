@@ -50,7 +50,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                 </td>
                 <td>{index + 1}</td>
                 <td>{item.name}</td>
-                <td>{item.price.toFixed(2)}</td>
+                <td>{Number(item.price).toFixed(2)}</td>
                 <td>
                   <div className={styles.quantityControl}>
                     <button
@@ -76,12 +76,12 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                 </td>
                 <td>
                   {item.discountPercent > 0
-                    ? `${item.discountPercent}% (${item.discountAmount.toFixed(
-                        2
-                      )})`
+                    ? `${item.discountPercent}% (${Number(
+                        item.discountAmount
+                      ).toFixed(2)})`
                     : '-'}
                 </td>
-                <td>{item.finalAmount.toFixed(2)}</td>
+                <td>{Number(item.finalAmount).toFixed(2)}</td>
               </tr>
             ))
           )}

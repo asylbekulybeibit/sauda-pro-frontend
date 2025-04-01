@@ -223,14 +223,45 @@ export const cashierApi = {
     warehouseId: string,
     data: { cashShiftId: string; cashRegisterId: string }
   ) {
-    const response = await axios.post(
-      `${API_URL}/manager/${warehouseId}/cashier/receipts`,
-      data,
-      {
-        headers: getAuthHeader(),
+    console.log('API: Запрос на создание нового чека:', { warehouseId, data });
+    try {
+      const response = await axios.post(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts`,
+        data,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      console.log('API: Чек успешно создан. Ответ:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('API: Ошибка при создании чека:', error);
+
+      // Детализация ошибки для отладки
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          console.error('API: Ответ сервера с ошибкой:', {
+            status: error.response.status,
+            data: error.response.data,
+          });
+
+          // Если смена не открыта, логируем это специально
+          if (
+            error.response.status === 404 ||
+            (error.response.data?.message &&
+              error.response.data.message.includes('shift'))
+          ) {
+            console.error('API: Возможно, смена не открыта или не найдена');
+          }
+        } else if (error.request) {
+          console.error('API: Запрос был отправлен, но ответ не получен');
+        } else {
+          console.error('API: Ошибка при настройке запроса:', error.message);
+        }
       }
-    );
-    return response.data;
+
+      throw error; // Пробрасываем ошибку дальше для обработки в компоненте
+    }
   },
 
   /**

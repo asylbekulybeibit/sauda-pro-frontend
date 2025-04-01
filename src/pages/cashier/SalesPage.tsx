@@ -15,6 +15,16 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SalesPage.module.css';
 
+// Ключи для localStorage
+const STORAGE_KEYS = {
+  RECEIPT_ITEMS: 'cashier_receipt_items',
+  RECEIPT_ID: 'cashier_receipt_id',
+  RECEIPT_NUMBER: 'cashier_receipt_number',
+  TOTAL_AMOUNT: 'cashier_total_amount',
+  DISCOUNT_AMOUNT: 'cashier_discount_amount',
+  FINAL_AMOUNT: 'cashier_final_amount',
+};
+
 const SalesPage: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
   const navigate = useNavigate();
@@ -29,12 +39,367 @@ const SalesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Сохранение состояния в localStorage
+  const saveStateToStorage = () => {
+    if (!warehouseId) return;
+
+    const storagePrefix = `${warehouseId}_`;
+    try {
+      // Сохраняем данные в любом случае, если есть товары
+      if (receiptItems.length > 0) {
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS,
+          JSON.stringify(receiptItems)
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.RECEIPT_ID,
+          receiptId || ''
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER,
+          receiptNumber || ''
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT,
+          totalAmount.toString()
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT,
+          discountAmount.toString()
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.FINAL_AMOUNT,
+          finalAmount.toString()
+        );
+        console.log('Состояние успешно сохранено в localStorage');
+      } else if (receiptId) {
+        // Если нет товаров, но есть ID чека - сохраняем только ID и номер
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.RECEIPT_ID,
+          receiptId
+        );
+        localStorage.setItem(
+          storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER,
+          receiptNumber || ''
+        );
+        console.log('Сохранен ID и номер чека в localStorage');
+      } else {
+        // Если нет ни товаров, ни ID чека - очищаем хранилище
+        clearStorageState();
+        console.log('Хранилище очищено, так как нет данных для сохранения');
+      }
+    } catch (error) {
+      console.error('Ошибка при сохранении состояния:', error);
+      // Пытаемся очистить хранилище при ошибке
+      try {
+        clearStorageState();
+      } catch (clearError) {
+        console.error('Не удалось очистить хранилище:', clearError);
+      }
+    }
+  };
+
+  // Восстановление состояния из localStorage
+  const restoreStateFromStorage = async () => {
+    if (!warehouseId) return;
+
+    const storagePrefix = `${warehouseId}_`;
+    try {
+      // Получаем все данные из localStorage
+      const storedReceiptId = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_ID
+      );
+      const storedItems = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS
+      );
+      const storedReceiptNumber = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER
+      );
+      const storedTotalAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT
+      );
+      const storedDiscountAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT
+      );
+      const storedFinalAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.FINAL_AMOUNT
+      );
+
+      // Сначала проверяем наличие сохраненных товаров
+      if (storedItems) {
+        try {
+          const localItems = JSON.parse(storedItems);
+          if (localItems && localItems.length > 0) {
+            console.log('Найдены сохраненные товары в localStorage');
+
+            // Если есть сохраненный ID чека, пытаемся получить его с сервера
+            if (storedReceiptId) {
+              console.log(
+                'Попытка получить данные чека с сервера:',
+                storedReceiptId
+              );
+              try {
+                const receiptDetails = await cashierApi.getReceiptDetails(
+                  warehouseId,
+                  storedReceiptId
+                );
+
+                // Если чек найден и активен, используем данные с сервера
+                if (
+                  receiptDetails &&
+                  receiptDetails.id &&
+                  receiptDetails.status !== 'CANCELLED' &&
+                  receiptDetails.status !== 'PAID'
+                ) {
+                  console.log(
+                    'Чек найден на сервере, используем серверные данные'
+                  );
+                  setReceiptId(storedReceiptId);
+                  setReceiptNumber(receiptDetails.receiptNumber || '');
+
+                  if (receiptDetails.items && receiptDetails.items.length > 0) {
+                    const updatedItems = receiptDetails.items.map(
+                      (item: ReceiptItem) => ({
+                        ...item,
+                        id: item.id || uuidv4(),
+                        serverItemId: item.id,
+                        finalAmount:
+                          item.finalAmount ||
+                          (item.price || 0) * (item.quantity || 1) -
+                            (item.discountAmount || 0),
+                      })
+                    );
+                    setReceiptItems(updatedItems);
+                    setTotalAmount(receiptDetails.totalAmount || 0);
+                    setDiscountAmount(receiptDetails.discountAmount || 0);
+                    setFinalAmount(receiptDetails.finalAmount || 0);
+                    console.log('Данные успешно восстановлены с сервера');
+                    return;
+                  }
+                } else {
+                  console.log('Чек найден, но не активен. Создаем новый чек');
+                  clearStorageState();
+                  await createNewReceipt(currentShift);
+                  return;
+                }
+              } catch (error: any) {
+                // Если чек не найден (404) или другая ошибка - используем локальные данные
+                console.log(
+                  'Чек не найден на сервере или ошибка связи, используем локальные данные'
+                );
+                setReceiptItems(localItems);
+                setReceiptId(null); // Сбрасываем ID, так как чек не найден на сервере
+                setReceiptNumber('Новый чек');
+                setTotalAmount(
+                  storedTotalAmount ? parseFloat(storedTotalAmount) : 0
+                );
+                setDiscountAmount(
+                  storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
+                );
+                setFinalAmount(
+                  storedFinalAmount ? parseFloat(storedFinalAmount) : 0
+                );
+
+                // Создаем новый чек на сервере с существующими товарами
+                const newReceiptId = await createNewReceipt(currentShift);
+                if (newReceiptId) {
+                  // Добавляем все товары в новый чек
+                  for (const item of localItems) {
+                    await addItemToReceiptOnServer(newReceiptId, item);
+                  }
+                }
+                return;
+              }
+            } else {
+              // Если нет ID чека, но есть товары - создаем новый чек
+              console.log('Нет ID чека, но есть товары. Создаем новый чек');
+              setReceiptItems(localItems);
+              setTotalAmount(
+                storedTotalAmount ? parseFloat(storedTotalAmount) : 0
+              );
+              setDiscountAmount(
+                storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
+              );
+              setFinalAmount(
+                storedFinalAmount ? parseFloat(storedFinalAmount) : 0
+              );
+
+              const newReceiptId = await createNewReceipt(currentShift);
+              if (newReceiptId) {
+                // Добавляем все товары в новый чек
+                for (const item of localItems) {
+                  await addItemToReceiptOnServer(newReceiptId, item);
+                }
+              }
+              return;
+            }
+          }
+        } catch (parseError) {
+          console.error(
+            'Ошибка при разборе данных из localStorage:',
+            parseError
+          );
+        }
+      }
+
+      // Если нет сохраненных данных или произошла ошибка - очищаем состояние
+      console.log(
+        'Нет сохраненных данных или произошла ошибка, очищаем состояние'
+      );
+      clearReceipt();
+    } catch (error) {
+      console.error('Критическая ошибка при восстановлении состояния:', error);
+      clearReceipt();
+    }
+  };
+
+  // Восстановление данных из localStorage (резервный вариант)
+  const restoreFromLocalStorage = () => {
+    if (!warehouseId) return;
+
+    const storagePrefix = `${warehouseId}_`;
+    try {
+      const storedItems = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_ITEMS
+      );
+      const storedReceiptId = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_ID
+      );
+      const storedReceiptNumber = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.RECEIPT_NUMBER
+      );
+      const storedTotalAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.TOTAL_AMOUNT
+      );
+      const storedDiscountAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.DISCOUNT_AMOUNT
+      );
+      const storedFinalAmount = localStorage.getItem(
+        storagePrefix + STORAGE_KEYS.FINAL_AMOUNT
+      );
+
+      // Устанавливаем значения с проверкой на null/undefined
+      setReceiptItems(storedItems ? JSON.parse(storedItems) : []);
+      setReceiptId(storedReceiptId || null);
+      setReceiptNumber(storedReceiptNumber || '');
+      setTotalAmount(storedTotalAmount ? parseFloat(storedTotalAmount) : 0);
+      setDiscountAmount(
+        storedDiscountAmount ? parseFloat(storedDiscountAmount) : 0
+      );
+      setFinalAmount(storedFinalAmount ? parseFloat(storedFinalAmount) : 0);
+
+      console.log('Состояние успешно восстановлено из localStorage');
+    } catch (error) {
+      console.error(
+        'Ошибка при восстановлении состояния из localStorage:',
+        error
+      );
+      clearReceipt(); // В случае ошибки очищаем состояние
+    }
+  };
+
+  // Очистка состояния в localStorage
+  const clearStorageState = () => {
+    if (!warehouseId) return;
+
+    const storagePrefix = `${warehouseId}_`;
+    try {
+      Object.values(STORAGE_KEYS).forEach((key) => {
+        localStorage.removeItem(storagePrefix + key);
+      });
+    } catch (error) {
+      console.error('Ошибка при очистке состояния:', error);
+    }
+  };
+
   // Проверка наличия открытой кассовой смены при загрузке страницы
+  const checkCurrentShift = async () => {
+    if (!warehouseId) {
+      console.error('warehouseId не определен, невозможно проверить смену');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await cashierApi.getCurrentShift(warehouseId);
+      console.log('Ответ API по текущей смене:', response);
+
+      // Проверим наличие объекта response и необходимых полей
+      if (!response || !response.id) {
+        console.error('API вернул пустой объект или отсутствует ID смены');
+        setError('Необходимо открыть кассовую смену');
+        setCurrentShift(null);
+        clearStorageState(); // Очищаем хранилище, так как смена не открыта
+        clearReceipt(); // Очищаем состояние чека
+        setLoading(false);
+        return;
+      }
+
+      // Проверяем статус смены
+      if (response.status && response.status.toLowerCase() === 'open') {
+        console.log('Смена открыта! ID смены:', response.id);
+        setCurrentShift(response);
+        setError(null); // Сбрасываем ошибку, если она была
+        // После подтверждения открытой смены восстанавливаем состояние
+        await restoreStateFromStorage();
+      } else {
+        console.log('Смена не открыта. Статус:', response.status);
+        setError('Необходимо открыть кассовую смену');
+        setCurrentShift(null);
+        clearStorageState(); // Очищаем хранилище, так как смена не открыта
+        clearReceipt(); // Очищаем состояние чека
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error('Ошибка при проверке текущей смены:', error);
+      setError('Ошибка при проверке текущей смены');
+      setCurrentShift(null);
+      clearStorageState(); // Очищаем хранилище при ошибке
+      clearReceipt(); // Очищаем состояние чека
+      setLoading(false);
+    }
+  };
+
+  // Обновляем useEffect для правильного порядка проверок
   useEffect(() => {
     if (warehouseId) {
+      // Сначала проверяем смену, она сама вызовет восстановление состояния если смена открыта
       checkCurrentShift();
     }
   }, [warehouseId]);
+
+  // Сохранение состояния при изменении данных
+  useEffect(() => {
+    if (warehouseId) {
+      saveStateToStorage();
+    }
+  }, [
+    receiptItems,
+    receiptId,
+    receiptNumber,
+    totalAmount,
+    discountAmount,
+    finalAmount,
+  ]);
+
+  // Обработчик события перед закрытием/обновлением страницы
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveStateToStorage();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [
+    receiptItems,
+    receiptId,
+    receiptNumber,
+    totalAmount,
+    discountAmount,
+    finalAmount,
+  ]);
 
   // Расчет итогов при изменении товаров
   useEffect(() => {
@@ -47,67 +412,78 @@ const SalesPage: React.FC = () => {
       0
     );
     const finalSum = totalSum - discountSum;
+
     setTotalAmount(totalSum);
     setDiscountAmount(discountSum);
     setFinalAmount(finalSum);
   }, [receiptItems]);
 
-  // Создание нового чека
-  const createNewReceipt = async () => {
-    if (!warehouseId || !currentShift) {
-      setError('Необходимо открыть кассовую смену перед созданием чека');
+  const createNewReceipt = async (shift = currentShift) => {
+    console.log('Запуск функции createNewReceipt с данными смены:', shift);
+    if (!warehouseId) {
+      console.error('warehouseId не определен');
+      setError('Не выбран склад');
       return null;
     }
 
-    setLoading(true);
-    setError(null);
+    if (!shift) {
+      console.error('shift не определен');
+      setError('Смена не открыта');
+      return null;
+    }
 
+    console.log('Создание нового чека:', {
+      warehouseId,
+      cashShiftId: shift.id,
+      cashRegisterId: shift.cashRegister.id,
+    });
+
+    setLoading(true);
     try {
       const response = await cashierApi.createReceipt(warehouseId, {
-        cashShiftId: currentShift.id,
-        cashRegisterId: currentShift.cashRegister.id,
+        cashShiftId: shift.id,
+        cashRegisterId: shift.cashRegister.id,
       });
 
-      setReceiptId(response.id);
-      setReceiptNumber(response.number);
-      setError(null);
+      console.log('Чек успешно создан:', response);
 
+      setReceiptId(response.id);
+      setReceiptNumber(response.receiptNumber);
+      setError(null);
+      setLoading(false);
       return response.id;
     } catch (err: any) {
       console.error('Ошибка при создании чека:', err);
 
-      // Более детальные сообщения об ошибках
       if (err.response) {
+        console.error('Детали ошибки:', err.response.status, err.response.data);
         if (err.response.status === 400) {
           setError(
-            `Не удалось создать чек: ${
-              err.response.data?.message || 'Неверные данные'
+            `Ошибка при создании чека: ${
+              err.response.data.message || 'Неверные данные'
             }`
           );
         } else if (err.response.status === 404) {
-          setError(
-            'Не найдена активная смена или касса. Обновите страницу и попробуйте снова.'
-          );
+          setError('Невозможно создать чек: смена не найдена');
+        } else if (err.response.status === 403) {
+          setError('У вас нет прав для создания чека');
         } else {
           setError(
-            `Ошибка сервера: ${
-              err.response.data?.message || 'Не удалось создать чек'
+            `Невозможно создать чек: ${
+              err.response.data.message || 'Неизвестная ошибка'
             }`
           );
         }
       } else if (err.request) {
-        setError(
-          'Не удалось соединиться с сервером. Проверьте подключение к интернету.'
-        );
+        setError('Сервер не отвечает. Проверьте подключение к интернету.');
       } else {
         setError(
-          'Произошла ошибка при создании чека. Пожалуйста, попробуйте еще раз.'
+          `Невозможно создать чек: ${err.message || 'Неизвестная ошибка'}`
         );
       }
 
-      return null;
-    } finally {
       setLoading(false);
+      return null;
     }
   };
 
@@ -116,132 +492,208 @@ const SalesPage: React.FC = () => {
     receiptId: string,
     item: ReceiptItem
   ) => {
-    if (!warehouseId || !item.warehouseProductId) return;
+    if (!warehouseId || !item.warehouseProductId) {
+      console.error('Отсутствует warehouseId или warehouseProductId');
+      return null;
+    }
 
     try {
+      // Логируем исходные значения
+      console.log('Исходные значения:', {
+        price: item.price,
+        priceType: typeof item.price,
+        quantity: item.quantity,
+        quantityType: typeof item.quantity,
+        discountPercent: item.discountPercent,
+        discountPercentType: typeof item.discountPercent,
+      });
+
+      // Форматируем числовые значения перед отправкой
+      const priceString = item.price.toString();
+      const priceFloat = parseFloat(priceString);
+      const priceFormatted = priceFloat.toFixed(2);
+      const price = Number(priceFormatted);
+
+      const quantity = Number(item.quantity);
+
+      const discountPercentString = (item.discountPercent || 0).toString();
+      const discountPercentFloat = parseFloat(discountPercentString);
+      const discountPercentFormatted = discountPercentFloat.toFixed(2);
+      const discountPercent = Number(discountPercentFormatted);
+
+      // Логируем промежуточные значения форматирования цены
+      console.log('Форматирование цены:', {
+        priceString,
+        priceFloat,
+        priceFormatted,
+        price,
+      });
+
+      // Логируем промежуточные значения форматирования скидки
+      console.log('Форматирование скидки:', {
+        discountPercentString,
+        discountPercentFloat,
+        discountPercentFormatted,
+        discountPercent,
+      });
+
+      const requestData = {
+        warehouseProductId: item.warehouseProductId,
+        quantity,
+        price,
+        discountPercent,
+      };
+
+      // Логируем финальный объект запроса
+      console.log('Отправка запроса на сервер:', {
+        requestData,
+        priceType: typeof requestData.price,
+        quantityType: typeof requestData.quantity,
+        discountPercentType: typeof requestData.discountPercent,
+      });
+
       const response = await cashierApi.addItemToReceipt(
         warehouseId,
         receiptId,
-        {
-          warehouseProductId: item.warehouseProductId,
-          quantity: item.quantity,
-          price: item.price,
-          discountPercent: item.discountPercent,
-        }
+        requestData
       );
 
-      // Обновляем ID товара на сервере в локальном состоянии
-      setReceiptItems((prevItems) =>
-        prevItems.map((prevItem) =>
-          prevItem.id === item.id
-            ? { ...prevItem, serverItemId: response.id }
-            : prevItem
-        )
-      );
-
+      console.log('Ответ сервера:', response);
       return response;
     } catch (err) {
       console.error('Ошибка при добавлении/обновлении товара в чеке:', err);
-      setError('Не удалось обновить товар в чеке');
-      return null;
+      // Логируем детали ошибки
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as {
+          response: {
+            status: number;
+            data: unknown;
+            headers: unknown;
+          };
+        };
+        console.error('Детали ошибки:', {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers,
+        });
+      }
+      throw new Error('Не удалось добавить товар в чек');
     }
   };
 
   const handleProductSelect = async (product: Product) => {
-    // Проверяем, есть ли уже такой товар в чеке
-    const existingItemIndex = receiptItems.findIndex(
-      (item) => item.warehouseProductId === product.id
-    );
+    console.log('Выбран товар:', product);
 
-    if (existingItemIndex >= 0) {
-      // Если товар уже есть, увеличиваем количество
-      const updatedItems = [...receiptItems];
-      const item = updatedItems[existingItemIndex];
+    if (!currentShift) {
+      console.error('Смена не открыта');
+      setError('Необходимо открыть кассовую смену перед добавлением товаров');
+      return;
+    }
 
-      const newQuantity = item.quantity + 1;
-      const newAmount = product.price * newQuantity;
-      const newDiscountAmount = (newAmount * item.discountPercent) / 100;
-      const newFinalAmount = newAmount - newDiscountAmount;
+    let currentReceiptId = receiptId;
 
-      updatedItems[existingItemIndex] = {
-        ...item,
-        quantity: newQuantity,
-        amount: newAmount,
-        discountAmount: newDiscountAmount,
-        finalAmount: newFinalAmount,
-      };
-
-      setReceiptItems(updatedItems);
-
-      // Если чек уже создан, обновляем товар на сервере
-      if (receiptId) {
-        try {
-          await addItemToReceiptOnServer(
-            receiptId,
-            updatedItems[existingItemIndex]
-          );
-        } catch (err) {
-          console.error('Ошибка при обновлении товара в чеке:', err);
-          setError('Не удалось обновить количество товара в чеке');
+    try {
+      // Создаем чек только если его еще нет и добавляется первый товар
+      if (!currentReceiptId) {
+        console.log('Создание нового чека для первого товара');
+        currentReceiptId = await createNewReceipt(currentShift);
+        if (!currentReceiptId) {
+          console.error('Не удалось создать чек');
+          return;
         }
       }
-    } else {
-      // Если товара еще нет, добавляем новый
-      const newItem: ReceiptItem = {
-        id: uuidv4(), // Временный ID для фронтенда
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        amount: product.price,
-        discountPercent: 0,
-        discountAmount: 0,
-        finalAmount: product.price,
-        type: product.isService ? 'service' : 'product',
-        warehouseProductId: product.id,
-      };
 
-      setReceiptItems([...receiptItems, newItem]);
+      // Проверяем, есть ли уже такой товар в чеке
+      const existingItemIndex = receiptItems.findIndex(
+        (item) => item.warehouseProductId === product.id
+      );
 
-      // Если чек еще не создан, создаем его
-      let activeReceiptId = receiptId;
-      if (!activeReceiptId) {
-        activeReceiptId = await createNewReceipt();
-        if (!activeReceiptId) return;
-      }
-
-      // Добавляем товар на сервер
-      try {
-        const newItem = await cashierApi.addItemToReceipt(
-          warehouseId || '',
-          activeReceiptId,
-          {
-            warehouseProductId: product.id,
-            quantity: 1,
-            price: product.price,
-            discountPercent: 0,
-          }
+      if (existingItemIndex !== -1) {
+        // Если товар уже есть в чеке, увеличиваем его количество
+        const existingItem = receiptItems[existingItemIndex];
+        const newQuantity = existingItem.quantity + 1;
+        const itemPrice = Number(
+          parseFloat(product.price.toString()).toFixed(2)
+        );
+        const newAmount = Number((itemPrice * newQuantity).toFixed(2));
+        const newDiscountAmount = Number(
+          (existingItem.discountAmount || 0).toFixed(2)
+        );
+        const newFinalAmount = Number(
+          (newAmount - newDiscountAmount).toFixed(2)
         );
 
-        // Добавляем товар в локальное состояние
-        const newReceiptItem: ReceiptItem = {
-          id: new Date().getTime().toString(), // Временный ID до получения с сервера
-          serverItemId: newItem.id, // ID на сервере
+        // Создаем объект для обновления на сервере
+        const updateItem: ReceiptItem = {
+          id: existingItem.id,
           name: product.name,
-          price: product.price,
+          warehouseProductId: product.id,
+          quantity: newQuantity,
+          price: itemPrice,
+          amount: newAmount,
+          discountPercent: Number(
+            (existingItem.discountPercent || 0).toFixed(2)
+          ),
+          discountAmount: newDiscountAmount,
+          finalAmount: newFinalAmount,
+          type: product.isService ? 'service' : 'product',
+        };
+
+        // Обновляем товар на сервере
+        await addItemToReceiptOnServer(currentReceiptId, updateItem);
+
+        // Обновляем локальное состояние
+        const updatedItems = [...receiptItems];
+        updatedItems[existingItemIndex] = {
+          ...existingItem,
+          quantity: newQuantity,
+          amount: newAmount,
+          finalAmount: newFinalAmount,
+        };
+        setReceiptItems(updatedItems);
+      } else {
+        // Создаем объект нового товара для чека
+        const itemPrice = Number(
+          parseFloat(product.price.toString()).toFixed(2)
+        );
+        const newItem: ReceiptItem = {
+          id: uuidv4(),
+          name: product.name,
+          price: itemPrice,
           quantity: 1,
-          amount: product.price,
+          amount: itemPrice,
           discountPercent: 0,
           discountAmount: 0,
-          finalAmount: product.price,
+          finalAmount: itemPrice,
           type: product.isService ? 'service' : 'product',
           warehouseProductId: product.id,
         };
 
-        setReceiptItems([...receiptItems, newReceiptItem]);
-      } catch (err) {
-        console.error('Ошибка при добавлении товара в чек:', err);
-        setError('Не удалось добавить товар в чек');
+        // Добавляем товар в чек на сервере
+        const serverResponse = await addItemToReceiptOnServer(
+          currentReceiptId,
+          newItem
+        );
+
+        if (serverResponse) {
+          // Обновляем локальное состояние с учетом ответа сервера
+          setReceiptItems((prevItems) => [
+            ...prevItems,
+            {
+              ...newItem,
+              serverItemId: serverResponse.id,
+            },
+          ]);
+        } else {
+          throw new Error('Не получен ответ от сервера при добавлении товара');
+        }
       }
+
+      // Сбрасываем ошибку при успешном добавлении
+      setError(null);
+    } catch (error: any) {
+      console.error('Ошибка при добавлении товара в чек:', error);
+      setError(error.message || 'Не удалось добавить товар в чек');
     }
   };
 
@@ -277,6 +729,12 @@ const SalesPage: React.FC = () => {
   };
 
   const handleQuantityChange = async (itemId: string, newQuantity: number) => {
+    console.log('Начало обновления количества:', {
+      itemId,
+      newQuantity,
+      newQuantityType: typeof newQuantity,
+    });
+
     if (newQuantity <= 0) {
       handleRemoveItem(itemId);
       return;
@@ -286,26 +744,64 @@ const SalesPage: React.FC = () => {
     if (itemIndex === -1) return;
 
     const updatedItems = [...receiptItems];
-    updatedItems[itemIndex].quantity = newQuantity;
-    updatedItems[itemIndex].amount =
-      updatedItems[itemIndex].price * newQuantity;
-    updatedItems[itemIndex].finalAmount =
-      updatedItems[itemIndex].amount -
-      (updatedItems[itemIndex].discountAmount || 0);
+    const item = updatedItems[itemIndex];
+
+    console.log('Исходные значения товара:', {
+      price: item.price,
+      priceType: typeof item.price,
+      oldQuantity: item.quantity,
+      oldQuantityType: typeof item.quantity,
+      oldAmount: item.amount,
+      oldAmountType: typeof item.amount,
+      discountAmount: item.discountAmount,
+      discountAmountType: typeof item.discountAmount,
+    });
+
+    // Форматируем числовые значения
+    item.quantity = newQuantity;
+    const newAmount = parseFloat((item.price * newQuantity).toFixed(2));
+    item.amount = newAmount;
+    const newFinalAmount = parseFloat(
+      (newAmount - (item.discountAmount || 0)).toFixed(2)
+    );
+    item.finalAmount = newFinalAmount;
+
+    console.log('Обновленные значения товара:', {
+      newQuantity: item.quantity,
+      newQuantityType: typeof item.quantity,
+      newAmount: item.amount,
+      newAmountType: typeof item.amount,
+      newFinalAmount: item.finalAmount,
+      newFinalAmountType: typeof item.finalAmount,
+    });
 
     setReceiptItems(updatedItems);
 
     // Если чек создан на сервере, обновляем товар на сервере
-    if (receiptId && updatedItems[itemIndex].serverItemId) {
+    if (receiptId && item.serverItemId) {
       try {
-        await cashierApi.addItemToReceipt(warehouseId || '', receiptId, {
-          warehouseProductId: updatedItems[itemIndex].warehouseProductId || '',
+        console.log('Подготовка данных для отправки на сервер:', {
+          warehouseProductId: item.warehouseProductId,
           quantity: newQuantity,
-          price: updatedItems[itemIndex].price,
-          discountPercent: updatedItems[itemIndex].discountPercent,
+          price: item.price,
+          discountPercent: item.discountPercent,
+        });
+
+        await cashierApi.addItemToReceipt(warehouseId || '', receiptId, {
+          warehouseProductId: item.warehouseProductId || '',
+          quantity: newQuantity,
+          price: parseFloat(item.price.toString()),
+          discountPercent: parseFloat((item.discountPercent || 0).toString()),
         });
       } catch (err) {
         console.error('Ошибка при обновлении количества товара:', err);
+        // Логируем детали ошибки
+        if (err instanceof Error) {
+          console.error('Детали ошибки:', {
+            message: err.message,
+            stack: err.stack,
+          });
+        }
         setError('Не удалось обновить количество товара');
       }
     }
@@ -474,56 +970,13 @@ const SalesPage: React.FC = () => {
     setReceiptId(null);
     setReceiptNumber('');
     setError(null);
+    clearStorageState(); // Очищаем состояние в localStorage
   };
 
   // Обработчик перехода на страницу смены
   const handleGoToShiftPage = () => {
     if (warehouseId) {
       navigate(`/cashier/${warehouseId}/shift`);
-    }
-  };
-
-  // Проверка наличия открытой кассовой смены при загрузке страницы
-  const checkCurrentShift = async () => {
-    if (!warehouseId) return;
-
-    try {
-      const shift = await cashierApi.getCurrentShift(warehouseId);
-      setCurrentShift(shift);
-      setError(null);
-    } catch (err: any) {
-      console.error('Ошибка при получении текущей смены:', err);
-      setCurrentShift(null);
-
-      // Более детальные сообщения об ошибках
-      if (err.response) {
-        // Ошибка от сервера с кодом статуса
-        if (err.response.status === 404) {
-          setError(
-            'Нет открытой кассовой смены. Пожалуйста, откройте смену перед началом работы.'
-          );
-        } else if (err.response.status === 401 || err.response.status === 403) {
-          setError(
-            'У вас нет прав для работы с кассовой сменой. Обратитесь к администратору.'
-          );
-        } else {
-          setError(
-            `Ошибка сервера: ${
-              err.response.data?.message || 'Неизвестная ошибка'
-            }`
-          );
-        }
-      } else if (err.request) {
-        // Запрос был сделан, но не получен ответ
-        setError(
-          'Не удалось соединиться с сервером. Проверьте подключение к интернету.'
-        );
-      } else {
-        // Что-то пошло не так при настройке запроса
-        setError(
-          'Произошла ошибка при подготовке запроса. Пожалуйста, обновите страницу.'
-        );
-      }
     }
   };
 
@@ -553,45 +1006,50 @@ const SalesPage: React.FC = () => {
 
       <div className={styles.receiptHeader}>
         <div className={styles.receiptNumber}>
-          Номер чека: {receiptNumber || 'Новый чек'}
+          Номер чека:{' '}
+          {receiptNumber ? receiptNumber.replace('R-', '') : 'Новый чек'}
         </div>
-        <div className={styles.searchContainer}>
-          <ProductSearch
-            warehouseId={warehouseId || ''}
-            onProductSelect={handleProductSelect}
-          />
-        </div>
+        <ProductSearch
+          warehouseId={warehouseId || ''}
+          onProductSelect={handleProductSelect}
+        />
       </div>
 
-      <ProductsTable
-        items={receiptItems}
-        onRemoveItem={handleRemoveItem}
-        onUpdateQuantity={handleQuantityChange}
-      />
+      <div className={styles.mainContent}>
+        <div className={styles.tableContainer}>
+          <ProductsTable
+            items={receiptItems}
+            onRemoveItem={handleRemoveItem}
+            onUpdateQuantity={handleQuantityChange}
+          />
+        </div>
 
-      <TotalPanel
-        total={finalAmount}
-        received={0}
-        change={0}
-        onPay={handlePayment}
-        onClear={handleCancelReceipt}
-        onAddFastProduct={handleAddFastProduct}
-        onChangeQuantity={handleChangeQuantity}
-        onExtraFunctions={handleExtraFunctions}
-        onRemove={handleRemove}
-      />
+        <TotalPanel
+          total={totalAmount || 0}
+          received={0}
+          change={0}
+          onPay={handlePayment}
+          onClear={clearReceipt}
+          onAddFastProduct={handleAddFastProduct}
+          onChangeQuantity={handleChangeQuantity}
+          onExtraFunctions={handleExtraFunctions}
+          onRemove={handleRemove}
+        />
+      </div>
 
-      <PaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        totalAmount={finalAmount}
-        onSubmit={handlePaymentSubmit}
-      />
+      {isPaymentModalOpen && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          totalAmount={finalAmount}
+          onSubmit={handlePaymentSubmit}
+        />
+      )}
 
       {loading && (
         <div className={styles.loadingOverlay}>
-          <div className={styles.loadingSpinner}></div>
-          <div className={styles.loadingText}>Обработка платежа...</div>
+          <div className={styles.loadingSpinner} />
+          <div className={styles.loadingText}>Обработка...</div>
         </div>
       )}
     </div>

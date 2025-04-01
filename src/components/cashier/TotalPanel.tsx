@@ -40,39 +40,29 @@ const TotalPanel: React.FC<TotalPanelProps> = ({
           <div className={styles.totalValue}>{change.toFixed(2)}</div>
         </div>
       </div>
+
       <div className={styles.actions}>
         <div className={styles.actionRow}>
           <button className={styles.actionButton} onClick={onAddFastProduct}>
-            БЫСТРЫЕ
-            <br />
-            ТОВАРЫ
+            БЫСТРЫЕ{'\n'}ТОВАРЫ
           </button>
           <button className={styles.actionButton} onClick={onChangeQuantity}>
             КОЛИЧЕСТВО
           </button>
-          <button className={`${styles.actionButton} ${styles.plusButton}`}>
-            +
-          </button>
+          <button className={styles.actionButton}>ДОП.{'\n'}ФУНКЦИИ</button>
+          <button className={styles.actionButton}>+</button>
         </div>
+
         <div className={styles.actionRow}>
-          <button className={styles.actionButton}>
-            ИЗМЕНИТЬ
-            <br />
-            ТОВАР
-          </button>
+          <button className={styles.actionButton}>ИЗМЕНИТЬ{'\n'}ТОВАР</button>
           <button className={styles.actionButton}>ОТЛОЖКА</button>
-          <button className={styles.actionButton} onClick={onExtraFunctions}>
-            ДОП.
-            <br />
-            ФУНКЦИИ
-          </button>
-        </div>
-        <div className={styles.actionRow}>
           <button className={styles.actionButton}>
-            УНИВЕРСАЛЬНЫЙ
-            <br />
-            ПРОДУКТ
+            УНИВЕРСАЛЬНЫЙ{'\n'}ПРОДУКТ
           </button>
+          <button className={styles.actionButton}>-</button>
+        </div>
+
+        <div className={styles.actionRow}>
           <button
             className={`${styles.actionButton} ${styles.deleteButton}`}
             onClick={onRemove}
