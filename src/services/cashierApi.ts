@@ -378,4 +378,50 @@ export const cashierApi = {
       throw error; // Пробрасываем ошибку дальше для обработки в компоненте
     }
   },
+
+  /**
+   * Получение списка отложенных чеков
+   */
+  async getPostponedReceipts(warehouseId: string) {
+    try {
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts/postponed`,
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при получении отложенных чеков:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Отложить чек
+   */
+  async postponeReceipt(warehouseId: string, receiptId: string) {
+    const response = await axios.post(
+      `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}/postpone`,
+      {},
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Восстановить отложенный чек
+   */
+  async restorePostponedReceipt(warehouseId: string, receiptId: string) {
+    const response = await axios.post(
+      `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}/restore`,
+      {},
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
 };

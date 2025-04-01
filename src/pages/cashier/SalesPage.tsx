@@ -4,6 +4,7 @@ import ProductSearch from '../../components/cashier/ProductSearch';
 import ProductsTable from '../../components/cashier/ProductsTable';
 import TotalPanel from '../../components/cashier/TotalPanel';
 import PaymentModal from '../../components/cashier/PaymentModal';
+import PostponedReceiptsModal from '../../components/cashier/PostponedReceiptsModal';
 import { cashierApi } from '../../services/cashierApi';
 import {
   Product,
@@ -11,6 +12,7 @@ import {
   PaymentData,
   CashShift,
   PaymentMethodType,
+  Receipt,
 } from '../../types/cashier';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SalesPage.module.css';
@@ -39,6 +41,8 @@ const SalesPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [isPostponedModalOpen, setIsPostponedModalOpen] = useState(false);
+  const [postponedReceipts, setPostponedReceipts] = useState<Receipt[]>([]);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -977,6 +981,78 @@ const SalesPage: React.FC = () => {
     }
   };
 
+  // Add this function to load postponed receipts
+  const loadPostponedReceipts = async () => {
+    if (!warehouseId) return;
+    try {
+      const receipts = await cashierApi.getPostponedReceipts(warehouseId);
+      setPostponedReceipts(receipts);
+    } catch (error) {
+      console.error('Error loading postponed receipts:', error);
+      setError('Не удалось загрузить отложенные чеки');
+    }
+  };
+
+  // Add effect to load postponed receipts when modal opens
+  useEffect(() => {
+    if (isPostponedModalOpen) {
+      loadPostponedReceipts();
+    }
+  }, [isPostponedModalOpen]);
+
+  // Add function to postpone current receipt
+  const handlePostponeReceipt = async () => {
+    if (!warehouseId || !receiptId) {
+      setError('Нет активного чека для отложения');
+      return;
+    }
+
+    try {
+      await cashierApi.postponeReceipt(warehouseId, receiptId);
+      clearReceipt();
+      setIsPostponedModalOpen(false);
+      await createNewReceipt();
+    } catch (error) {
+      console.error('Error postponing receipt:', error);
+      setError('Не удалось отложить чек');
+    }
+  };
+
+  // Add function to restore postponed receipt
+  const handleRestoreReceipt = async (receipt: Receipt) => {
+    if (!warehouseId) return;
+
+    try {
+      // If there's an active receipt, postpone it first
+      if (receiptId && receiptItems.length > 0) {
+        await cashierApi.postponeReceipt(warehouseId, receiptId);
+      }
+
+      // Clear current receipt state
+      clearReceipt();
+
+      // Restore the selected postponed receipt
+      const restoredReceipt = await cashierApi.restorePostponedReceipt(
+        warehouseId,
+        receipt.id
+      );
+
+      // Update state with restored receipt data
+      setReceiptId(restoredReceipt.id);
+      setReceiptNumber(restoredReceipt.receiptNumber);
+      setReceiptItems(restoredReceipt.items);
+      setIsPostponedModalOpen(false);
+    } catch (error) {
+      console.error('Error restoring receipt:', error);
+      setError('Не удалось восстановить отложенный чек');
+    }
+  };
+
+  // Update the handlePostpone function to open the modal
+  const handlePostpone = () => {
+    setIsPostponedModalOpen(true);
+  };
+
   return (
     <div className={styles.salesPage}>
       {error && (
@@ -1033,6 +1109,7 @@ const SalesPage: React.FC = () => {
           onChangeQuantity={handleChangeQuantity}
           onExtraFunctions={handleExtraFunctions}
           onRemove={handleRemove}
+          onPostpone={handlePostpone}
         />
       </div>
 
@@ -1044,6 +1121,14 @@ const SalesPage: React.FC = () => {
           onSubmit={handlePaymentSubmit}
         />
       )}
+
+      <PostponedReceiptsModal
+        isOpen={isPostponedModalOpen}
+        onClose={() => setIsPostponedModalOpen(false)}
+        onSelect={handleRestoreReceipt}
+        onPostpone={handlePostponeReceipt}
+        postponedReceipts={postponedReceipts}
+      />
 
       {loading && (
         <div className={styles.loadingOverlay}>
