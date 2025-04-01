@@ -48,7 +48,6 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
   };
 
   useEffect(() => {
-    // Функция для обработки клика вне компонента
     const handleClickOutside = (event: MouseEvent) => {
       if (
         resultsRef.current &&
@@ -85,12 +84,18 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
       }
     };
 
-    const timeoutId = setTimeout(searchProducts, 300);
+    // Мгновенный поиск при любом вводе
+    const timeoutId = setTimeout(searchProducts, 0);
     return () => clearTimeout(timeoutId);
   }, [query, warehouseId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
+    const value = e.target.value;
+    setQuery(value);
+    // Показываем результаты при любом вводе
+    if (value.trim().length > 0) {
+      setShowResults(true);
+    }
   };
 
   const handleProductClick = (product: Product) => {

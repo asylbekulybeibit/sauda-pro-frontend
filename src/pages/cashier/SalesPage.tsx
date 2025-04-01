@@ -38,6 +38,7 @@ const SalesPage: React.FC = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -605,7 +606,10 @@ const SalesPage: React.FC = () => {
         };
 
         // Обновляем товар на сервере
-        await addItemToReceiptOnServer(currentReceiptId, updateItem);
+        const serverResponse = await addItemToReceiptOnServer(
+          currentReceiptId,
+          updateItem
+        );
 
         // Обновляем локальное состояние
         const updatedItems = [...receiptItems];
@@ -614,6 +618,7 @@ const SalesPage: React.FC = () => {
           quantity: newQuantity,
           amount: newAmount,
           finalAmount: newFinalAmount,
+          serverItemId: serverResponse.id,
         };
         setReceiptItems(updatedItems);
       } else {
@@ -646,6 +651,7 @@ const SalesPage: React.FC = () => {
             ...prevItems,
             {
               ...newItem,
+              id: serverResponse.id,
               serverItemId: serverResponse.id,
             },
           ]);
@@ -664,32 +670,61 @@ const SalesPage: React.FC = () => {
 
   const handleRemoveItem = async (itemId: string) => {
     const itemIndex = receiptItems.findIndex((item) => item.id === itemId);
-    if (itemIndex === -1) return;
+    if (itemIndex === -1) {
+      console.error('Товар не найден:', itemId);
+      return;
+    }
 
     const itemToRemove = receiptItems[itemIndex];
+    console.log('Удаление товара:', {
+      itemId,
+      serverItemId: itemToRemove.serverItemId,
+      receiptId,
+    });
 
     // Если чек создан на сервере, удаляем товар с сервера
     if (receiptId && itemToRemove.serverItemId) {
       try {
+        console.log('Отправка запроса на удаление товара:', {
+          warehouseId,
+          receiptId,
+          serverItemId: itemToRemove.serverItemId,
+        });
+
         await cashierApi.removeItemFromReceipt(
           warehouseId || '',
           receiptId,
           itemToRemove.serverItemId
         );
 
-        // Удаляем товар из локального состояния
+        console.log('Товар успешно удален с сервера');
+
+        // Удаляем товар из локального состояния только после успешного удаления с сервера
         const updatedItems = [...receiptItems];
         updatedItems.splice(itemIndex, 1);
         setReceiptItems(updatedItems);
-      } catch (err) {
+        setSelectedItemId(null); // Сбрасываем выбранный товар
+      } catch (err: any) {
         console.error('Ошибка при удалении товара из чека:', err);
-        setError('Не удалось удалить товар из чека');
+        if (err.response) {
+          console.error('Детали ошибки:', {
+            status: err.response.status,
+            data: err.response.data,
+          });
+        }
+        setError(
+          `Не удалось удалить товар из чека: ${
+            err.response?.data?.message || 'Неизвестная ошибка'
+          }`
+        );
       }
     } else {
-      // Если чек еще не создан, просто удаляем из локального состояния
+      // Если чек еще не создан или у товара нет serverItemId, просто удаляем из локального состояния
+      console.log('Удаление товара только из локального состояния');
       const updatedItems = [...receiptItems];
       updatedItems.splice(itemIndex, 1);
       setReceiptItems(updatedItems);
+      setSelectedItemId(null); // Сбрасываем выбранный товар
     }
   };
 
@@ -914,16 +949,13 @@ const SalesPage: React.FC = () => {
   };
 
   const handleRemove = () => {
-    if (receiptItems.length === 0) {
-      alert('Нет товаров для удаления');
+    const selectedItem = receiptItems.find(
+      (item) => item.id === selectedItemId
+    );
+    if (!selectedItem) {
       return;
     }
-
-    if (window.confirm('Вы действительно хотите удалить выбранные товары?')) {
-      // В будущем здесь будет удаление выбранных товаров
-      // Пока просто очищаем весь чек
-      handleCancelReceipt();
-    }
+    handleRemoveItem(selectedItem.id);
   };
 
   // Очистка состояния чека
@@ -986,6 +1018,8 @@ const SalesPage: React.FC = () => {
             items={receiptItems}
             onRemoveItem={handleRemoveItem}
             onUpdateQuantity={handleQuantityChange}
+            selectedItemId={selectedItemId}
+            onSelectItem={setSelectedItemId}
           />
         </div>
 

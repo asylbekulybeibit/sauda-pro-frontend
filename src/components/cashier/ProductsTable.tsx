@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ReceiptItem } from '../../types/cashier';
 import styles from './ProductsTable.module.css';
 
@@ -6,13 +6,21 @@ interface ProductsTableProps {
   items: ReceiptItem[];
   onRemoveItem: (itemId: string) => void;
   onUpdateQuantity: (itemId: string, quantity: number) => void;
+  selectedItemId: string | null;
+  onSelectItem: (itemId: string | null) => void;
 }
 
 const ProductsTable: React.FC<ProductsTableProps> = ({
   items,
   onRemoveItem,
   onUpdateQuantity,
+  selectedItemId,
+  onSelectItem,
 }) => {
+  const handleRowClick = (itemId: string) => {
+    onSelectItem(selectedItemId === itemId ? null : itemId);
+  };
+
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity > 0) {
       onUpdateQuantity(itemId, newQuantity);
@@ -44,7 +52,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
             </tr>
           ) : (
             items.map((item, index) => (
-              <tr key={item.id} className={styles.tableRow}>
+              <tr
+                key={item.id}
+                className={`${styles.tableRow} ${
+                  selectedItemId === item.id ? styles.selected : ''
+                }`}
+                onClick={() => handleRowClick(item.id)}
+              >
                 <td>
                   <input type="checkbox" />
                 </td>
@@ -55,9 +69,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                   <div className={styles.quantityControl}>
                     <button
                       className={styles.quantityButton}
-                      onClick={() =>
-                        handleQuantityChange(item.id, item.quantity - 1)
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuantityChange(item.id, item.quantity - 1);
+                      }}
                     >
                       -
                     </button>
@@ -66,9 +81,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </span>
                     <button
                       className={styles.quantityButton}
-                      onClick={() =>
-                        handleQuantityChange(item.id, item.quantity + 1)
-                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuantityChange(item.id, item.quantity + 1);
+                      }}
                     >
                       +
                     </button>

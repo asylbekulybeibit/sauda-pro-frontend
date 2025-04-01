@@ -36,6 +36,14 @@
   border-bottom: 2px solid #ddd;
 }
 
+.tableRow {
+  cursor: pointer;
+}
+
+.tableRow.selected {
+  background-color: #e8f5e9;
+}
+
 .tableRow:hover {
   background-color: #e8f5e9;
 }
