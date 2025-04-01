@@ -7,13 +7,13 @@
 
 .searchInput {
   width: 100%;
-  padding: 6px 15px; /* Reduced padding for smaller height */
+  padding: 8px 15px;
   padding-right: 40px;
   border: 2px solid #ccc;
   border-radius: 4px;
-  font-size: 14px; /* Slightly smaller font */
+  font-size: 16px;
   transition: border-color 0.3s;
-  height: 32px; /* Fixed height */
+  height: 40px;
 }
 
 .searchInput:focus {
