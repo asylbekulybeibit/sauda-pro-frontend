@@ -41,35 +41,142 @@
 }
 
 .virtualKeyboard {
-  position: absolute;
-  top: 100%;
+  position: fixed;
+  bottom: 0;
   left: 0;
   width: 100%;
+  background: #d1d5db;
+  padding: 10px;
   z-index: 1000;
-  background: white;
-  padding: 10px;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.virtualKeyboard :global(.simple-keyboard) {
-  background: #f5f5f5;
-  border-radius: 4px;
-  padding: 10px;
+.keyboardContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
 }
 
-.virtualKeyboard :global(.simple-keyboard .hg-button) {
-  height: 40px;
-  border-radius: 4px;
+.leftSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.rightSection {
+  display: flex;
+  gap: 5px;
+}
+
+.numericSection {
+  display: flex;
+  gap: 5px;
+}
+
+.numericPad {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sideButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.keyboardRow {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+}
+
+.key {
+  height: 60px;
+  min-width: 60px;
+  border-radius: 8px;
+  border: none;
+  background: #00a65a;
+  color: white;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0 10px;
+}
+
+.key:active {
+  transform: translateY(2px);
+  background: #008d4c;
+}
+
+.funcKey {
+  min-width: 100px;
   background: white;
-  border: 1px solid #ddd;
-  color: #333;
+  color: black;
+}
+
+.spaceKey {
+  width: 400px;
+  background: #00a65a;
+  color: white;
+}
+
+.numKey {
+  width: 60px;
+  height: 60px;
+  font-size: 22px;
+}
+
+.zeroKey {
+  width: 125px;
+}
+
+.cancelKey {
+  width: 100px;
+  height: 60px;
+  background: #dc3545;
+  color: white;
   font-size: 16px;
-  margin: 2px;
+  font-weight: bold;
 }
 
-.virtualKeyboard :global(.simple-keyboard .hg-button:hover) {
-  background: #e6e6e6;
+.okKey {
+  width: 100px;
+  height: 190px;
+  background: #1890ff;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.okKey:active {
+  background: #0c75df;
+}
+
+.backspaceKey {
+  width: 140px;
+  height: 60px;
+  background: #dc3545;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backspaceKey:active {
+  transform: translateY(2px);
+  background: #c82333;
 }
 
 .searchResults {
