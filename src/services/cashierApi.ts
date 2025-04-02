@@ -360,6 +360,64 @@ export const cashierApi = {
     return response.data;
   },
 
+  async createReturnWithoutReceipt(
+    warehouseId: string,
+    data: {
+      items: Array<{
+        productId: string;
+        quantity: number;
+        price: number;
+      }>;
+      reason: string;
+    }
+  ) {
+    console.log('Creating return without receipt:', {
+      warehouseId,
+      data,
+      itemsValid: data.items.every(
+        (item) =>
+          item.productId &&
+          typeof item.quantity === 'number' &&
+          item.quantity > 0 &&
+          typeof item.price === 'number' &&
+          item.price > 0
+      ),
+      formattedItems: data.items.map((item) => ({
+        ...item,
+        price: Number(Number(item.price).toFixed(2)),
+        quantity: Number(item.quantity),
+      })),
+    });
+
+    // Форматируем данные перед отправкой
+    const formattedData = {
+      ...data,
+      items: data.items.map((item) => ({
+        ...item,
+        price: Number(Number(item.price).toFixed(2)),
+        quantity: Number(item.quantity),
+      })),
+    };
+
+    console.log('Sending formatted data:', {
+      url: `${API_URL}/manager/${warehouseId}/cashier/returns/without-receipt`,
+      headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+      body: formattedData,
+    });
+
+    const response = await axios.post(
+      `${API_URL}/manager/${warehouseId}/cashier/returns/without-receipt`,
+      formattedData,
+      {
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  },
+
   /**
    * Получение списка касс
    */
@@ -449,7 +507,8 @@ export const cashierApi = {
       }
     );
     return response.data.filter(
-      (method) => method.isShared || method.cashRegisterId === cashRegisterId
+      (method: { isShared: boolean; cashRegisterId: string }) =>
+        method.isShared || method.cashRegisterId === cashRegisterId
     );
   },
 

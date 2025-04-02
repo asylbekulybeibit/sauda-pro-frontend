@@ -294,7 +294,9 @@ const ShiftPage: React.FC = () => {
 
             <div className={styles.infoRow}>
               <span className={styles.label}>Кассир:</span>
-              <span className={styles.value}>{currentShift.cashier.name}</span>
+              <span className={styles.value}>
+                {currentShift.cashier?.name || 'Не указан'}
+              </span>
             </div>
 
             <div className={styles.infoRow}>

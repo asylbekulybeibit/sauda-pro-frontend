@@ -298,12 +298,12 @@ const SalesPage: React.FC = () => {
           shiftId: response.id,
           status: response.status,
           expectedStatus: 'OPEN',
-          areEqual: response.status === 'OPEN',
+          areEqual: response.status.toLowerCase() === 'open',
           cashRegisterId: response.cashRegisterId,
           cashRegister: response.cashRegister,
         });
 
-        if (response.status === 'OPEN') {
+        if (response.status.toLowerCase() === 'open') {
           console.log(
             '[checkCurrentShift] Shift is open, setting current shift'
           );
@@ -833,7 +833,7 @@ const SalesPage: React.FC = () => {
       return;
     }
 
-    if (currentShift.status !== 'OPEN') {
+    if (currentShift.status.toLowerCase() !== 'open') {
       setError('Не удалось загрузить методы оплаты: смена закрыта');
       return;
     }
