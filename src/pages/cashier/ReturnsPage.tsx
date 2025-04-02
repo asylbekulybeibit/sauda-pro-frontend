@@ -510,11 +510,24 @@ const ReturnsPage: React.FC = () => {
   };
 
   const handleNumPadClick = (value: string) => {
-    if (value === 'backspace') {
-      setCashAmount((prev) => prev.slice(0, -1));
-      return;
+    if (showReceiptDialog) {
+      // Очищаем ошибку при любом изменении номера чека
+      setError(null);
+
+      // Для ввода номера чека
+      if (value === 'backspace') {
+        setReceiptNumber((prev) => prev.slice(0, -1));
+        return;
+      }
+      setReceiptNumber((prev) => prev + value);
+    } else {
+      // Для ввода суммы наличных
+      if (value === 'backspace') {
+        setCashAmount((prev) => prev.slice(0, -1));
+        return;
+      }
+      setCashAmount((prev) => prev + value);
     }
-    setCashAmount((prev) => prev + value);
   };
 
   const handleDelete = () => {
@@ -530,27 +543,34 @@ const ReturnsPage: React.FC = () => {
   };
 
   const handleOk = async () => {
-    if (!warehouseId) {
-      console.error('warehouseId is not defined');
+    if (!receiptNumber) {
+      setError('Введите номер чека');
       return;
     }
 
     setLoading(true);
+    setError(null);
+
     try {
-      const allReceipts = await cashierApi.getReceipts(warehouseId);
-      const receipt = allReceipts.find(
-        (r: Receipt) => r.number === receiptNumber && r.status === 'PAID'
+      const foundReceipts = await cashierApi.searchReceipts(
+        warehouseId!,
+        receiptNumber
       );
 
-      if (receipt) {
-        await handleReceiptSelect(receipt);
-        setShowReceiptDialog(false);
-        setError(null);
-      } else {
+      if (foundReceipts.length === 0) {
         setError('Чек не найден или не оплачен');
+        return;
       }
-    } catch (err) {
-      setError('Чек не найден или не оплачен');
+
+      // Берем первый найденный чек
+      const receipt = foundReceipts[0];
+      setSelectedReceipt(receipt);
+      setReceiptItems(receipt.items || []);
+      setShowReceiptDialog(false);
+      setReceiptNumber('');
+    } catch (error) {
+      console.error('Error searching for receipt:', error);
+      setError('Ошибка при поиске чека');
     } finally {
       setLoading(false);
     }
@@ -896,6 +916,36 @@ const ReturnsPage: React.FC = () => {
   useEffect(() => {
     setReturnAmount(calculateReturnAmount());
   }, [selectedProducts]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showReceiptDialog) return;
+
+      // Prevent default behavior for Enter and Backspace
+      if (e.key === 'Enter' || e.key === 'Backspace') {
+        e.preventDefault();
+      }
+
+      // Очищаем ошибку при любом вводе с клавиатуры
+      if (e.key === 'Backspace' || /^\d$/.test(e.key)) {
+        setError(null);
+      }
+
+      if (e.key === 'Enter') {
+        handleOk();
+      } else if (e.key === 'Escape') {
+        handleCancel();
+      } else if (e.key === 'Backspace') {
+        handleDelete();
+      } else if (/^\d$/.test(e.key)) {
+        // Only allow numeric input
+        setReceiptNumber((prev) => prev + e.key);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showReceiptDialog]);
 
   return (
     <StyledBox>

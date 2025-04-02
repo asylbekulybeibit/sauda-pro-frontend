@@ -269,12 +269,10 @@ export const cashierApi = {
         url += `?date=${encodeURIComponent(filters.date)}`;
       }
 
-      console.log(
-        'API: Запрос чеков для warehouseId:',
-        warehouseId,
-        'URL:',
-        url
-      );
+      console.log('API: Начало запроса чеков');
+      console.log('API: URL запроса:', url);
+      console.log('API: warehouseId:', warehouseId);
+      console.log('API: Заголовки:', getAuthHeader());
 
       const response = await axios.get(url, {
         headers: getAuthHeader(),
@@ -283,6 +281,9 @@ export const cashierApi = {
           return status === 200 || status === 404; // 404 также считаем успешным ответом
         },
       });
+
+      console.log('API: Статус ответа:', response.status);
+      console.log('API: Тело ответа:', response.data);
 
       // Проверяем статус ответа
       if (response.status === 404) {
@@ -294,9 +295,15 @@ export const cashierApi = {
 
       console.log('API: Получен ответ со списком чеков:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       // Эта часть выполнится только для реальных проблем, кроме 404
       console.error('API: Ошибка при получении списка чеков:', error);
+      console.error('API: Детали ошибки:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers,
+      });
       return [];
     }
   },
@@ -523,5 +530,40 @@ export const cashierApi = {
       }
     );
     return response.data;
+  },
+
+  /**
+   * Поиск чеков по номеру
+   */
+  async searchReceipts(warehouseId: string, receiptNumber: string) {
+    console.log('API: Поиск чеков по номеру:', { warehouseId, receiptNumber });
+    try {
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts/search?receiptNumber=${encodeURIComponent(
+          receiptNumber
+        )}`,
+        {
+          headers: getAuthHeader(),
+          validateStatus: function (status) {
+            return status === 200 || status === 404;
+          },
+        }
+      );
+
+      console.log('API: Статус ответа:', response.status);
+      console.log('API: Тело ответа:', response.data);
+
+      if (response.status === 404) {
+        console.log(
+          'API: Чеки не найдены (статус 404), возвращаем пустой массив'
+        );
+        return [];
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при поиске чеков:', error);
+      return [];
+    }
   },
 };
