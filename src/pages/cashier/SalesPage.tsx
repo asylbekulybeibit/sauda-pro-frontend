@@ -564,66 +564,30 @@ const SalesPage: React.FC = () => {
       );
 
       if (existingItemIndex !== -1) {
-        // Если товар уже есть в чеке, увеличиваем его количество
+        // Если товар уже есть в чеке, увеличиваем его количество на 1
         const existingItem = receiptItems[existingItemIndex];
         const newQuantity = existingItem.quantity + 1;
-        const itemPrice = Number(
-          parseFloat(product.price.toString()).toFixed(2)
-        );
-        const newAmount = Number((itemPrice * newQuantity).toFixed(2));
-        const newDiscountAmount = Number(
-          (existingItem.discountAmount || 0).toFixed(2)
-        );
-        const newFinalAmount = Number(
-          (newAmount - newDiscountAmount).toFixed(2)
-        );
-
-        // Создаем объект для обновления на сервере
-        const updateItem: ReceiptItem = {
-          id: existingItem.id,
-          name: product.name,
-          warehouseProductId: product.id,
-          quantity: newQuantity,
-          price: itemPrice,
-          amount: newAmount,
-          discountPercent: Number(
-            (existingItem.discountPercent || 0).toFixed(2)
-          ),
-          discountAmount: newDiscountAmount,
-          finalAmount: newFinalAmount,
-          type: product.isService ? 'service' : 'product',
-        };
-
-        // Обновляем товар на сервере
-        const serverResponse = await addItemToReceiptOnServer(
-          currentReceiptId,
-          updateItem
-        );
-
-        // Обновляем локальное состояние
-        const updatedItems = [...receiptItems];
-        updatedItems[existingItemIndex] = {
-          ...existingItem,
-          quantity: newQuantity,
-          amount: newAmount,
-          finalAmount: newFinalAmount,
-          serverItemId: serverResponse.id,
-        };
-        setReceiptItems(updatedItems);
+        await handleQuantityChange(existingItem.id, newQuantity);
       } else {
         // Создаем объект нового товара для чека
-        const itemPrice = Number(
-          parseFloat(product.price.toString()).toFixed(2)
+        const formattedQuantity = Number(Number(1).toFixed(3));
+        const formattedPrice = Number(Number(product.price).toFixed(2));
+        const formattedAmount = Number(
+          (formattedPrice * formattedQuantity).toFixed(2)
         );
+        const formattedDiscountPercent = 0;
+        const formattedDiscountAmount = 0;
+        const formattedFinalAmount = formattedAmount;
+
         const newItem: ReceiptItem = {
           id: uuidv4(),
           name: product.name,
-          price: itemPrice,
-          quantity: 1,
-          amount: itemPrice,
-          discountPercent: 0,
-          discountAmount: 0,
-          finalAmount: itemPrice,
+          price: formattedPrice,
+          quantity: formattedQuantity,
+          amount: formattedAmount,
+          discountPercent: formattedDiscountPercent,
+          discountAmount: formattedDiscountAmount,
+          finalAmount: formattedFinalAmount,
           type: product.isService ? 'service' : 'product',
           warehouseProductId: product.id,
         };
@@ -649,11 +613,10 @@ const SalesPage: React.FC = () => {
         }
       }
 
-      // Сбрасываем ошибку при успешном добавлении
       setError(null);
-    } catch (error: any) {
-      console.error('Ошибка при добавлении товара в чек:', error);
-      setError(error.message || 'Не удалось добавить товар в чек');
+    } catch (err) {
+      console.error('Ошибка при добавлении товара:', err);
+      setError('Не удалось добавить товар в чек');
     }
   };
 
@@ -734,14 +697,14 @@ const SalesPage: React.FC = () => {
     const itemIndex = receiptItems.findIndex((item) => item.id === itemId);
     if (itemIndex === -1) return;
 
-    const updatedItems = [...receiptItems];
-    const item = updatedItems[itemIndex];
+    const item = receiptItems[itemIndex];
+    const oldQuantity = item.quantity; // Сохраняем старое значение ДО любых изменений
 
     console.log('Исходные значения товара:', {
       price: item.price,
       priceType: typeof item.price,
-      oldQuantity: item.quantity,
-      oldQuantityType: typeof item.quantity,
+      oldQuantity,
+      oldQuantityType: typeof oldQuantity,
       oldAmount: item.amount,
       oldAmountType: typeof item.amount,
       discountAmount: item.discountAmount,
@@ -749,44 +712,60 @@ const SalesPage: React.FC = () => {
     });
 
     // Форматируем числовые значения
-    item.quantity = newQuantity;
-    const newAmount = parseFloat((item.price * newQuantity).toFixed(2));
-    item.amount = newAmount;
-    const newFinalAmount = parseFloat(
-      (newAmount - (item.discountAmount || 0)).toFixed(2)
+    const formattedQuantity = Number(Number(newQuantity).toFixed(3));
+    const formattedPrice = Number(Number(item.price).toFixed(2));
+    const formattedAmount = Number(
+      (formattedPrice * formattedQuantity).toFixed(2)
     );
-    item.finalAmount = newFinalAmount;
+    const formattedDiscountAmount = Number(
+      ((formattedAmount * (item.discountPercent || 0)) / 100).toFixed(2)
+    );
+    const formattedFinalAmount = Number(
+      (formattedAmount - formattedDiscountAmount).toFixed(2)
+    );
 
-    console.log('Обновленные значения товара:', {
-      newQuantity: item.quantity,
-      newQuantityType: typeof item.quantity,
-      newAmount: item.amount,
-      newAmountType: typeof item.amount,
-      newFinalAmount: item.finalAmount,
-      newFinalAmountType: typeof item.finalAmount,
-    });
-
-    setReceiptItems(updatedItems);
-
-    // Если чек создан на сервере, обновляем товар на сервере
+    // Если чек создан на сервере, сначала обновляем товар на сервере
     if (receiptId && item.serverItemId) {
       try {
+        // Вычисляем разницу в количестве для отправки на сервер
+        const quantityDifference = formattedQuantity - oldQuantity;
+
         console.log('Подготовка данных для отправки на сервер:', {
           warehouseProductId: item.warehouseProductId,
-          quantity: newQuantity,
-          price: item.price,
+          quantity: quantityDifference,
+          oldQuantity,
+          newQuantity: formattedQuantity,
+          price: formattedPrice,
           discountPercent: item.discountPercent,
         });
 
         await cashierApi.addItemToReceipt(warehouseId || '', receiptId, {
           warehouseProductId: item.warehouseProductId || '',
-          quantity: newQuantity,
-          price: parseFloat(item.price.toString()),
-          discountPercent: parseFloat((item.discountPercent || 0).toString()),
+          quantity: quantityDifference,
+          price: formattedPrice,
+          discountPercent: Number((item.discountPercent || 0).toFixed(2)),
         });
+
+        // После успешного обновления на сервере, обновляем локальное состояние
+        const updatedItems = [...receiptItems];
+        const updatedItem = updatedItems[itemIndex];
+        updatedItem.quantity = formattedQuantity;
+        updatedItem.amount = formattedAmount;
+        updatedItem.discountAmount = formattedDiscountAmount;
+        updatedItem.finalAmount = formattedFinalAmount;
+
+        console.log('Обновленные значения товара:', {
+          newQuantity: updatedItem.quantity,
+          newQuantityType: typeof updatedItem.quantity,
+          newAmount: updatedItem.amount,
+          newAmountType: typeof updatedItem.amount,
+          newFinalAmount: updatedItem.finalAmount,
+          newFinalAmountType: typeof updatedItem.finalAmount,
+        });
+
+        setReceiptItems(updatedItems);
       } catch (err) {
         console.error('Ошибка при обновлении количества товара:', err);
-        // Логируем детали ошибки
         if (err instanceof Error) {
           console.error('Детали ошибки:', {
             message: err.message,
@@ -795,6 +774,15 @@ const SalesPage: React.FC = () => {
         }
         setError('Не удалось обновить количество товара');
       }
+    } else {
+      // Если чек еще не создан на сервере, просто обновляем локальное состояние
+      const updatedItems = [...receiptItems];
+      const updatedItem = updatedItems[itemIndex];
+      updatedItem.quantity = formattedQuantity;
+      updatedItem.amount = formattedAmount;
+      updatedItem.discountAmount = formattedDiscountAmount;
+      updatedItem.finalAmount = formattedFinalAmount;
+      setReceiptItems(updatedItems);
     }
   };
 

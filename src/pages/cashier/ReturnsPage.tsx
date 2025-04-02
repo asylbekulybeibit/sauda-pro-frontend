@@ -42,6 +42,7 @@ const TopSection = styled(Box)`
   display: flex;
   gap: 16px;
   margin-bottom: 16px;
+  padding: 16px 0 0 16px;
 `;
 
 const RadioButton = styled(Box)<{ selected?: boolean }>`
@@ -78,22 +79,98 @@ const ContentSection = styled(Box)`
   border-radius: 4px;
   margin-bottom: 16px;
   overflow: auto;
+  padding: 20px;
+`;
+
+const ReceiptInfoSection = styled(Box)`
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+`;
+
+const ReceiptHeader = styled(Box)`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
+`;
+
+const ReceiptHeaderItem = styled(Box)`
+  display: flex;
+  flex-direction: column;
+`;
+
+const ReceiptTable = styled(Box)`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+
+  & table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  & th {
+    background-color: #f5f5f5;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+
+  & td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+  }
+
+  & tr:hover {
+    background-color: #f9f9f9;
+  }
 `;
 
 const BottomSection = styled(Box)`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
   background-color: #333;
-  border-radius: 4px;
+  padding: 32px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
 `;
 
-const ButtonGroup = styled.div`
+const ReturnAmount = styled(Box)`
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  flex-direction: column;
+  color: white;
+  min-width: 300px;
+`;
+
+const ReturnAmountLabel = styled.div`
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+`;
+
+const ReturnAmountValue = styled.div`
+  font-size: 32px;
+  font-weight: bold;
+`;
+
+const ButtonsGroup = styled(Box)`
+  display: flex;
+  gap: 8px;
+`;
+
+const ActionButton = styled(Button)`
+  min-width: 120px;
+  height: 48px;
+  font-size: 16px;
+  text-transform: uppercase;
 `;
 
 const ReceiptNumberDialog = styled(Dialog)`
@@ -340,44 +417,6 @@ const Checkbox = styled.input`
   cursor: pointer;
 `;
 
-const BottomPanel = styled(Box)`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: #333;
-  color: white;
-  padding: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const ReturnAmount = styled.div`
-  font-size: 24px;
-  font-weight: bold;
-`;
-
-const ReturnButton = styled.button`
-  padding: 12px 24px;
-  background-color: #00a65a;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 18px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  &:hover {
-    background-color: #008d4c;
-  }
-
-  &:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-  }
-`;
-
 const SuccessDialog = styled(Dialog)`
   .MuiDialog-paper {
     padding: 24px;
@@ -503,6 +542,9 @@ const ReturnsPage: React.FC = () => {
     useState(false);
 
   const handleModeSelect = (mode: 'withReceipt' | 'withoutReceipt') => {
+    // Очищаем все данные перед сменой режима
+    handleClearAll();
+
     setReturnMode(mode);
     if (mode === 'withReceipt') {
       setShowReceiptDialog(true);
@@ -564,10 +606,28 @@ const ReturnsPage: React.FC = () => {
 
       // Берем первый найденный чек
       const receipt = foundReceipts[0];
+
+      // Получаем детали чека
+      const receiptDetails = await cashierApi.getReceiptDetails(
+        warehouseId!,
+        receipt.id
+      );
+
+      if (!receiptDetails || !receiptDetails.items) {
+        setError('Не удалось загрузить детали чека');
+        return;
+      }
+
       setSelectedReceipt(receipt);
-      setReceiptItems(receipt.items || []);
+      setReceiptItems(receiptDetails.items);
       setShowReceiptDialog(false);
       setReceiptNumber('');
+
+      // Отображаем информацию о чеке
+      const receiptTable = document.querySelector('.receipt-info-table');
+      if (receiptTable) {
+        receiptTable.scrollIntoView({ behavior: 'smooth' });
+      }
     } catch (error) {
       console.error('Error searching for receipt:', error);
       setError('Ошибка при поиске чека');
@@ -577,41 +637,46 @@ const ReturnsPage: React.FC = () => {
   };
 
   const handleKeyPress = (key: string) => {
-    if (reasonInputRef.current) {
+    if (returnMode === 'withoutReceipt' && !showReasonDialog) {
+      // Обработка ввода для поля поиска
+      if (key === 'backspace') {
+        setSearchValue((prev) => prev.slice(0, -1));
+      } else {
+        setSearchValue((prev) => prev + key);
+      }
+      // Запускаем поиск при вводе
+      searchProducts(
+        key === 'backspace' ? searchValue.slice(0, -1) : searchValue + key
+      );
+    } else if (reasonInputRef.current) {
+      // Существующая логика для поля причины возврата
       const start = reasonInputRef.current.selectionStart || 0;
       const end = reasonInputRef.current.selectionEnd || 0;
       const currentValue = reasonInputRef.current.value;
 
       if (key === 'backspace') {
-        // Если есть выделенный текст
         if (start !== end) {
           const newValue =
             currentValue.substring(0, start) + currentValue.substring(end);
           setReturnReason(newValue);
-          // Устанавливаем курсор в позицию после удаления
           setTimeout(() => {
             reasonInputRef.current?.setSelectionRange(start, start);
             reasonInputRef.current?.focus();
           }, 0);
-        }
-        // Если нет выделенного текста, удаляем один символ перед курсором
-        else if (start > 0) {
+        } else if (start > 0) {
           const newValue =
             currentValue.substring(0, start - 1) +
             currentValue.substring(start);
           setReturnReason(newValue);
-          // Устанавливаем курсор в позицию после удаления
           setTimeout(() => {
             reasonInputRef.current?.setSelectionRange(start - 1, start - 1);
             reasonInputRef.current?.focus();
           }, 0);
         }
       } else {
-        // Обычный ввод символа
         const newValue =
           currentValue.substring(0, start) + key + currentValue.substring(end);
         setReturnReason(newValue);
-        // Устанавливаем курсор после вставленного символа
         setTimeout(() => {
           reasonInputRef.current?.setSelectionRange(start + 1, start + 1);
           reasonInputRef.current?.focus();
@@ -677,16 +742,64 @@ const ReturnsPage: React.FC = () => {
   const calculateReturnAmount = () => {
     return selectedProducts
       .filter((product) => selectedProductIds.has(product.id))
-      .reduce((sum, product) => sum + product.price * product.quantity, 0);
+      .reduce((sum, product) => {
+        const quantity = quantities[product.id] || 1;
+        return sum + product.price * quantity;
+      }, 0);
   };
 
   const handleReturn = async () => {
-    if (selectedProductIds.size === 0) {
-      setError('Выберите товары для возврата');
-      return;
-    }
+    if (returnMode === 'withReceipt') {
+      if (!selectedReceipt) {
+        setError('Выберите чек для возврата');
+        return;
+      }
 
-    setShowReasonDialog(true);
+      try {
+        if (!warehouseId) {
+          setError('ID склада не указан');
+          return;
+        }
+
+        const returnData = {
+          items: [], // При возврате с чеком возвращаем весь чек целиком
+          reason: returnReason || 'Возврат товара',
+        };
+
+        await cashierApi.createReturn(
+          warehouseId,
+          selectedReceipt.id,
+          returnData
+        );
+
+        // Очищаем состояние после успешного возврата
+        setSelectedReceipt(null);
+        setReceiptItems([]);
+        setReturnReason('');
+        setError(null);
+
+        // Показываем сообщение об успехе
+        setSuccess('Возврат успешно выполнен');
+        setShowSuccessModal(true);
+
+        // Закрываем модальное окно успеха через 2 секунды
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          setSuccess(null);
+        }, 2000);
+      } catch (error: any) {
+        console.error('Error creating return:', error);
+        setError(error?.message || 'Ошибка при создании возврата');
+      }
+    } else {
+      // Логика для возврата без чека
+      if (selectedProductIds.size === 0) {
+        setError('Выберите товары для возврата');
+        return;
+      }
+
+      setShowReasonDialog(true);
+    }
   };
 
   const loadPaymentMethods = async () => {
@@ -771,17 +884,13 @@ const ReturnsPage: React.FC = () => {
         items: preparedItems,
         reason: returnReason,
         paymentMethodId: selectedPaymentMethod.id,
-        cashAmount:
-          selectedPaymentMethod.systemType === 'CASH'
-            ? parseFloat(cashAmount)
-            : undefined,
       };
 
       if (!warehouseId) {
         throw new Error('ID склада не указан');
       }
 
-      await cashierApi.createReturnWithoutReceipt(
+      const savedReceipts = await cashierApi.createReturnWithoutReceipt(
         warehouseId,
         preparedReturnData
       );
@@ -817,8 +926,18 @@ const ReturnsPage: React.FC = () => {
     return date.toLocaleString();
   };
 
-  const formatCurrency = (amount: number) => {
-    return `${amount.toFixed(2)} ₽`;
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) {
+      return '0.00 ₸';
+    }
+    return `${Number(amount).toFixed(2)} ₸`;
+  };
+
+  const formatDiscount = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) {
+      return '0.00';
+    }
+    return Number(amount).toFixed(2);
   };
 
   const handleKeyboardCancel = () => {
@@ -839,6 +958,7 @@ const ReturnsPage: React.FC = () => {
     }
     setSearchValue('');
     setSearchResults([]);
+    setShowKeyboard(false);
   };
 
   const toggleProductSelection = (productId: string) => {
@@ -913,39 +1033,84 @@ const ReturnsPage: React.FC = () => {
     return Math.max(0, inputAmount - returnTotal);
   };
 
+  const handleClearAll = () => {
+    // Очищаем все данные
+    setSelectedReceipt(null);
+    setReceiptItems([]);
+    setSelectedItems({});
+    setReturnReason('');
+    setError(null);
+    setSuccess(null);
+    setReturnMode(null);
+    setSearchValue('');
+    setReceiptNumber('');
+    setSearchResults([]);
+    setSelectedProducts([]);
+    setSelectedProductIds(new Set());
+    setQuantities({});
+    setReturnAmount(0);
+  };
+
+  const getReturnAmount = () => {
+    if (returnMode === 'withReceipt' && selectedReceipt) {
+      return selectedReceipt.finalAmount;
+    } else if (returnMode === 'withoutReceipt') {
+      return calculateReturnAmount();
+    }
+    return 0;
+  };
+
   useEffect(() => {
     setReturnAmount(calculateReturnAmount());
   }, [selectedProducts]);
 
   useEffect(() => {
+    if (returnMode === 'withoutReceipt' && searchValue) {
+      searchProducts(searchValue);
+    }
+  }, [searchValue, returnMode]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showReceiptDialog) return;
+      // Ignore input if any dialog is open
+      if (showReasonDialog || showPaymentMethodDialog) return;
 
-      // Prevent default behavior for Enter and Backspace
-      if (e.key === 'Enter' || e.key === 'Backspace') {
+      // Handle Enter key in withReceipt mode
+      if (e.key === 'Enter' && returnMode === 'withReceipt') {
         e.preventDefault();
-      }
-
-      // Очищаем ошибку при любом вводе с клавиатуры
-      if (e.key === 'Backspace' || /^\d$/.test(e.key)) {
-        setError(null);
-      }
-
-      if (e.key === 'Enter') {
         handleOk();
-      } else if (e.key === 'Escape') {
-        handleCancel();
-      } else if (e.key === 'Backspace') {
-        handleDelete();
-      } else if (/^\d$/.test(e.key)) {
-        // Only allow numeric input
-        setReceiptNumber((prev) => prev + e.key);
+        return;
+      }
+
+      // Only handle numeric keys and backspace
+      if ((e.key >= '0' && e.key <= '9') || e.key === 'Backspace') {
+        e.preventDefault(); // Prevent default browser behavior
+
+        // Clear error message when typing or deleting
+        setError(null);
+
+        // Handle input based on mode
+        if (returnMode === 'withReceipt') {
+          // In receipt mode, update receipt number
+          if (e.key === 'Backspace') {
+            setReceiptNumber((prev) => prev.slice(0, -1));
+          } else {
+            setReceiptNumber((prev) => prev + e.key);
+          }
+        } else if (returnMode === 'withoutReceipt') {
+          // In without receipt mode, update search value
+          if (e.key === 'Backspace') {
+            setSearchValue((prev) => prev.slice(0, -1));
+          } else {
+            setSearchValue((prev) => prev + e.key);
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showReceiptDialog]);
+  }, [returnMode, showReasonDialog, showPaymentMethodDialog]);
 
   return (
     <StyledBox>
@@ -994,6 +1159,64 @@ const ReturnsPage: React.FC = () => {
       </TopSection>
 
       <ContentSection>
+        {selectedReceipt && (
+          <ReceiptInfoSection>
+            <Typography variant="h6" gutterBottom>
+              Информация о чеке
+            </Typography>
+            <ReceiptHeader>
+              <ReceiptHeaderItem>
+                <Typography variant="body2" color="textSecondary">
+                  Номер чека:
+                </Typography>
+                <Typography variant="body1">
+                  {selectedReceipt.receiptNumber}
+                </Typography>
+              </ReceiptHeaderItem>
+              <ReceiptHeaderItem>
+                <Typography variant="body2" color="textSecondary">
+                  Дата:
+                </Typography>
+                <Typography variant="body1">
+                  {new Date(selectedReceipt.createdAt).toLocaleString('ru-RU')}
+                </Typography>
+              </ReceiptHeaderItem>
+              <ReceiptHeaderItem>
+                <Typography variant="body2" color="textSecondary">
+                  Скидка:
+                </Typography>
+                <Typography variant="body1">
+                  {formatDiscount(selectedReceipt.discountAmount)}
+                </Typography>
+              </ReceiptHeaderItem>
+            </ReceiptHeader>
+
+            <ReceiptTable>
+              <table>
+                <thead>
+                  <tr>
+                    <th>НАИМЕНОВАНИЕ</th>
+                    <th>ЦЕНА</th>
+                    <th>КОЛ-ВО</th>
+                    <th>СКИДКА</th>
+                    <th>СУММА</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receiptItems.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td>{formatCurrency(item.price)}</td>
+                      <td>{item.quantity}</td>
+                      <td>{formatDiscount(item.discountAmount)}</td>
+                      <td>{formatCurrency(item.finalAmount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </ReceiptTable>
+          </ReceiptInfoSection>
+        )}
         {error && (
           <Typography color="error" sx={{ p: 2, textAlign: 'center' }}>
             {error}
@@ -1060,41 +1283,41 @@ const ReturnsPage: React.FC = () => {
         )}
       </ContentSection>
 
-      <BottomPanel>
+      <BottomSection>
         <ReturnAmount>
-          СУММА ВОЗВРАТА: {calculateReturnAmount().toFixed(2)}
+          <ReturnAmountLabel>СУММА ВОЗВРАТА</ReturnAmountLabel>
+          <ReturnAmountValue>
+            {formatCurrency(getReturnAmount())}
+          </ReturnAmountValue>
         </ReturnAmount>
-        <ButtonGroup>
-          <Button
+        <ButtonsGroup>
+          <ActionButton
             variant="contained"
-            sx={{
-              bgcolor: '#dc3545',
-              '&:hover': { bgcolor: '#c82333' },
-              minWidth: '120px',
-              height: '48px',
-              fontSize: '16px',
-            }}
-            onClick={handleDeleteSelected}
-            disabled={selectedProductIds.size === 0}
+            sx={{ bgcolor: '#666', '&:hover': { bgcolor: '#555' } }}
+            onClick={handleClearAll}
+          >
+            ОТМЕНА
+          </ActionButton>
+          <ActionButton
+            variant="contained"
+            color="error"
+            onClick={() =>
+              returnMode === 'withReceipt'
+                ? handleClearAll()
+                : handleDeleteSelected()
+            }
           >
             УДАЛИТЬ
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
-            sx={{
-              bgcolor: '#28a745',
-              '&:hover': { bgcolor: '#218838' },
-              minWidth: '120px',
-              height: '48px',
-              fontSize: '16px',
-            }}
+            color="success"
             onClick={handleReturn}
-            disabled={selectedProductIds.size === 0}
           >
             ВОЗВРАТ
-          </Button>
-        </ButtonGroup>
-      </BottomPanel>
+          </ActionButton>
+        </ButtonsGroup>
+      </BottomSection>
 
       <ReceiptNumberDialog open={showReceiptDialog} onClose={handleCancel}>
         <Typography variant="h6" align="center">
@@ -1175,10 +1398,9 @@ const ReturnsPage: React.FC = () => {
               ref={reasonInputRef}
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
-              onFocus={handleReasonInputFocus}
               placeholder="Укажите причину возврата (необязательно)"
             />
-            <ButtonGroup>
+            <ButtonsGroup>
               <DialogButton
                 className="cancel"
                 onClick={() => setShowReasonDialog(false)}
@@ -1188,7 +1410,7 @@ const ReturnsPage: React.FC = () => {
               <DialogButton className="confirm" onClick={handleFinalReturn}>
                 ВОЗВРАТ
               </DialogButton>
-            </ButtonGroup>
+            </ButtonsGroup>
           </ReasonDialog>
           {showKeyboard && (
             <VirtualKeyboard
