@@ -238,6 +238,10 @@ export function PaymentMethodBalanceModal({
             label: 'Корректировка',
             color: 'gray',
           },
+          [PaymentMethodTransactionType.RETURN_WITHOUT_RECEIPT]: {
+            label: 'Возврат товара без чека',
+            color: 'cyan',
+          },
         };
         return (
           <Tag color={typeMap[type]?.color || 'default'}>

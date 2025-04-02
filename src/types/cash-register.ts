@@ -133,6 +133,7 @@ export enum PaymentMethodTransactionType {
   WITHDRAWAL = 'withdrawal',
   PURCHASE = 'purchase',
   ADJUSTMENT = 'adjustment',
+  RETURN_WITHOUT_RECEIPT = 'return_without_receipt',
 }
 
 export enum PaymentMethodReferenceType {

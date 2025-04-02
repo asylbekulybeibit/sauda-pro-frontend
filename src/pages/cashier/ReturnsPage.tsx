@@ -28,6 +28,7 @@ interface PaymentMethod {
   cashRegisterId: string;
   isShared: boolean;
   systemType: string;
+  currentBalance: number;
 }
 
 const StyledBox = styled(Box)`
@@ -498,6 +499,8 @@ const ReturnsPage: React.FC = () => {
     useState<PaymentMethod | null>(null);
   const [cashAmount, setCashAmount] = useState<string>('');
   const [showNumpad, setShowNumpad] = useState(false);
+  const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] =
+    useState(false);
 
   const handleModeSelect = (mode: 'withReceipt' | 'withoutReceipt') => {
     setReturnMode(mode);
@@ -721,6 +724,14 @@ const ReturnsPage: React.FC = () => {
     try {
       if (!selectedPaymentMethod) {
         setError('Выберите метод оплаты');
+        return;
+      }
+
+      const returnTotal = calculateReturnAmount();
+
+      // Check if the payment method has sufficient balance
+      if (selectedPaymentMethod.currentBalance < returnTotal) {
+        setShowInsufficientBalanceModal(true);
         return;
       }
 
@@ -1395,6 +1406,58 @@ const ReturnsPage: React.FC = () => {
             </DialogContent>
           </Dialog>
         </>
+      )}
+
+      {showInsufficientBalanceModal && (
+        <Dialog
+          open={showInsufficientBalanceModal}
+          onClose={() => setShowInsufficientBalanceModal(false)}
+          PaperProps={{
+            style: {
+              borderRadius: '8px',
+              maxWidth: '500px',
+              width: '100%',
+              margin: '20px',
+            },
+          }}
+        >
+          <DialogTitle
+            style={{
+              textAlign: 'center',
+              fontSize: '24px',
+              fontWeight: 'bold',
+              padding: '24px',
+              color: '#dc3545',
+            }}
+          >
+            Недостаточно средств
+          </DialogTitle>
+          <DialogContent style={{ padding: '24px' }}>
+            <Typography align="center" style={{ marginBottom: '20px' }}>
+              У выбранного метода оплаты недостаточно средств для выполнения
+              возврата. Пожалуйста, выберите другой метод оплаты или пополните
+              баланс текущего метода.
+            </Typography>
+            <Box
+              sx={{ display: 'flex', justifyContent: 'center', gap: '12px' }}
+            >
+              <Button
+                variant="contained"
+                onClick={() => setShowInsufficientBalanceModal(false)}
+                sx={{
+                  height: '48px',
+                  fontSize: '16px',
+                  backgroundColor: '#666',
+                  '&:hover': {
+                    backgroundColor: '#555',
+                  },
+                }}
+              >
+                ОК
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
       )}
     </StyledBox>
   );
