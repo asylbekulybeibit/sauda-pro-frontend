@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import styles from './PaymentModal.module.css';
-import { PaymentMethodType } from '../../types/cashier';
+import { RegisterPaymentMethod } from '../../types/cash-register';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   totalAmount: number;
   onSubmit: (paymentData: {
-    paymentMethod: PaymentMethodType;
+    paymentMethodId: string;
     amount: number;
     change?: number;
   }) => void;
+  paymentMethods: RegisterPaymentMethod[];
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -18,8 +19,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   totalAmount,
   onSubmit,
+  paymentMethods,
 }) => {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash');
+  const [selectedMethod, setSelectedMethod] =
+    useState<RegisterPaymentMethod | null>(null);
   const [receivedAmount, setReceivedAmount] = useState<string>(
     totalAmount.toFixed(2)
   );
@@ -29,25 +32,32 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // Быстрые кнопки для выбора суммы
   const quickAmounts = [
     { label: 'Без сдачи', value: totalAmount },
-    { label: '500 ₽', value: 500 },
-    { label: '1000 ₽', value: 1000 },
-    { label: '5000 ₽', value: 5000 },
+    { label: '1000 ₸', value: 1000 },
+    { label: '2000 ₸', value: 2000 },
+    { label: '5000 ₸', value: 5000 },
+    { label: '10000 ₸', value: 10000 },
+    { label: '20000 ₸', value: 20000 },
   ];
 
   // Пересчитываем сдачу при изменении полученной суммы
   useEffect(() => {
-    if (paymentMethod === 'cash') {
+    if (selectedMethod?.systemType === 'cash') {
       const received = parseFloat(receivedAmount);
       const changeAmount = received - totalAmount;
       setChange(changeAmount >= 0 ? changeAmount : 0);
     } else {
       setChange(0);
     }
-  }, [receivedAmount, totalAmount, paymentMethod]);
+  }, [receivedAmount, totalAmount, selectedMethod]);
 
   // Обработчик подтверждения оплаты
   const handleSubmit = () => {
-    if (paymentMethod === 'cash') {
+    if (!selectedMethod) {
+      setError('Выберите метод оплаты');
+      return;
+    }
+
+    if (selectedMethod.systemType === 'cash') {
       const received = parseFloat(receivedAmount);
       if (isNaN(received) || received < totalAmount) {
         setError('Полученная сумма должна быть не меньше суммы чека');
@@ -56,10 +66,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
 
     onSubmit({
-      paymentMethod,
+      paymentMethodId: selectedMethod.id,
       amount:
-        paymentMethod === 'cash' ? parseFloat(receivedAmount) : totalAmount,
-      change: paymentMethod === 'cash' ? change : 0,
+        selectedMethod.systemType === 'cash'
+          ? parseFloat(receivedAmount)
+          : totalAmount,
+      change: selectedMethod.systemType === 'cash' ? change : 0,
     });
   };
 
@@ -78,7 +90,24 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Форматирование суммы для отображения
   const formatCurrency = (amount: number) => {
-    return `${amount.toFixed(2)} ₽`;
+    return `${amount.toFixed(2)} ₸`;
+  };
+
+  // Получение названия метода оплаты
+  const getPaymentMethodName = (method: RegisterPaymentMethod) => {
+    if (method.source === 'system') {
+      switch (method.systemType) {
+        case 'cash':
+          return 'Наличные';
+        case 'card':
+          return 'Карта';
+        case 'qr':
+          return 'QR-код';
+        default:
+          return method.systemType;
+      }
+    }
+    return method.name;
   };
 
   if (!isOpen) return null;
@@ -101,37 +130,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </span>
           </div>
 
-          <div className={styles.paymentMethods}>
+          <div>
             <h3>Способ оплаты</h3>
             <div className={styles.methods}>
-              <button
-                className={`${styles.methodButton} ${
-                  paymentMethod === 'cash' ? styles.active : ''
-                }`}
-                onClick={() => setPaymentMethod('cash')}
-              >
-                Наличные
-              </button>
-              <button
-                className={`${styles.methodButton} ${
-                  paymentMethod === 'card' ? styles.active : ''
-                }`}
-                onClick={() => setPaymentMethod('card')}
-              >
-                Карта
-              </button>
-              <button
-                className={`${styles.methodButton} ${
-                  paymentMethod === 'qr' ? styles.active : ''
-                }`}
-                onClick={() => setPaymentMethod('qr')}
-              >
-                QR-код
-              </button>
+              {paymentMethods.length === 0 ? (
+                <div className={styles.loading}>Загрузка методов оплаты...</div>
+              ) : (
+                paymentMethods.map((method) => (
+                  <button
+                    key={method.id}
+                    className={`${styles.methodButton} ${
+                      selectedMethod?.id === method.id ? styles.active : ''
+                    }`}
+                    onClick={() => setSelectedMethod(method)}
+                  >
+                    {getPaymentMethodName(method)}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
-          {paymentMethod === 'cash' && (
+          {selectedMethod?.systemType === 'cash' && (
             <>
               <div className={styles.receivedAmount}>
                 <h3>Получено</h3>

@@ -13,6 +13,7 @@ import {
   CashShift,
   PaymentMethodType,
   Receipt,
+  RegisterPaymentMethod,
 } from '../../types/cashier';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SalesPage.module.css';
@@ -43,6 +44,10 @@ const SalesPage: React.FC = () => {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isPostponedModalOpen, setIsPostponedModalOpen] = useState(false);
   const [postponedReceipts, setPostponedReceipts] = useState<Receipt[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<RegisterPaymentMethod[]>(
+    []
+  );
+  const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -264,32 +269,43 @@ const SalesPage: React.FC = () => {
 
   // Проверка наличия открытой кассовой смены при загрузке страницы
   const checkCurrentShift = async () => {
-    console.log('[checkCurrentShift] Начало проверки текущей смены:', {
+    console.log('[checkCurrentShift] Starting check:', {
       warehouseId,
       currentShift,
+      currentShiftId: currentShift?.id,
+      currentShiftStatus: currentShift?.status,
+      currentShiftCashRegisterId: currentShift?.cashRegisterId,
     });
 
     if (!warehouseId) {
-      console.log('[checkCurrentShift] warehouseId не определен');
+      console.log('[checkCurrentShift] warehouseId not defined');
       return;
     }
 
     try {
-      console.log('[checkCurrentShift] Запрос текущей смены с сервера');
+      console.log('[checkCurrentShift] Requesting current shift from server');
       const response = await cashierApi.getCurrentShift(warehouseId);
-      console.log('[checkCurrentShift] Ответ от сервера:', response);
+      console.log('[checkCurrentShift] Server response:', {
+        response,
+        shiftId: response?.id,
+        status: response?.status,
+        cashRegisterId: response?.cashRegisterId,
+        cashRegister: response?.cashRegister,
+      });
 
       if (response && response.id) {
-        console.log('[checkCurrentShift] Проверка статуса смены:', {
+        console.log('[checkCurrentShift] Checking shift status:', {
           shiftId: response.id,
           status: response.status,
           expectedStatus: 'OPEN',
           areEqual: response.status === 'OPEN',
+          cashRegisterId: response.cashRegisterId,
+          cashRegister: response.cashRegister,
         });
 
         if (response.status === 'OPEN') {
           console.log(
-            '[checkCurrentShift] Смена открыта, устанавливаем текущую смену'
+            '[checkCurrentShift] Shift is open, setting current shift'
           );
           setCurrentShift(response);
 
@@ -297,19 +313,19 @@ const SalesPage: React.FC = () => {
           await restoreStateFromStorage(response);
         } else {
           console.log(
-            '[checkCurrentShift] Смена не открыта, статус:',
+            '[checkCurrentShift] Shift is not open, status:',
             response.status
           );
           setCurrentShift(null);
           clearStorageState();
         }
       } else {
-        console.log('[checkCurrentShift] Нет активной смены');
+        console.log('[checkCurrentShift] No active shift');
         setCurrentShift(null);
         clearStorageState();
       }
     } catch (error) {
-      console.error('[checkCurrentShift] Ошибка при проверке смены:', error);
+      console.error('[checkCurrentShift] Error checking shift:', error);
       setCurrentShift(null);
       clearStorageState();
     }
@@ -389,70 +405,39 @@ const SalesPage: React.FC = () => {
   }, [receiptItems]);
 
   const createNewReceipt = async (shift = currentShift) => {
-    console.log('Запуск функции createNewReceipt с данными смены:', shift);
-    if (!warehouseId) {
-      console.error('warehouseId не определен');
-      setError('Не выбран склад');
-      return null;
-    }
+    if (!shift || !warehouseId) return null;
 
-    if (!shift) {
-      console.error('shift не определен');
-      setError('Смена не открыта');
-      return null;
-    }
-
-    console.log('Создание нового чека:', {
-      warehouseId,
-      cashShiftId: shift.id,
-      cashRegisterId: shift.cashRegister.id,
-    });
-
-    setLoading(true);
     try {
-      const response = await cashierApi.createReceipt(warehouseId, {
+      // Проверяем, есть ли активный чек
+      const existingReceipt = await cashierApi.getCurrentReceipt(warehouseId);
+
+      // Если есть активный чек и он не оплачен/отменен, используем его
+      if (existingReceipt && existingReceipt.status === 'CREATED') {
+        setCurrentReceipt(existingReceipt);
+        setReceiptId(existingReceipt.id);
+        setReceiptNumber(existingReceipt.receiptNumber);
+        setReceiptItems(existingReceipt.items || []);
+        return existingReceipt;
+      }
+
+      // Создаем новый чек
+      const newReceipt = await cashierApi.createReceipt(warehouseId, {
         cashShiftId: shift.id,
         cashRegisterId: shift.cashRegister.id,
       });
 
-      console.log('Чек успешно создан:', response);
+      setCurrentReceipt(newReceipt);
+      setReceiptId(newReceipt.id);
+      setReceiptNumber(newReceipt.receiptNumber);
+      setReceiptItems([]);
 
-      setReceiptId(response.id);
-      setReceiptNumber(response.receiptNumber);
-      setError(null);
-      setLoading(false);
-      return response.id;
-    } catch (err: any) {
-      console.error('Ошибка при создании чека:', err);
+      // Сохраняем состояние в localStorage
+      saveStateToStorage();
 
-      if (err.response) {
-        console.error('Детали ошибки:', err.response.status, err.response.data);
-        if (err.response.status === 400) {
-          setError(
-            `Ошибка при создании чека: ${
-              err.response.data.message || 'Неверные данные'
-            }`
-          );
-        } else if (err.response.status === 404) {
-          setError('Невозможно создать чек: смена не найдена');
-        } else if (err.response.status === 403) {
-          setError('У вас нет прав для создания чека');
-        } else {
-          setError(
-            `Невозможно создать чек: ${
-              err.response.data.message || 'Неизвестная ошибка'
-            }`
-          );
-        }
-      } else if (err.request) {
-        setError('Сервер не отвечает. Проверьте подключение к интернету.');
-      } else {
-        setError(
-          `Невозможно создать чек: ${err.message || 'Неизвестная ошибка'}`
-        );
-      }
-
-      setLoading(false);
+      return newReceipt;
+    } catch (error: any) {
+      console.error('Error creating new receipt:', error);
+      setError(error.message || 'Не удалось создать новый чек');
       return null;
     }
   };
@@ -560,17 +545,17 @@ const SalesPage: React.FC = () => {
       return;
     }
 
-    let currentReceiptId = receiptId;
-
     try {
-      // Создаем чек только если его еще нет и добавляется первый товар
+      // Создаем чек если его еще нет
+      let currentReceiptId = receiptId;
       if (!currentReceiptId) {
         console.log('Создание нового чека для первого товара');
-        currentReceiptId = await createNewReceipt(currentShift);
-        if (!currentReceiptId) {
+        const newReceipt = await createNewReceipt(currentShift);
+        if (!newReceipt?.id) {
           console.error('Не удалось создать чек');
           return;
         }
+        currentReceiptId = newReceipt.id;
       }
 
       // Проверяем, есть ли уже такой товар в чеке
@@ -813,7 +798,13 @@ const SalesPage: React.FC = () => {
     }
   };
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
+    console.log('handlePayment called:', {
+      currentShift,
+      warehouseId,
+      receiptItems: receiptItems.length,
+    });
+
     if (receiptItems.length === 0) {
       setError('Добавьте товары в чек для оплаты');
       return;
@@ -823,11 +814,61 @@ const SalesPage: React.FC = () => {
       setError(null);
     }
 
-    setIsPaymentModalOpen(true);
+    // Обновляем статус смены перед проверкой
+    if (warehouseId) {
+      try {
+        console.log('Fetching current shift for warehouseId:', warehouseId);
+        const updatedShift = await cashierApi.getCurrentShift(warehouseId);
+        console.log('Received updated shift:', updatedShift);
+        if (updatedShift) {
+          setCurrentShift(updatedShift);
+        }
+      } catch (err) {
+        console.error('Error updating shift status:', err);
+      }
+    }
+
+    if (!currentShift) {
+      setError('Не удалось загрузить методы оплаты: смена не открыта');
+      return;
+    }
+
+    if (currentShift.status !== 'OPEN') {
+      setError('Не удалось загрузить методы оплаты: смена закрыта');
+      return;
+    }
+
+    // Загружаем методы оплаты при открытии модального окна
+    if (currentShift.cashRegister?.id && warehouseId) {
+      console.log('Loading payment methods:', {
+        warehouseId,
+        cashRegisterId: currentShift.cashRegister.id,
+        currentShift,
+      });
+
+      cashierApi
+        .getPaymentMethods(warehouseId, currentShift.cashRegister.id)
+        .then((methods) => {
+          console.log('Payment methods loaded:', methods);
+          setPaymentMethods(methods);
+          setIsPaymentModalOpen(true);
+        })
+        .catch((err) => {
+          console.error('Ошибка при загрузке методов оплаты:', err);
+          setError('Не удалось загрузить методы оплаты');
+        });
+    } else {
+      console.error('Missing required data:', {
+        warehouseId,
+        cashRegisterId: currentShift?.cashRegister?.id,
+        currentShift,
+      });
+      setError('Не удалось загрузить методы оплаты: некорректные данные кассы');
+    }
   };
 
   const handlePaymentSubmit = async (paymentData: {
-    paymentMethod: PaymentMethodType;
+    paymentMethodId: string;
     amount: number;
     change?: number;
   }) => {
@@ -843,73 +884,43 @@ const SalesPage: React.FC = () => {
     const paymentRequest = async (retryCount = 0): Promise<boolean> => {
       try {
         await cashierApi.payReceipt(warehouseId, receiptId, {
-          paymentMethod: paymentData.paymentMethod,
+          paymentMethodId: paymentData.paymentMethodId,
           amount: paymentData.amount,
         });
+
+        // После успешной оплаты создаем новый чек
+        await createNewReceipt();
+
+        // Закрываем модальное окно оплаты
+        setIsPaymentModalOpen(false);
+
+        // Очищаем состояние текущего чека
+        setReceiptItems([]);
+
         return true;
-      } catch (err: any) {
-        console.error(`Попытка ${retryCount + 1} оплаты чека не удалась:`, err);
+      } catch (error: any) {
+        console.error('Error processing payment:', error);
 
-        // Если ошибка связана с сетью и не превышено количество повторных попыток, повторяем запрос
-        if (err.request && !err.response && retryCount < 2) {
-          // Делаем паузу перед повторной попыткой
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return paymentRequest(retryCount + 1);
-        }
-
-        // Обработка различных типов ошибок
-        if (err.response) {
-          if (err.response.status === 400) {
-            setError(
-              `Не удалось оплатить чек: ${
-                err.response.data?.message || 'Неверные данные платежа'
-              }`
-            );
-          } else if (err.response.status === 404) {
-            setError('Чек не найден или уже был оплачен/отменен');
-          } else if (err.response.status === 409) {
-            setError('Чек уже был обработан (оплачен или отменен)');
-          } else {
-            setError(
-              `Ошибка сервера: ${
-                err.response.data?.message || 'Не удалось оплатить чек'
-              }`
-            );
+        if (retryCount < 2) {
+          // Пробуем обновить статус смены и повторить оплату
+          const shift = await cashierApi.getCurrentShift(warehouseId);
+          if (shift) {
+            setCurrentShift(shift);
+            return paymentRequest(retryCount + 1);
           }
-        } else if (err.request) {
-          setError(
-            'Не удалось соединиться с сервером. Проверьте подключение к интернету.'
-          );
-        } else {
-          setError(
-            'Произошла ошибка при оплате чека. Пожалуйста, попробуйте еще раз.'
-          );
         }
 
+        setError(error.message || 'Не удалось обработать оплату');
         return false;
       }
     };
 
     try {
       const success = await paymentRequest();
-
       if (success) {
-        // Сбрасываем состояние и закрываем модальное окно
-        clearReceipt();
-        setIsPaymentModalOpen(false);
-
-        // Обновляем данные о текущей смене
-        const shift = await cashierApi.getCurrentShift(warehouseId);
-        setCurrentShift(shift);
-
-        // Уведомляем пользователя об успешной оплате
+        // Показываем уведомление об успешной оплате
         alert('Чек успешно оплачен!');
       }
-    } catch (err) {
-      console.error('Непредвиденная ошибка при оплате чека:', err);
-      setError(
-        'Произошла непредвиденная ошибка. Пожалуйста, повторите попытку.'
-      );
     } finally {
       setLoading(false);
     }
@@ -1066,6 +1077,21 @@ const SalesPage: React.FC = () => {
     setIsPostponedModalOpen(true);
   };
 
+  // Загрузка методов оплаты при открытии смены
+  useEffect(() => {
+    if (currentShift?.cashRegister?.id && warehouseId) {
+      cashierApi
+        .getPaymentMethods(warehouseId, currentShift.cashRegister.id)
+        .then((methods) => {
+          setPaymentMethods(methods);
+        })
+        .catch((err) => {
+          console.error('Ошибка при загрузке методов оплаты:', err);
+          setError('Не удалось загрузить методы оплаты');
+        });
+    }
+  }, [currentShift?.cashRegister?.id, warehouseId]);
+
   return (
     <div className={styles.salesPage}>
       {error && (
@@ -1132,6 +1158,7 @@ const SalesPage: React.FC = () => {
           onClose={() => setIsPaymentModalOpen(false)}
           totalAmount={finalAmount}
           onSubmit={handlePaymentSubmit}
+          paymentMethods={paymentMethods}
         />
       )}
 

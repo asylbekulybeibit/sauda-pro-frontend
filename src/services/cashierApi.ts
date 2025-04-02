@@ -211,7 +211,7 @@ export const cashierApi = {
     warehouseId: string,
     receiptId: string,
     data: {
-      paymentMethod: string;
+      paymentMethodId: string;
       amount: number;
     }
   ) {
@@ -431,6 +431,34 @@ export const cashierApi = {
   async deleteReceipt(warehouseId: string, receiptId: string) {
     const response = await axios.delete(
       `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Получение методов оплаты для текущей кассы
+   */
+  async getPaymentMethods(warehouseId: string, cashRegisterId: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cash-registers/payment-methods`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data.filter(
+      (method) => method.isShared || method.cashRegisterId === cashRegisterId
+    );
+  },
+
+  /**
+   * Получение текущего чека
+   */
+  async getCurrentReceipt(warehouseId: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/receipts/current`,
       {
         headers: getAuthHeader(),
       }

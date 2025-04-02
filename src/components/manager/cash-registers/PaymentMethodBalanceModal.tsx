@@ -280,7 +280,17 @@ export function PaymentMethodBalanceModal({
 
   return (
     <Modal
-      title={`Баланс метода оплаты: ${paymentMethod.name}`}
+      title={`Баланс метода оплаты: ${
+        paymentMethod.source === 'system'
+          ? paymentMethod.systemType === 'cash'
+            ? 'Наличные'
+            : paymentMethod.systemType === 'card'
+            ? 'Карта'
+            : paymentMethod.systemType === 'qr'
+            ? 'QR-код'
+            : paymentMethod.systemType
+          : paymentMethod.name
+      }`}
       open={isOpen}
       onCancel={onClose}
       footer={null}
@@ -292,7 +302,7 @@ export function PaymentMethodBalanceModal({
             <div>
               <div className="text-sm text-gray-600">Текущий баланс</div>
               <div className="text-2xl font-bold">
-                {Number(paymentMethod.currentBalance).toFixed(2)} ₸
+                {Number(paymentMethod.currentBalance || 0).toFixed(2)} ₸
               </div>
             </div>
             <div>
