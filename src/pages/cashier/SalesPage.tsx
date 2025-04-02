@@ -1025,9 +1025,15 @@ const SalesPage: React.FC = () => {
     if (!warehouseId) return;
 
     try {
-      // If there's an active receipt, postpone it first
-      if (receiptId && receiptItems.length > 0) {
-        await cashierApi.postponeReceipt(warehouseId, receiptId);
+      // Если есть активный чек
+      if (receiptId) {
+        if (receiptItems.length > 0) {
+          // Если в чеке есть товары - откладываем его
+          await cashierApi.postponeReceipt(warehouseId, receiptId);
+        } else {
+          // Если чек пустой - удаляем его
+          await cashierApi.deleteReceipt(warehouseId, receiptId);
+        }
       }
 
       // Clear current receipt state

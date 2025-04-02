@@ -424,4 +424,17 @@ export const cashierApi = {
     );
     return response.data;
   },
+
+  /**
+   * Удаление пустого чека
+   */
+  async deleteReceipt(warehouseId: string, receiptId: string) {
+    const response = await axios.delete(
+      `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
 };
