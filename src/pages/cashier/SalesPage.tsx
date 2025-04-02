@@ -680,25 +680,27 @@ const SalesPage: React.FC = () => {
     }
 
     const itemToRemove = receiptItems[itemIndex];
+    const serverItemId = itemToRemove.serverItemId || itemToRemove.id; // Используем либо serverItemId, либо id
+
     console.log('Удаление товара:', {
       itemId,
-      serverItemId: itemToRemove.serverItemId,
+      serverItemId,
       receiptId,
     });
 
     // Если чек создан на сервере, удаляем товар с сервера
-    if (receiptId && itemToRemove.serverItemId) {
+    if (receiptId && serverItemId) {
       try {
         console.log('Отправка запроса на удаление товара:', {
           warehouseId,
           receiptId,
-          serverItemId: itemToRemove.serverItemId,
+          serverItemId,
         });
 
         await cashierApi.removeItemFromReceipt(
           warehouseId || '',
           receiptId,
-          itemToRemove.serverItemId
+          serverItemId
         );
 
         console.log('Товар успешно удален с сервера');
@@ -1037,10 +1039,15 @@ const SalesPage: React.FC = () => {
         receipt.id
       );
 
-      // Update state with restored receipt data
+      // Update state with restored receipt data, ensuring serverItemId is set correctly
       setReceiptId(restoredReceipt.id);
       setReceiptNumber(restoredReceipt.receiptNumber);
-      setReceiptItems(restoredReceipt.items);
+      setReceiptItems(
+        restoredReceipt.items.map((item) => ({
+          ...item,
+          serverItemId: item.id, // Сохраняем ID товара с сервера
+        }))
+      );
       setIsPostponedModalOpen(false);
     } catch (error) {
       console.error('Error restoring receipt:', error);

@@ -8,6 +8,7 @@ interface PostponedReceiptsModalProps {
   onSelect: (receipt: Receipt) => void;
   onPostpone: () => void;
   postponedReceipts: Receipt[];
+  currentReceipt?: Receipt | null;
 }
 
 const PostponedReceiptsModal: React.FC<PostponedReceiptsModalProps> = ({
@@ -16,6 +17,7 @@ const PostponedReceiptsModal: React.FC<PostponedReceiptsModalProps> = ({
   onSelect,
   onPostpone,
   postponedReceipts,
+  currentReceipt,
 }) => {
   if (!isOpen) return null;
 
@@ -25,10 +27,16 @@ const PostponedReceiptsModal: React.FC<PostponedReceiptsModalProps> = ({
 
     // Берем первые два товара для отображения
     const displayItems = items.slice(0, 2);
-    const itemsText = displayItems.map((item) => item.name).join(', ');
+    const itemsText = displayItems
+      .map((item) => `${item.name} (${item.quantity})`)
+      .join(', ');
 
     // Если есть еще товары, добавляем многоточие
     return items.length > 2 ? `${itemsText}...` : itemsText;
+  };
+
+  const formatAmount = (amount: number | string) => {
+    return Number(amount).toFixed(2);
   };
 
   return (
@@ -50,11 +58,14 @@ const PostponedReceiptsModal: React.FC<PostponedReceiptsModalProps> = ({
               <div className={styles.receiptDetails}>
                 {formatReceiptDetails(receipt)}
               </div>
+              <div className={styles.receiptAmount}>
+                {formatAmount(receipt.totalAmount)} ₽
+              </div>
             </div>
           ))}
         </div>
         <div className={styles.modalBody}>
-          {postponedReceipts.length === 0 && (
+          {postponedReceipts.length === 0 && !currentReceipt && (
             <div className={styles.emptyState}>Нет отложенных чеков</div>
           )}
         </div>
