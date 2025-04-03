@@ -84,7 +84,7 @@
   width: 40px;
   height: 40px;
   border: none;
-  background-color: #00a65a;
+  background-color: #dc3545;
   color: white;
   display: flex;
   align-items: center;
@@ -97,17 +97,29 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.quantityButton[data-type='plus'] {
+  background-color: #00a65a;
+}
+
 .quantityButton:hover {
+  background-color: #c82333;
+}
+
+.quantityButton[data-type='plus']:hover {
   background-color: #008d4c;
 }
 
 .quantityButton:active {
-  background-color: #007540;
+  background-color: #bd2130;
   transform: scale(0.95);
 }
 
+.quantityButton[data-type='plus']:active {
+  background-color: #007540;
+}
+
 .quantityValue {
-  padding: 0 10px;
+  padding: 0 16px;
   font-size: 18px;
   font-weight: bold;
   min-width: 40px;

@@ -69,6 +69,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                   <div className={styles.quantityControl}>
                     <button
                       className={styles.quantityButton}
+                      data-type="minus"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleQuantityChange(item.id, item.quantity - 1);
@@ -81,6 +82,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                     </span>
                     <button
                       className={styles.quantityButton}
+                      data-type="plus"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleQuantityChange(item.id, item.quantity + 1);

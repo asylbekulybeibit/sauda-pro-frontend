@@ -5,6 +5,7 @@ import ProductsTable from '../../components/cashier/ProductsTable';
 import TotalPanel from '../../components/cashier/TotalPanel';
 import PaymentModal from '../../components/cashier/PaymentModal';
 import PostponedReceiptsModal from '../../components/cashier/PostponedReceiptsModal';
+import InsufficientStockModal from '../../components/cashier/InsufficientStockModal';
 import { cashierApi } from '../../services/cashierApi';
 import {
   Product,
@@ -50,6 +51,13 @@ const SalesPage: React.FC = () => {
   );
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [showInsufficientStockModal, setShowInsufficientStockModal] =
+    useState(false);
+  const [insufficientStockInfo, setInsufficientStockInfo] = useState<{
+    productName: string;
+    availableQuantity: number;
+    requiredQuantity: number;
+  } | null>(null);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -895,6 +903,28 @@ const SalesPage: React.FC = () => {
       } catch (error: any) {
         console.error('Error processing payment:', error);
 
+        // Проверяем, является ли ошибка связанной с недостатком товара
+        if (
+          error.response?.data?.message?.includes(
+            'Недостаточное количество товара'
+          )
+        ) {
+          const match = error.response.data.message.match(
+            /товара "(.+)" на складе\. В наличии: (\d+), требуется: (\d+)/
+          );
+          if (match) {
+            const [, productName, available, required] = match;
+            setInsufficientStockInfo({
+              productName,
+              availableQuantity: parseInt(available),
+              requiredQuantity: parseInt(required),
+            });
+            setShowInsufficientStockModal(true);
+            setIsPaymentModalOpen(false);
+          }
+          return false;
+        }
+
         if (retryCount < 2) {
           // Пробуем обновить статус смены и повторить оплату
           const shift = await cashierApi.getCurrentShift(warehouseId);
@@ -1164,6 +1194,16 @@ const SalesPage: React.FC = () => {
         onPostpone={handlePostponeReceipt}
         postponedReceipts={postponedReceipts}
       />
+
+      {showInsufficientStockModal && insufficientStockInfo && (
+        <InsufficientStockModal
+          isOpen={showInsufficientStockModal}
+          onClose={() => setShowInsufficientStockModal(false)}
+          productName={insufficientStockInfo.productName}
+          availableQuantity={insufficientStockInfo.availableQuantity}
+          requiredQuantity={insufficientStockInfo.requiredQuantity}
+        />
+      )}
 
       {loading && (
         <div className={styles.loadingOverlay}>

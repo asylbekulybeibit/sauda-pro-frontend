@@ -540,6 +540,7 @@ const ReturnsPage: React.FC = () => {
   const [showNumpad, setShowNumpad] = useState(false);
   const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] =
     useState(false);
+  const [showReturnReceiptError, setShowReturnReceiptError] = useState(false);
 
   const handleModeSelect = (mode: 'withReceipt' | 'withoutReceipt') => {
     // Очищаем все данные перед сменой режима
@@ -752,6 +753,12 @@ const ReturnsPage: React.FC = () => {
     if (returnMode === 'withReceipt') {
       if (!selectedReceipt) {
         setError('Выберите чек для возврата');
+        return;
+      }
+
+      // Проверяем, является ли чек возвратным
+      if (selectedReceipt.finalAmount < 0) {
+        setShowReturnReceiptError(true);
         return;
       }
 
@@ -1198,9 +1205,43 @@ const ReturnsPage: React.FC = () => {
       <ContentSection>
         {selectedReceipt && (
           <ReceiptInfoSection>
-            <Typography variant="h6" gutterBottom>
-              Информация о чеке
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                mb: 2,
+              }}
+            >
+              <Typography variant="h6">Информация о чеке</Typography>
+              {selectedReceipt && selectedReceipt.finalAmount < 0 && (
+                <Box
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                    color: '#d32f2f',
+                    py: 0.5,
+                    px: 1.5,
+                    borderRadius: 6,
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    border: '1px solid rgba(211, 47, 47, 0.2)',
+                    '&::before': {
+                      content: '""',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: '#d32f2f',
+                      marginRight: 1,
+                      display: 'inline-block',
+                    },
+                  }}
+                >
+                  ВОЗВРАТНЫЙ ЧЕК
+                </Box>
+              )}
+            </Box>
             <ReceiptHeader>
               <ReceiptHeaderItem>
                 <Typography variant="body2" color="textSecondary">
@@ -1768,6 +1809,62 @@ const ReturnsPage: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Добавляем новый диалог для ошибки возвратного чека */}
+      <Dialog
+        open={showReturnReceiptError}
+        onClose={() => setShowReturnReceiptError(false)}
+        PaperProps={{
+          style: {
+            borderRadius: '8px',
+            maxWidth: '500px',
+            width: '100%',
+            margin: '20px',
+          },
+        }}
+      >
+        <DialogTitle
+          style={{
+            textAlign: 'center',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            padding: '24px',
+            color: '#dc3545',
+            borderBottom: '1px solid #eee',
+          }}
+        >
+          Невозможно выполнить возврат
+        </DialogTitle>
+        <DialogContent style={{ padding: '24px' }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography
+              sx={{
+                fontSize: '18px',
+                mb: 3,
+                color: '#666',
+              }}
+            >
+              Данный чек уже является возвратным. Невозможно выполнить возврат
+              по возвратному чеку.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => setShowReturnReceiptError(false)}
+              sx={{
+                height: '48px',
+                fontSize: '16px',
+                minWidth: '120px',
+                backgroundColor: '#666',
+                '&:hover': {
+                  backgroundColor: '#555',
+                },
+              }}
+            >
+              Понятно
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
     </StyledBox>
   );
 };
