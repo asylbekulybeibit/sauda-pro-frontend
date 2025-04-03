@@ -1,0 +1,148 @@
+.reportContainer {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.reportHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #00a65a;
+}
+
+.reportHeader h2 {
+  margin: 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.printButton {
+  background-color: #00a65a;
+}
+
+.printButton:hover {
+  background-color: #008d4c;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section h3 {
+  color: #333;
+  font-size: 18px;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.infoGrid,
+.totalsGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.infoRow,
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.label {
+  color: #666;
+  font-weight: 500;
+}
+
+.value {
+  color: #333;
+  font-weight: 500;
+}
+
+.paymentMethodsTable {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  background-color: #f5f5f5;
+  padding: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.methodName {
+  color: #333;
+}
+
+.amount {
+  text-align: right;
+  color: #333;
+}
+
+.notes {
+  background-color: #f9f9f9;
+  padding: 16px;
+  border-radius: 4px;
+  color: #666;
+  font-style: italic;
+}
+
+@media print {
+  .reportContainer {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .actions {
+    display: none;
+  }
+
+  .reportHeader {
+    border-bottom-color: #000;
+  }
+
+  .section h3 {
+    border-bottom-color: #000;
+  }
+
+  .infoRow,
+  .totalRow {
+    border-bottom-color: #000;
+  }
+
+  .paymentMethodsTable {
+    border-color: #000;
+  }
+
+  .tableRow {
+    border-bottom-color: #000;
+  }
+}

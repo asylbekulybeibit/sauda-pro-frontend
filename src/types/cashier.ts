@@ -62,6 +62,8 @@ export interface Receipt {
   receivedAmount?: number;
   status: 'created' | 'paid' | 'cancelled' | 'refunded' | 'PAID' | 'CANCELLED';
   paymentMethod?: 'cash' | 'card' | 'transfer' | 'mixed' | 'CASH' | 'CARD';
+  paymentMethodId?: string;
+  returnedFromReceiptNumber?: string;
   items: ReceiptItem[];
   cashier?: {
     id: string;
@@ -83,4 +85,39 @@ export interface PaymentData {
 
 export interface CurrentReceipt extends Receipt {
   receiptItems: ReceiptItem[];
+}
+
+export interface ShiftPaymentMethodTotal {
+  methodId: string;
+  methodName: string;
+  sales: number;
+  returns: number;
+  total: number;
+}
+
+export interface ShiftClosingData {
+  id: string;
+  warehouse: {
+    id: string;
+    name: string;
+  };
+  cashRegister: {
+    id: string;
+    name: string;
+  };
+  cashier: {
+    id: string;
+    name: string;
+    fullName?: string;
+  };
+  startTime: string;
+  endTime: string;
+  initialAmount: number;
+  finalAmount: number;
+  status: string;
+  notes?: string;
+  totalSales: number;
+  totalReturns: number;
+  totalNet: number;
+  paymentMethods: ShiftPaymentMethodTotal[];
 }

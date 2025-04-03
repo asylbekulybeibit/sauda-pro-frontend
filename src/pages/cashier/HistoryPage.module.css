@@ -4,6 +4,8 @@
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .pageTitle {
@@ -50,7 +52,8 @@
 }
 
 .receiptsHeader {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr;
   background-color: #f5f5f5;
   font-weight: bold;
   padding: 10px;
@@ -61,16 +64,16 @@
 }
 
 .headerCell {
-  flex: 1;
   padding: 5px;
+  font-weight: 600;
 }
 
 .receiptItem {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr;
   padding: 12px 10px;
   border-bottom: 1px solid #eee;
-  cursor: pointer;
-  transition: background-color 0.2s;
+  align-items: center;
 }
 
 .receiptItem:hover {
@@ -85,37 +88,44 @@
 .receiptNumber,
 .receiptDate,
 .receiptAmount,
-.receiptStatus {
-  flex: 1;
+.receiptStatus,
+.receiptActions {
   padding: 5px;
 }
 
+.receiptNumber,
+.receiptDate,
+.receiptAmount,
 .receiptStatus {
-  font-weight: bold;
-  text-align: center;
-  padding: 2px 5px;
-  border-radius: 3px;
+  cursor: pointer;
+}
+
+.receiptStatus span {
   display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: 500;
 }
 
 .statusPaid {
-  color: #00a65a;
   background-color: #e8f5e9;
-}
-
-.statusCreated {
-  color: #2196f3;
-  background-color: #e3f2fd;
+  color: #2e7d32;
 }
 
 .statusCancelled {
-  color: #f44336;
   background-color: #ffebee;
+  color: #c62828;
 }
 
 .statusRefunded {
-  color: #ff9800;
   background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.statusCreated {
+  background-color: #e3f2fd;
+  color: #1565c0;
 }
 
 .noReceipts {
@@ -132,6 +142,16 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+.noSelection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-style: italic;
 }
 
 .detailsHeader {
@@ -172,8 +192,8 @@
 
 .detailsSection h3 {
   margin-top: 0;
-  margin-bottom: 10px;
-  padding-bottom: 5px;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #eee;
   color: #333;
 }
@@ -186,8 +206,8 @@
 }
 
 .detailLabel {
-  font-weight: bold;
-  color: #555;
+  font-weight: 500;
+  color: #666;
 }
 
 .detailValue {
@@ -197,25 +217,24 @@
 .itemsTable {
   border: 1px solid #eee;
   border-radius: 4px;
+  overflow: hidden;
 }
 
 .itemsHeader {
-  display: flex;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   background-color: #f5f5f5;
-  font-weight: bold;
-  padding: 10px;
+  font-weight: 500;
+  padding: 12px;
   border-bottom: 1px solid #ddd;
 }
 
-.itemCell {
-  flex: 1;
-  padding: 5px;
-}
-
 .itemRow {
-  display: flex;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  padding: 12px;
   border-bottom: 1px solid #eee;
+  align-items: center;
 }
 
 .itemRow:last-child {
@@ -223,56 +242,50 @@
 }
 
 .itemName {
-  flex: 3;
-  padding: 5px;
+  padding-right: 15px;
 }
 
 .itemPrice,
 .itemQuantity,
 .itemDiscount,
 .itemAmount {
-  flex: 1;
-  padding: 5px;
   text-align: right;
 }
 
 .totalSection {
   margin-top: 20px;
-  border-top: 2px solid #eee;
-  padding-top: 15px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
 }
 
 .totalRow {
   display: flex;
   justify-content: space-between;
-  padding: 5px 0;
+  padding: 8px 0;
 }
 
 .totalLabel {
-  font-weight: bold;
-  color: #555;
+  font-weight: 500;
+  color: #666;
 }
 
 .totalValue {
-  font-size: 16px;
+  font-weight: 500;
   color: #333;
 }
 
 .finalTotal {
   margin-top: 10px;
-  border-top: 1px solid #ddd;
   padding-top: 10px;
+  border-top: 2px solid #eee;
 }
 
-.finalTotal .totalLabel {
-  font-size: 18px;
-  color: #333;
-}
-
+.finalTotal .totalLabel,
 .finalTotal .totalValue {
-  font-size: 20px;
-  font-weight: bold;
-  color: #00a65a;
+  font-weight: 600;
+  font-size: 1.1em;
+  color: #333;
 }
 
 .actionsSection {
@@ -308,4 +321,10 @@
 
 .returnButton:hover {
   background-color: #e08e0b;
+}
+
+.returnInfo {
+  font-size: 0.8em;
+  margin-top: 4px;
+  color: #666;
 }

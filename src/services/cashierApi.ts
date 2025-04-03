@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { ShiftClosingData } from '../types/cashier';
 // Локальное определение API_URL для кассирского API
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -115,20 +116,49 @@ export const cashierApi = {
   async closeShift(
     warehouseId: string,
     data: { shiftId: string; finalAmount: number; notes?: string }
-  ) {
+  ): Promise<ShiftClosingData> {
     console.log('API: Запрос на закрытие смены:', { warehouseId, data });
     try {
-      const response = await axios.post(
+      const response = await axios.post<ShiftClosingData>(
         `${API_URL}/manager/${warehouseId}/cashier/shift/close`,
         data,
         {
           headers: getAuthHeader(),
         }
       );
-      console.log('API: Ответ API на закрытие смены:', response.data);
+      console.log('API: Ответ на закрытие смены:', response.data);
+
+      // Проверяем, что все необходимые поля присутствуют
+      if (
+        !response.data.warehouse ||
+        !response.data.cashRegister ||
+        !response.data.cashier
+      ) {
+        console.error('API: Неполные данные в ответе:', response.data);
+        throw new Error('Получены неполные данные от сервера');
+      }
+
       return response.data;
     } catch (error) {
       console.error('API: Ошибка при закрытии смены:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Печать отчета о закрытии смены
+   */
+  async printShiftReport(warehouseId: string, shiftId: string): Promise<void> {
+    try {
+      await axios.post(
+        `${API_URL}/manager/${warehouseId}/cashier/shift/${shiftId}/print-report`,
+        {},
+        {
+          headers: getAuthHeader(),
+        }
+      );
+    } catch (error) {
+      console.error('API: Ошибка при печати отчета о смене:', error);
       throw error;
     }
   },
@@ -565,6 +595,79 @@ export const cashierApi = {
     } catch (error) {
       console.error('API: Ошибка при поиске чеков:', error);
       return [];
+    }
+  },
+
+  /**
+   * Получение списка чеков для истории продаж
+   */
+  async getSalesHistory(warehouseId: string, params: { shiftId?: string }) {
+    try {
+      let url = `${API_URL}/manager/${warehouseId}/cashier/receipts`;
+      if (params.shiftId) {
+        url += `?shiftId=${encodeURIComponent(params.shiftId)}`;
+      }
+
+      const response = await axios.get(url, {
+        headers: getAuthHeader(),
+        validateStatus: function (status) {
+          return status === 200 || status === 404;
+        },
+      });
+
+      if (response.status === 404) {
+        return [];
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при получении истории продаж:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Печать чека
+   */
+  async printReceipt(warehouseId: string, receiptId: string) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}/print`,
+        {},
+        {
+          headers: getAuthHeader(),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при печати чека:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Получение детальной информации о чеке
+   */
+  async getSalesReceiptDetails(warehouseId: string, receiptId: string) {
+    try {
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
+        {
+          headers: getAuthHeader(),
+          validateStatus: function (status) {
+            return status === 200 || status === 404;
+          },
+        }
+      );
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при получении деталей чека:', error);
+      return null;
     }
   },
 };
