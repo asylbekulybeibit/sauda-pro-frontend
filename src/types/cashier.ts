@@ -93,6 +93,7 @@ export interface ShiftPaymentMethodTotal {
   sales: number;
   returns: number;
   total: number;
+  operationType: 'sale' | 'return';
 }
 
 export interface ShiftClosingData {

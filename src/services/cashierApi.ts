@@ -119,7 +119,7 @@ export const cashierApi = {
   ): Promise<ShiftClosingData> {
     console.log('API: Запрос на закрытие смены:', { warehouseId, data });
     try {
-      const response = await axios.post<ShiftClosingData>(
+      const response = await axios.post<any>(
         `${API_URL}/manager/${warehouseId}/cashier/shift/close`,
         data,
         {
@@ -128,7 +128,7 @@ export const cashierApi = {
       );
       console.log('API: Ответ на закрытие смены:', response.data);
 
-      // Проверяем, что все необходимые поля присутствуют
+      // Проверяем наличие необходимых полей
       if (
         !response.data.warehouse ||
         !response.data.cashRegister ||
@@ -138,7 +138,26 @@ export const cashierApi = {
         throw new Error('Получены неполные данные от сервера');
       }
 
-      return response.data;
+      // Преобразуем данные в правильный формат
+      const transformedData: ShiftClosingData = {
+        ...response.data,
+        initialAmount: Number(response.data.initialAmount),
+        finalAmount: Number(response.data.finalAmount),
+        totalSales: Number(response.data.totalSales),
+        totalReturns: Math.abs(Number(response.data.totalReturns)),
+        totalNet: Number(response.data.totalNet),
+        paymentMethods: response.data.paymentMethods.map((method: any) => ({
+          methodId: method.methodId,
+          methodName: method.methodName,
+          sales: Number(method.sales),
+          returns: Number(method.returns),
+          total: Number(method.total),
+          operationType: method.operationType,
+        })),
+      };
+
+      console.log('API: Преобразованные данные:', transformedData);
+      return transformedData;
     } catch (error) {
       console.error('API: Ошибка при закрытии смены:', error);
       throw error;

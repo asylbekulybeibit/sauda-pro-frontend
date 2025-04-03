@@ -1,65 +1,88 @@
 .reportContainer {
   background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 24px;
-  max-width: 800px;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
   margin: 0 auto;
+  height: auto;
+  min-height: min-content;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .reportHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
   border-bottom: 2px solid #00a65a;
+  position: sticky;
+  top: 0;
+  background-color: #fff;
+  z-index: 1;
 }
 
 .reportHeader h2 {
   margin: 0;
   color: #333;
-  font-size: 24px;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .printButton {
-  background-color: #00a65a;
+  background-color: #00a65a !important;
+  color: white !important;
+  min-width: 100px !important;
 }
 
 .printButton:hover {
-  background-color: #008d4c;
+  background-color: #008d4c !important;
+}
+
+.closeButton {
+  border-color: #666 !important;
+  color: #666 !important;
+  min-width: 100px !important;
+}
+
+.closeButton:hover {
+  background-color: #f5f5f5 !important;
 }
 
 .section {
-  margin-bottom: 32px;
+  background-color: #fff;
+  border-radius: 4px;
+  padding: 12px;
 }
 
 .section h3 {
   color: #333;
-  font-size: 18px;
-  margin: 0 0 16px;
+  font-size: 16px;
+  margin: 0 0 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #eee;
+  font-weight: 600;
 }
 
-.infoGrid,
-.totalsGrid {
-  display: grid;
-  gap: 12px;
+.infoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.infoRow,
-.totalRow {
+.infoRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed #eee;
+  padding: 4px 0;
+  font-size: 14px;
 }
 
 .label {
@@ -70,55 +93,121 @@
 .value {
   color: #333;
   font-weight: 500;
+  text-align: right;
 }
 
-.paymentMethodsTable {
-  border: 1px solid #eee;
-  border-radius: 4px;
-  overflow: hidden;
+/* Новые стили для секции итогов */
+.totalsSection {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed #eee;
 }
 
-.tableHeader {
-  display: grid;
-  grid-template-columns: 2fr repeat(3, 1fr);
-  background-color: #f5f5f5;
-  padding: 12px;
-  font-weight: 600;
-  color: #333;
-}
-
-.tableRow {
-  display: grid;
-  grid-template-columns: 2fr repeat(3, 1fr);
-  padding: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.tableRow:last-child {
+.totalsSection:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
   border-bottom: none;
 }
 
-.methodName {
-  color: #333;
+.totalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.amount {
-  text-align: right;
+.totalValue {
   color: #333;
+  text-align: right;
+}
+
+.methodsList {
+  padding-left: 16px;
+}
+
+.methodRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.methodName {
+  font-weight: 500;
+}
+
+.methodAmount {
+  text-align: right;
+}
+
+.revenue {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #eee;
+}
+
+.revenue .totalHeader {
+  font-size: 18px;
+}
+
+.revenue .totalValue {
+  font-weight: 700;
 }
 
 .notes {
   background-color: #f9f9f9;
-  padding: 16px;
+  padding: 12px;
   border-radius: 4px;
   color: #666;
   font-style: italic;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .reportContainer {
+    padding: 12px;
+  }
+
+  .reportHeader h2 {
+    font-size: 18px;
+  }
+
+  .section h3 {
+    font-size: 14px;
+  }
+
+  .totalHeader {
+    font-size: 14px;
+  }
+
+  .methodRow {
+    font-size: 12px;
+  }
+
+  .revenue .totalHeader {
+    font-size: 16px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .printButton,
+  .closeButton {
+    min-width: 80px !important;
+    padding: 4px 8px !important;
+  }
 }
 
 @media print {
   .reportContainer {
     box-shadow: none;
     padding: 0;
+    max-width: none;
   }
 
   .actions {
@@ -133,16 +222,11 @@
     border-bottom-color: #000;
   }
 
-  .infoRow,
-  .totalRow {
+  .totalsSection {
     border-bottom-color: #000;
   }
 
-  .paymentMethodsTable {
-    border-color: #000;
-  }
-
-  .tableRow {
-    border-bottom-color: #000;
+  .revenue {
+    border-top-color: #000;
   }
 }

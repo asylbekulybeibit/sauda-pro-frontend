@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -29,56 +29,59 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
   shift,
   warehouseId,
 }) => {
-  const [finalAmount, setFinalAmount] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [closingData, setClosingData] = useState<ShiftClosingData | null>(null);
   const { enqueueSnackbar } = useSnackbar();
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (!isLoading) {
-      setFinalAmount('');
+      console.log('Закрытие диалога, текущее состояние:', {
+        isLoading,
+        hasClosingData: !!closingData,
+      });
       setNotes('');
       setClosingData(null);
       onClose();
     }
-  };
+  }, [isLoading, onClose, closingData]);
 
   const handleSubmit = async () => {
-    if (!finalAmount) {
-      enqueueSnackbar('Пожалуйста, введите сумму в кассе', {
-        variant: 'error',
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
       console.log('Отправка запроса на закрытие смены:', {
         shiftId: shift.id,
-        finalAmount: Number(finalAmount),
+        finalAmount: shift.currentAmount,
         notes: notes.trim(),
       });
 
       const data = await cashierApi.closeShift(warehouseId, {
         shiftId: shift.id,
-        finalAmount: Number(finalAmount),
+        finalAmount: shift.currentAmount,
         notes: notes.trim() || undefined,
       });
 
       console.log('Получены данные о закрытии смены:', data);
 
-      if (!data) {
-        throw new Error('Не получены данные о закрытии смены');
+      if (!data || !data.warehouse || !data.cashRegister || !data.cashier) {
+        throw new Error('Получены неполные данные от сервера');
       }
 
+      console.log('Установка данных в состояние...');
       setClosingData(data);
+
       enqueueSnackbar('Смена успешно закрыта', { variant: 'success' });
+
+      console.log('Отчет должен отобразиться:', {
+        hasClosingData: !!data,
+        closingDataId: data.id,
+      });
     } catch (error: any) {
       console.error('Ошибка при закрытии смены:', error);
       enqueueSnackbar(error.message || 'Произошла ошибка при закрытии смены', {
         variant: 'error',
       });
+      handleClose();
     } finally {
       setIsLoading(false);
     }
@@ -99,31 +102,33 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
     }
   };
 
+  console.log('Рендер диалога:', {
+    isOpen: open,
+    isLoading,
+    hasClosingData: !!closingData,
+    closingDataId: closingData?.id,
+  });
+
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="md"
-      fullWidth
+      maxWidth={false}
       PaperProps={{
-        sx: { minHeight: closingData ? '80vh' : 'auto' },
+        sx: {
+          margin: '16px',
+          height: 'auto',
+          maxHeight: 'calc(100vh - 32px)',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+        },
       }}
     >
       {!closingData ? (
         <>
           <DialogTitle>Закрытие смены</DialogTitle>
           <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Сумма в кассе"
-              type="number"
-              fullWidth
-              value={finalAmount}
-              onChange={(e) => setFinalAmount(e.target.value)}
-              disabled={isLoading}
-              helperText={`Текущая сумма в кассе: ${shift.currentAmount}`}
-            />
             <TextField
               margin="dense"
               label="Примечания"
@@ -144,14 +149,14 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
               variant="contained"
               color="primary"
               disabled={isLoading}
-              startIcon={isLoading && <CircularProgress size={20} />}
+              startIcon={isLoading ? <CircularProgress size={20} /> : null}
             >
               {isLoading ? 'Закрытие...' : 'Закрыть смену'}
             </Button>
           </DialogActions>
         </>
       ) : (
-        <DialogContent>
+        <DialogContent sx={{ padding: 0, overflow: 'visible' }}>
           <ShiftClosingReport
             data={closingData}
             onPrint={handlePrintReport}

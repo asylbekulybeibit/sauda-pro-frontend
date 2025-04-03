@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useShift } from '../../components/cashier/CashierLayout';
 import { cashierApi } from '../../services/cashierApi';
+import { cashRegistersApi } from '../../services/cashRegistersApi';
 import { CashShift, CashRegister } from '../../types/cashier';
 import styles from './ShiftPage.module.css';
+import { CloseShiftDialog } from '../../components/cashier/CloseShiftDialog';
 
 const ShiftPage: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
@@ -16,6 +18,7 @@ const ShiftPage: React.FC = () => {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
 
   // Загрузка текущей смены и списка касс при монтировании компонента
   useEffect(() => {
@@ -126,41 +129,33 @@ const ShiftPage: React.FC = () => {
       console.log('=== ОТВЕТ ОТ СЕРВЕРА (СМЕНА ОТКРЫТА) ===');
       console.log('Данные новой смены (сырые):', JSON.stringify(data));
       console.log('Статус новой смены:', data?.status);
-      console.log('Тип статуса:', typeof data?.status);
 
       // Убедимся, что статус в нижнем регистре
       if (data && typeof data.status === 'string') {
         data.status = data.status.toLowerCase();
-        console.log('Нормализованный статус:', data.status);
       }
 
-      setCurrentShift(data);
-      console.log('Установлен локальный currentShift:', data);
+      // Сразу обновляем статус смены в контексте
+      try {
+        const updatedShift = await updateShiftStatus();
+        console.log('Статус смены обновлен:', updatedShift);
 
-      // Обновляем статус смены в CashierLayout с небольшой задержкой
-      console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
-      setTimeout(async () => {
-        try {
-          const updatedShift = await updateShiftStatus();
-          console.log('Статус обновлен, получена смена:', updatedShift);
+        // Дополнительно проверяем текущую смену
+        const currentShiftData = await cashierApi.getCurrentShift(warehouseId);
+        console.log('Получены данные текущей смены:', currentShiftData);
 
-          if (updatedShift) {
-            console.log('Статус обновленной смены:', updatedShift.status);
-          } else {
-            console.warn('Не удалось получить обновленную смену');
-          }
-        } catch (updateError) {
-          console.error('Ошибка при обновлении статуса:', updateError);
-        }
-      }, 100); // Небольшая задержка для обеспечения обновления
+        setCurrentShift(currentShiftData);
 
-      // Устанавливаем финальную сумму равной начальной
-      setFinalAmount(
-        typeof data.currentAmount === 'number'
-          ? data.currentAmount
-          : Number(data.currentAmount) || initialAmount
-      );
-      console.log('Установлена финальная сумма:', finalAmount);
+        // Устанавливаем финальную сумму равной начальной
+        setFinalAmount(
+          typeof currentShiftData.currentAmount === 'number'
+            ? currentShiftData.currentAmount
+            : Number(currentShiftData.currentAmount) || initialAmount
+        );
+      } catch (updateError) {
+        console.error('Ошибка при обновлении статуса смены:', updateError);
+        throw updateError;
+      }
     } catch (err) {
       console.error('=== ОШИБКА ПРИ ОТКРЫТИИ СМЕНЫ ===', err);
       setError(
@@ -171,61 +166,23 @@ const ShiftPage: React.FC = () => {
     }
   };
 
-  const handleCloseShift = async () => {
+  const handleCloseShift = () => {
     if (!warehouseId || !currentShift) return;
+    setIsCloseDialogOpen(true);
+  };
 
-    console.log('=== ЗАКРЫТИЕ СМЕНЫ ===');
-    console.log('warehouseId:', warehouseId);
-    console.log('shiftId:', currentShift.id);
-    console.log('finalAmount:', finalAmount);
-    console.log('notes:', notes);
-
-    setLoading(true);
-    setError(null);
-    try {
-      console.log('Вызов API для закрытия смены...');
-      const response = await cashierApi.closeShift(warehouseId, {
-        shiftId: currentShift.id,
-        finalAmount: Number(finalAmount),
-        notes: notes,
-      });
-
-      console.log('=== ОТВЕТ ОТ СЕРВЕРА (СМЕНА ЗАКРЫТА) ===');
-      console.log('Данные закрытой смены:', response);
-      console.log('Статус закрытой смены:', response?.status);
-
-      setCurrentShift(null);
-      console.log('Сброшен локальный currentShift на null');
-
-      // Обновляем статус смены в CashierLayout с небольшой задержкой
-      console.log('=== ОБНОВЛЕНИЕ СТАТУСА СМЕНЫ В LAYOUT ===');
-      setTimeout(async () => {
-        try {
-          const updatedShift = await updateShiftStatus();
-          console.log('Статус обновлен, новая смена:', updatedShift);
-        } catch (updateError) {
-          console.error('Ошибка при обновлении статуса:', updateError);
+  const handleCloseDialog = () => {
+    setIsCloseDialogOpen(false);
+    // После закрытия диалога обновляем данные
+    if (warehouseId) {
+      cashierApi.getCurrentShift(warehouseId).then((shift) => {
+        setCurrentShift(shift);
+        if (!shift) {
+          setError(
+            'Нет открытой смены. Откройте новую смену для начала работы.'
+          );
         }
-      }, 100); // Небольшая задержка для обеспечения обновления
-
-      // Сбрасываем поля формы
-      setInitialAmount(0);
-      setFinalAmount(0);
-      setNotes('');
-      setSelectedRegisterId('');
-      console.log('Поля формы сброшены');
-    } catch (err) {
-      console.error('=== ОШИБКА ПРИ ЗАКРЫТИИ СМЕНЫ ===', err);
-      console.log(
-        'Тип ошибки:',
-        err instanceof Error ? err.constructor.name : typeof err
-      );
-      console.log('Данные ошибки:', err);
-
-      setError('Не удалось закрыть смену. Проверьте введенные данные.');
-    } finally {
-      setLoading(false);
-      console.log('=== ЗАВЕРШЕНО ЗАКРЫТИЕ СМЕНЫ ===');
+      });
     }
   };
 
@@ -325,36 +282,21 @@ const ShiftPage: React.FC = () => {
             </div>
           </div>
 
-          <h2>Закрытие смены</h2>
-
-          <div className={styles.formGroup}>
-            <label>Финальная сумма в кассе:</label>
-            <input
-              type="number"
-              value={finalAmount}
-              onChange={(e) => setFinalAmount(Number(e.target.value))}
-              className={styles.input}
-              min="0"
-              step="0.01"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label>Примечания:</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className={styles.textarea}
-              placeholder="Укажите дополнительную информацию о смене, например, причину расхождения"
-            />
-          </div>
-
           <button
             onClick={handleCloseShift}
             className={`${styles.button} ${styles.closeButton}`}
           >
             Закрыть смену
           </button>
+
+          {isCloseDialogOpen && currentShift && warehouseId && (
+            <CloseShiftDialog
+              open={isCloseDialogOpen}
+              onClose={handleCloseDialog}
+              shift={currentShift}
+              warehouseId={warehouseId}
+            />
+          )}
         </div>
       ) : (
         <div className={styles.noShift}>
