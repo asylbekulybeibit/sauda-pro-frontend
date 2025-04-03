@@ -13,10 +13,11 @@ import {
   CashShift,
   PaymentMethodType,
   Receipt,
-  RegisterPaymentMethod,
 } from '../../types/cashier';
+import { RegisterPaymentMethod } from '../../types/cash-register';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SalesPage.module.css';
+import { Snackbar, Alert } from '@mui/material';
 
 // Ключи для localStorage
 const STORAGE_KEYS = {
@@ -48,6 +49,7 @@ const SalesPage: React.FC = () => {
     []
   );
   const [currentReceipt, setCurrentReceipt] = useState<Receipt | null>(null);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -274,7 +276,7 @@ const SalesPage: React.FC = () => {
       currentShift,
       currentShiftId: currentShift?.id,
       currentShiftStatus: currentShift?.status,
-      currentShiftCashRegisterId: currentShift?.cashRegisterId,
+      currentShiftCashRegisterId: currentShift?.cashRegister?.id,
     });
 
     if (!warehouseId) {
@@ -593,27 +595,31 @@ const SalesPage: React.FC = () => {
         };
 
         // Добавляем товар в чек на сервере
-        const serverResponse = await addItemToReceiptOnServer(
-          currentReceiptId,
-          newItem
-        );
+        if (currentReceiptId) {
+          const serverResponse = await addItemToReceiptOnServer(
+            currentReceiptId,
+            newItem
+          );
 
-        if (serverResponse) {
-          // Обновляем локальное состояние с учетом ответа сервера
-          setReceiptItems((prevItems) => [
-            ...prevItems,
-            {
-              ...newItem,
-              id: serverResponse.id,
-              serverItemId: serverResponse.id,
-            },
-          ]);
-        } else {
-          throw new Error('Не получен ответ от сервера при добавлении товара');
+          if (serverResponse) {
+            // Обновляем локальное состояние с учетом ответа сервера
+            setReceiptItems((prevItems) => [
+              ...prevItems,
+              {
+                ...newItem,
+                id: serverResponse.id,
+                serverItemId: serverResponse.id,
+              },
+            ]);
+          } else {
+            throw new Error(
+              'Не получен ответ от сервера при добавлении товара'
+            );
+          }
         }
-      }
 
-      setError(null);
+        setError(null);
+      }
     } catch (err) {
       console.error('Ошибка при добавлении товара:', err);
       setError('Не удалось добавить товар в чек');
@@ -906,8 +912,9 @@ const SalesPage: React.FC = () => {
     try {
       const success = await paymentRequest();
       if (success) {
-        // Показываем уведомление об успешной оплате
-        alert('Чек успешно оплачен!');
+        setShowSuccessSnackbar(true);
+        // Автоматически скроем через 2 секунды
+        setTimeout(() => setShowSuccessSnackbar(false), 2000);
       }
     } finally {
       setLoading(false);
@@ -1048,7 +1055,7 @@ const SalesPage: React.FC = () => {
       setReceiptId(restoredReceipt.id);
       setReceiptNumber(restoredReceipt.receiptNumber);
       setReceiptItems(
-        restoredReceipt.items.map((item) => ({
+        restoredReceipt.items.map((item: ReceiptItem) => ({
           ...item,
           serverItemId: item.id, // Сохраняем ID товара с сервера
         }))
@@ -1164,6 +1171,28 @@ const SalesPage: React.FC = () => {
           <div className={styles.loadingText}>Обработка...</div>
         </div>
       )}
+
+      <Snackbar
+        open={showSuccessSnackbar}
+        autoHideDuration={2000}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{
+          bottom: '50% !important',
+          transform: 'translateY(50%)',
+        }}
+      >
+        <Alert
+          severity="success"
+          sx={{
+            width: '100%',
+            fontSize: '1.2rem',
+            padding: '1rem 2rem',
+            boxShadow: 3,
+          }}
+        >
+          Чек успешно оплачен!
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

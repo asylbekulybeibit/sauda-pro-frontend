@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import styles from './PaymentModal.module.css';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Box,
+  Button,
+  Typography,
+  TextField,
+} from '@mui/material';
 import { RegisterPaymentMethod } from '../../types/cash-register';
 
 interface PaymentModalProps {
@@ -28,8 +36,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   );
   const [change, setChange] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [showNumpad, setShowNumpad] = useState(false);
 
-  // Быстрые кнопки для выбора суммы
+  // Quick amount buttons
   const quickAmounts = [
     { label: 'Без сдачи', value: totalAmount },
     { label: '1000 ₸', value: 1000 },
@@ -39,7 +48,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     { label: '20000 ₸', value: 20000 },
   ];
 
-  // Пересчитываем сдачу при изменении полученной суммы
+  // Recalculate change when received amount changes
   useEffect(() => {
     if (selectedMethod?.systemType === 'cash') {
       const received = parseFloat(receivedAmount);
@@ -50,7 +59,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [receivedAmount, totalAmount, selectedMethod]);
 
-  // Обработчик подтверждения оплаты
+  // Handle payment confirmation
   const handleSubmit = () => {
     if (!selectedMethod) {
       setError('Выберите метод оплаты');
@@ -75,25 +84,25 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     });
   };
 
-  // Обработчик изменения полученной суммы
+  // Handle received amount change
   const handleReceivedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setReceivedAmount(value);
     setError(null);
   };
 
-  // Обработчик быстрого выбора суммы
+  // Handle quick amount selection
   const handleQuickAmount = (amount: number) => {
     setReceivedAmount(amount.toFixed(2));
     setError(null);
   };
 
-  // Форматирование суммы для отображения
+  // Format currency for display
   const formatCurrency = (amount: number) => {
     return `${amount.toFixed(2)} ₸`;
   };
 
-  // Получение названия метода оплаты
+  // Get payment method name
   const getPaymentMethodName = (method: RegisterPaymentMethod) => {
     if (method.source === 'system') {
       switch (method.systemType) {
@@ -110,95 +119,248 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     return method.name;
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <div className={styles.modalHeader}>
-          <h2>Оплата</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            ✕
-          </button>
-        </div>
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      PaperProps={{
+        style: {
+          borderRadius: '8px',
+          maxWidth: '1000px',
+          width: '100%',
+          margin: '20px',
+          overflow: 'visible',
+        },
+      }}
+    >
+      <DialogTitle
+        style={{
+          textAlign: 'center',
+          fontSize: '24px',
+          fontWeight: 'bold',
+          padding: '24px',
+          borderBottom: '1px solid #e0e0e0',
+        }}
+      >
+        Оплата
+      </DialogTitle>
+      <DialogContent style={{ padding: '24px', overflow: 'visible' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: '24px',
+          }}
+        >
+          {/* Left side - Payment methods */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Сумма к оплате: {formatCurrency(totalAmount)}
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '12px',
+              }}
+            >
+              <Button
+                variant={
+                  selectedMethod?.systemType === 'cash'
+                    ? 'contained'
+                    : 'outlined'
+                }
+                onClick={() => {
+                  const cashMethod = paymentMethods.find(
+                    (method) => method.systemType === 'cash'
+                  );
+                  if (cashMethod) {
+                    setSelectedMethod(cashMethod);
+                    setReceivedAmount(totalAmount.toFixed(2));
+                    setShowNumpad(true);
+                  }
+                }}
+                sx={{
+                  height: '56px',
+                  fontSize: '18px',
+                  backgroundColor:
+                    selectedMethod?.systemType === 'cash'
+                      ? '#1976d2'
+                      : 'transparent',
+                  color:
+                    selectedMethod?.systemType === 'cash' ? 'white' : '#1976d2',
+                  border: '2px solid #1976d2',
+                  '&:hover': {
+                    backgroundColor:
+                      selectedMethod?.systemType === 'cash'
+                        ? '#1565c0'
+                        : 'rgba(25, 118, 210, 0.04)',
+                    border: '2px solid #1976d2',
+                  },
+                }}
+              >
+                Наличные
+              </Button>
 
-        <div className={styles.modalBody}>
-          <div className={styles.totalAmount}>
-            <span className={styles.totalLabel}>Сумма к оплате:</span>
-            <span className={styles.totalValue}>
-              {formatCurrency(totalAmount)}
-            </span>
-          </div>
-
-          <div>
-            <h3>Способ оплаты</h3>
-            <div className={styles.methods}>
-              {paymentMethods.length === 0 ? (
-                <div className={styles.loading}>Загрузка методов оплаты...</div>
-              ) : (
-                paymentMethods.map((method) => (
-                  <button
+              {paymentMethods
+                .filter(
+                  (method) =>
+                    method && method.name && method.systemType !== 'cash'
+                )
+                .map((method) => (
+                  <Button
                     key={method.id}
-                    className={`${styles.methodButton} ${
-                      selectedMethod?.id === method.id ? styles.active : ''
-                    }`}
-                    onClick={() => setSelectedMethod(method)}
+                    variant={
+                      selectedMethod?.id === method.id
+                        ? 'contained'
+                        : 'outlined'
+                    }
+                    onClick={() => {
+                      setSelectedMethod(method);
+                      setShowNumpad(false);
+                    }}
+                    sx={{
+                      height: '56px',
+                      fontSize: '18px',
+                      backgroundColor:
+                        selectedMethod?.id === method.id
+                          ? '#1976d2'
+                          : 'transparent',
+                      color:
+                        selectedMethod?.id === method.id ? 'white' : '#1976d2',
+                      border: '2px solid #1976d2',
+                      '&:hover': {
+                        backgroundColor:
+                          selectedMethod?.id === method.id
+                            ? '#1565c0'
+                            : 'rgba(25, 118, 210, 0.04)',
+                        border: '2px solid #1976d2',
+                      },
+                    }}
                   >
                     {getPaymentMethodName(method)}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
+                  </Button>
+                ))}
+            </Box>
+          </Box>
 
-          {selectedMethod?.systemType === 'cash' && (
-            <>
-              <div className={styles.receivedAmount}>
-                <h3>Получено</h3>
-                <input
-                  type="number"
-                  min={totalAmount}
-                  step="0.01"
-                  value={receivedAmount}
-                  onChange={handleReceivedChange}
-                  className={styles.amountInput}
-                />
-
-                <div className={styles.quickButtons}>
-                  {quickAmounts.map((item) => (
-                    <button
-                      key={item.label}
-                      className={styles.quickButton}
-                      onClick={() => handleQuickAmount(item.value)}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.changeAmount}>
-                <h3>Сдача</h3>
-                <span className={styles.changeValue}>
-                  {formatCurrency(change)}
-                </span>
-              </div>
-            </>
+          {/* Right side - Numpad and amount */}
+          {selectedMethod?.systemType === 'cash' && showNumpad && (
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Получено
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                value={receivedAmount}
+                onChange={handleReceivedChange}
+                sx={{ mb: 2 }}
+              />
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '8px',
+                  mb: 2,
+                }}
+              >
+                {quickAmounts.map((item) => (
+                  <Button
+                    key={item.label}
+                    variant="outlined"
+                    onClick={() => handleQuickAmount(item.value)}
+                    sx={{
+                      height: '48px',
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Сдача
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  color: '#28a745',
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  p: 2,
+                  bgcolor: '#f8f9fa',
+                  borderRadius: 1,
+                }}
+              >
+                {formatCurrency(change)}
+              </Typography>
+            </Box>
           )}
+        </Box>
 
-          {error && <div className={styles.error}>{error}</div>}
-        </div>
+        {error && (
+          <Typography
+            color="error"
+            sx={{
+              mt: 2,
+              p: 1,
+              bgcolor: '#fff2f0',
+              borderRadius: 1,
+            }}
+          >
+            {error}
+          </Typography>
+        )}
 
-        <div className={styles.modalFooter}>
-          <button className={styles.cancelButton} onClick={onClose}>
-            Отмена
-          </button>
-          <button className={styles.submitButton} onClick={handleSubmit}>
-            Оплатить
-          </button>
-        </div>
-      </div>
-    </div>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: '12px',
+            p: 3,
+            borderTop: '1px solid #e0e0e0',
+            mt: 3,
+          }}
+        >
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={onClose}
+            sx={{
+              height: '56px',
+              fontSize: '18px',
+              backgroundColor: '#dc3545',
+              '&:hover': {
+                backgroundColor: '#c82333',
+              },
+            }}
+          >
+            ОТМЕНА
+          </Button>
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={handleSubmit}
+            disabled={
+              !selectedMethod ||
+              (selectedMethod.systemType === 'cash' &&
+                parseFloat(receivedAmount) < totalAmount)
+            }
+            sx={{
+              height: '56px',
+              fontSize: '18px',
+              backgroundColor: '#28a745',
+              '&:hover': {
+                backgroundColor: '#218838',
+              },
+              '&.Mui-disabled': {
+                backgroundColor: '#cccccc',
+              },
+            }}
+          >
+            ОПЛАТИТЬ
+          </Button>
+        </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 

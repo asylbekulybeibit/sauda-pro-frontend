@@ -755,15 +755,80 @@ const ReturnsPage: React.FC = () => {
         return;
       }
 
+      // Показываем диалог для ввода причины возврата
+      setShowReasonDialog(true);
+    } else {
+      // Существующая логика для возврата без чека
+      if (selectedProductIds.size === 0) {
+        setError('Выберите товары для возврата');
+        return;
+      }
+
+      setShowReasonDialog(true);
+    }
+  };
+
+  const handleFinalReturn = async () => {
+    try {
+      if (!warehouseId) {
+        setError('ID склада не указан');
+        return;
+      }
+
+      if (
+        returnMode === 'withoutReceipt' &&
+        (selectedProducts.length === 0 || selectedProductIds.size === 0)
+      ) {
+        setError('Выберите товары для возврата');
+        return;
+      }
+
+      // Загружаем методы оплаты и показываем диалог выбора
+      await loadPaymentMethods();
+      setShowReasonDialog(false);
+      setShowKeyboard(false);
+      setShowPaymentMethodDialog(true);
+    } catch (error: any) {
+      console.error('Error in handleFinalReturn:', error);
+      setError(error?.message || 'Ошибка при создании возврата');
+    }
+  };
+
+  const handleReasonSubmit = () => {
+    setShowReasonDialog(false);
+    setShowPaymentMethodDialog(true);
+  };
+
+  const handlePaymentMethodSelect = async () => {
+    if (!selectedPaymentMethod) {
+      setError('Выберите метод оплаты');
+      return;
+    }
+
+    // Check if payment method has sufficient balance for return with receipt
+    if (returnMode === 'withReceipt' && selectedReceipt) {
+      if (
+        selectedPaymentMethod.currentBalance <
+        Math.abs(selectedReceipt.finalAmount)
+      ) {
+        setShowInsufficientBalanceModal(true);
+        return;
+      }
+    }
+
+    setShowPaymentMethodDialog(false);
+
+    if (returnMode === 'withReceipt') {
       try {
-        if (!warehouseId) {
-          setError('ID склада не указан');
+        if (!warehouseId || !selectedReceipt) {
+          setError('Ошибка при возврате');
           return;
         }
 
         const returnData = {
-          items: [], // При возврате с чеком возвращаем весь чек целиком
+          items: [],
           reason: returnReason || 'Возврат товара',
+          paymentMethodId: selectedPaymentMethod.id,
         };
 
         await cashierApi.createReturn(
@@ -772,17 +837,17 @@ const ReturnsPage: React.FC = () => {
           returnData
         );
 
-        // Очищаем состояние после успешного возврата
+        // Очищаем состояние
         setSelectedReceipt(null);
         setReceiptItems([]);
         setReturnReason('');
         setError(null);
+        setSelectedPaymentMethod(null);
 
         // Показываем сообщение об успехе
         setSuccess('Возврат успешно выполнен');
         setShowSuccessModal(true);
 
-        // Закрываем модальное окно успеха через 2 секунды
         setTimeout(() => {
           setShowSuccessModal(false);
           setSuccess(null);
@@ -792,13 +857,8 @@ const ReturnsPage: React.FC = () => {
         setError(error?.message || 'Ошибка при создании возврата');
       }
     } else {
-      // Логика для возврата без чека
-      if (selectedProductIds.size === 0) {
-        setError('Выберите товары для возврата');
-        return;
-      }
-
-      setShowReasonDialog(true);
+      // Существующая логика для возврата без чека
+      handleReturnWithPaymentMethod();
     }
   };
 
@@ -827,29 +887,6 @@ const ReturnsPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading payment methods:', error);
       setError('Не удалось загрузить методы оплаты');
-    }
-  };
-
-  const handleFinalReturn = async () => {
-    try {
-      if (!warehouseId) {
-        setError('ID склада не указан');
-        return;
-      }
-
-      if (selectedProducts.length === 0 || selectedProductIds.size === 0) {
-        setError('Выберите товары для возврата');
-        return;
-      }
-
-      // Загружаем методы оплаты и показываем диалог выбора
-      await loadPaymentMethods();
-      setShowReasonDialog(false);
-      setShowKeyboard(false);
-      setShowPaymentMethodDialog(true);
-    } catch (error: any) {
-      console.error('Error in handleFinalReturn:', error);
-      setError(error?.message || 'Ошибка при создании возврата');
     }
   };
 
@@ -1029,7 +1066,7 @@ const ReturnsPage: React.FC = () => {
 
   const calculateChange = () => {
     const inputAmount = parseFloat(cashAmount) || 0;
-    const returnTotal = calculateReturnAmount();
+    const returnTotal = getReturnAmount();
     return Math.max(0, inputAmount - returnTotal);
   };
 
@@ -1053,7 +1090,7 @@ const ReturnsPage: React.FC = () => {
 
   const getReturnAmount = () => {
     if (returnMode === 'withReceipt' && selectedReceipt) {
-      return selectedReceipt.finalAmount;
+      return Number(selectedReceipt.finalAmount) || 0;
     } else if (returnMode === 'withoutReceipt') {
       return calculateReturnAmount();
     }
@@ -1556,7 +1593,7 @@ const ReturnsPage: React.FC = () => {
                       mb: 2,
                     }}
                   >
-                    {calculateReturnAmount().toFixed(2)} ₸
+                    {getReturnAmount().toFixed(2)} ₸
                   </Typography>
 
                   {selectedPaymentMethod?.systemType === 'cash' && (
@@ -1654,11 +1691,11 @@ const ReturnsPage: React.FC = () => {
                 <Button
                   variant="contained"
                   fullWidth
-                  onClick={handleReturnWithPaymentMethod}
+                  onClick={handlePaymentMethodSelect}
                   disabled={
                     !selectedPaymentMethod ||
                     (selectedPaymentMethod.systemType === 'CASH' &&
-                      parseFloat(cashAmount) < calculateReturnAmount())
+                      parseFloat(cashAmount) < getReturnAmount())
                   }
                   sx={{
                     height: '56px',

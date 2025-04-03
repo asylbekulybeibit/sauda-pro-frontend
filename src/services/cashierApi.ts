@@ -355,6 +355,7 @@ export const cashierApi = {
         quantity: number;
       }>;
       reason: string;
+      paymentMethodId: string;
     }
   ) {
     const response = await axios.post(
