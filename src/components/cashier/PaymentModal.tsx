@@ -38,16 +38,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showNumpad, setShowNumpad] = useState(false);
 
-  // Quick amount buttons
-  const quickAmounts = [
-    { label: 'Без сдачи', value: totalAmount },
-    { label: '1000 ₸', value: 1000 },
-    { label: '2000 ₸', value: 2000 },
-    { label: '5000 ₸', value: 5000 },
-    { label: '10000 ₸', value: 10000 },
-    { label: '20000 ₸', value: 20000 },
-  ];
-
   // Recalculate change when received amount changes
   useEffect(() => {
     if (selectedMethod?.systemType === 'cash') {
@@ -86,14 +76,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Handle received amount change
   const handleReceivedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setReceivedAmount(value);
-    setError(null);
+    const value = e.target.value.replace(/[^0-9.]/g, '');
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setReceivedAmount(value);
+      setError(null);
+    }
   };
 
-  // Handle quick amount selection
-  const handleQuickAmount = (amount: number) => {
-    setReceivedAmount(amount.toFixed(2));
+  // Handle numpad click
+  const handleNumPadClick = (value: string) => {
+    if (value === 'backspace') {
+      setReceivedAmount((prev) => prev.slice(0, -1));
+    } else {
+      setReceivedAmount((prev) => prev + value);
+    }
     setError(null);
   };
 
@@ -107,11 +103,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     if (method.source === 'system') {
       switch (method.systemType) {
         case 'cash':
-          return 'Наличные';
+          return 'НАЛИЧНЫЕ';
         case 'card':
-          return 'Карта';
+          return 'КАРТА';
         case 'qr':
-          return 'QR-код';
+          return 'QR-КОД';
         default:
           return method.systemType;
       }
@@ -138,13 +134,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           textAlign: 'center',
           fontSize: '24px',
           fontWeight: 'bold',
-          padding: '24px',
+          padding: '16px 24px',
           borderBottom: '1px solid #e0e0e0',
         }}
       >
         Оплата
       </DialogTitle>
-      <DialogContent style={{ padding: '24px', overflow: 'visible' }}>
+      <DialogContent style={{ padding: '16px 24px', overflow: 'visible' }}>
         <Box
           sx={{
             display: 'flex',
@@ -153,9 +149,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         >
           {/* Left side - Payment methods */}
           <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Сумма к оплате: {formatCurrency(totalAmount)}
-            </Typography>
             <Box
               sx={{
                 display: 'grid',
@@ -198,7 +191,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   },
                 }}
               >
-                Наличные
+                НАЛИЧНЫЕ
               </Button>
 
               {paymentMethods
@@ -244,57 +237,74 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </Box>
 
           {/* Right side - Numpad and amount */}
-          {selectedMethod?.systemType === 'cash' && showNumpad && (
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Получено
-              </Typography>
-              <TextField
-                fullWidth
-                type="number"
-                value={receivedAmount}
-                onChange={handleReceivedChange}
-                sx={{ mb: 2 }}
-              />
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '8px',
-                  mb: 2,
-                }}
-              >
-                {quickAmounts.map((item) => (
-                  <Button
-                    key={item.label}
-                    variant="outlined"
-                    onClick={() => handleQuickAmount(item.value)}
+          <Box sx={{ width: '300px' }}>
+            <Typography
+              sx={{
+                fontSize: '24px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                mb: 2,
+              }}
+            >
+              {formatCurrency(totalAmount)}
+            </Typography>
+
+            {selectedMethod?.systemType === 'cash' && (
+              <>
+                <TextField
+                  fullWidth
+                  value={receivedAmount}
+                  onChange={handleReceivedChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace') {
+                      setReceivedAmount((prev) => prev.slice(0, -1));
+                    }
+                  }}
+                  label="Сумма наличных"
+                  variant="outlined"
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    sx: { fontSize: '24px', textAlign: 'right' },
+                  }}
+                />
+                {parseFloat(receivedAmount) > totalAmount && (
+                  <Typography
                     sx={{
-                      height: '48px',
+                      color: 'green',
+                      mb: 2,
+                      fontSize: '18px',
+                      textAlign: 'right',
                     }}
                   >
-                    {item.label}
-                  </Button>
-                ))}
-              </Box>
-              <Typography variant="h6" sx={{ mb: 1 }}>
-                Сдача
-              </Typography>
-              <Typography
-                variant="h5"
-                sx={{
-                  color: '#28a745',
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                  p: 2,
-                  bgcolor: '#f8f9fa',
-                  borderRadius: 1,
-                }}
-              >
-                {formatCurrency(change)}
-              </Typography>
-            </Box>
-          )}
+                    Сдача: {change.toFixed(2)}
+                  </Typography>
+                )}
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '8px',
+                  }}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, 'backspace'].map(
+                    (num) => (
+                      <Button
+                        key={num}
+                        variant="outlined"
+                        onClick={() => handleNumPadClick(num.toString())}
+                        sx={{
+                          height: '56px',
+                          fontSize: '24px',
+                        }}
+                      >
+                        {num === 'backspace' ? '←' : num}
+                      </Button>
+                    )
+                  )}
+                </Box>
+              </>
+            )}
+          </Box>
         </Box>
 
         {error && (
