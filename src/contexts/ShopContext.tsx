@@ -1,18 +1,34 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Shop } from '@/types/shop';
 import { updateShop as apiUpdateShop } from '@/services/api';
 import { getManagerShop } from '@/services/managerApi';
 import { getShop as getOwnerShop } from '@/services/ownerApi';
 import { AxiosError } from 'axios';
 
+interface Warehouse {
+  id: string;
+  name: string;
+  isMain?: boolean;
+}
+
 interface ShopContextType {
   currentShop: Shop | null;
   setCurrentShop: (shop: Shop | null) => void;
   loading: boolean;
   updateShop: (data: Partial<Shop>) => Promise<void>;
+  currentWarehouse: { id: string; name: string } | null;
+  isInitialized: boolean;
 }
 
 export const ShopContext = createContext<ShopContextType | null>(null);
+
+export const useShopContext = () => {
+  const context = useContext(ShopContext);
+  if (!context) {
+    throw new Error('useShopContext must be used within a ShopProvider');
+  }
+  return context;
+};
 
 interface ShopProviderProps {
   children: React.ReactNode;
@@ -88,6 +104,11 @@ const extractShopIdFromPath = () => {
 export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
   const [currentShop, setCurrentShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentWarehouse, setCurrentWarehouse] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const initializeShop = async () => {
     try {
@@ -100,6 +121,7 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
       if (shopInfo?.skip) {
         console.log('[ShopContext] Skipping shop initialization for auth page');
         setLoading(false);
+        setIsInitialized(true);
         return;
       }
 
@@ -122,7 +144,20 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
 
           console.log('[ShopContext] Successfully loaded shop data:', shopData);
           setCurrentShop(shopData);
+
+          // Устанавливаем текущий склад
+          if (shopData.warehouses && shopData.warehouses.length > 0) {
+            const mainWarehouse =
+              shopData.warehouses.find((w: Warehouse) => w.isMain) ||
+              shopData.warehouses[0];
+            setCurrentWarehouse({
+              id: mainWarehouse.id,
+              name: mainWarehouse.name,
+            });
+          }
+
           localStorage.setItem('currentShop', JSON.stringify(shopData));
+          setIsInitialized(true);
         } catch (error) {
           console.error(
             '[ShopContext] Failed to load shop data from API:',
@@ -137,6 +172,19 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
               if (parsedShop && parsedShop.id === shopInfo.shopId) {
                 console.log('[ShopContext] Using shop data from localStorage');
                 setCurrentShop(parsedShop);
+
+                // Устанавливаем текущий склад из сохраненных данных
+                if (parsedShop.warehouses && parsedShop.warehouses.length > 0) {
+                  const mainWarehouse =
+                    parsedShop.warehouses.find((w: Warehouse) => w.isMain) ||
+                    parsedShop.warehouses[0];
+                  setCurrentWarehouse({
+                    id: mainWarehouse.id,
+                    name: mainWarehouse.name,
+                  });
+                }
+
+                setIsInitialized(true);
                 return;
               }
             } catch (e) {
@@ -147,7 +195,6 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
             }
           }
 
-          // Если нет данных в localStorage или они не подходят, редиректим
           console.log(
             '[ShopContext] No valid shop data found, redirecting to profile'
           );
@@ -163,6 +210,19 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
             if (parsedShop && parsedShop.id) {
               console.log('[ShopContext] Using shop data from localStorage');
               setCurrentShop(parsedShop);
+
+              // Устанавливаем текущий склад из сохраненных данных
+              if (parsedShop.warehouses && parsedShop.warehouses.length > 0) {
+                const mainWarehouse =
+                  parsedShop.warehouses.find((w: Warehouse) => w.isMain) ||
+                  parsedShop.warehouses[0];
+                setCurrentWarehouse({
+                  id: mainWarehouse.id,
+                  name: mainWarehouse.name,
+                });
+              }
+
+              setIsInitialized(true);
               return;
             }
           } catch (e) {
@@ -200,6 +260,7 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
       }
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
   };
 
@@ -304,9 +365,12 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
     try {
       const updatedShop = await apiUpdateShop(currentShop.id, data);
       setCurrentShop(updatedShop);
+      localStorage.setItem('currentShop', JSON.stringify(updatedShop));
     } catch (error) {
-      console.error('Error updating shop:', error);
-      throw error;
+      const axiosError = error as AxiosError<{ message: string }>;
+      throw new Error(
+        axiosError.response?.data?.message || 'Failed to update shop'
+      );
     }
   };
 
@@ -317,6 +381,8 @@ export const ShopProvider: React.FC<ShopProviderProps> = ({ children }) => {
         setCurrentShop,
         loading,
         updateShop,
+        currentWarehouse,
+        isInitialized,
       }}
     >
       {children}

@@ -26,14 +26,6 @@ const BarcodesPage: React.FC = () => {
   const shopContext = useContext(ShopContext);
   const shopId = shopContext?.currentShop?.id;
 
-  console.log('[BarcodesPage] Render with:', {
-    contextLoading: shopContext?.loading,
-    hasShopContext: !!shopContext,
-    hasCurrentShop: !!shopContext?.currentShop,
-    shopId,
-    path: window.location.pathname,
-  });
-
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState<any | undefined>(
     undefined
@@ -44,11 +36,8 @@ const BarcodesPage: React.FC = () => {
   // Загрузка штрихкодов
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['barcodes', shopId, activeTab],
-    queryFn: () => {
-      console.log('[BarcodesPage] Executing query with shopId:', shopId);
-      return getBarcodes(shopId!, activeTab === 'services');
-    },
-    enabled: !!shopId,
+    queryFn: () => getBarcodes(shopId!, activeTab === 'services'),
+    enabled: !!shopId && !!shopContext?.currentShop,
   });
 
   // Фильтрация штрихкодов по поисковому запросу
@@ -89,32 +78,16 @@ const BarcodesPage: React.FC = () => {
     setSearchText(e.target.value);
   };
 
-  // Показываем спиннер, если контекст загружается или если нет shopId
-  if (shopContext?.loading || !shopId) {
+  if (shopContext?.loading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
-        <Spin size="large" tip="Загрузка данных магазина..." />
+      <div className="flex justify-center items-center h-full">
+        <Spin size="large" />
       </div>
     );
   }
 
-  // Если контекст загружен, но нет shopId, значит что-то пошло не так
-  if (!shopContext?.loading && !shopId) {
-    console.error('[BarcodesPage] Shop context loaded but no shop ID found');
-    return (
-      <Result
-        status="error"
-        title="Ошибка загрузки"
-        subTitle="Не удалось загрузить данные магазина. Попробуйте обновить страницу."
-      />
-    );
+  if (!shopId || !shopContext?.currentShop) {
+    return <div>Магазин не выбран</div>;
   }
 
   if (isLoading) {

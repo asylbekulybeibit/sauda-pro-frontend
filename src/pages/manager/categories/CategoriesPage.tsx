@@ -1,9 +1,20 @@
 import React, { useState, useContext } from 'react';
-import { Card, Button, Spin, message, Row, Col, Input, Empty } from 'antd';
+import {
+  Card,
+  Button,
+  Spin,
+  message,
+  Row,
+  Col,
+  Input,
+  Empty,
+  Typography,
+} from 'antd';
 import {
   PlusOutlined,
   SearchOutlined,
   ReloadOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { getCategories } from '@/services/managerApi';
@@ -11,10 +22,13 @@ import { CategoryTable } from '@/components/manager/categories/CategoryTable';
 import { CategoryForm } from '@/components/manager/categories/CategoryForm';
 import { Category } from '@/types/category';
 import { ShopContext } from '@/contexts/ShopContext';
+import { useParams } from 'react-router-dom';
+
+const { Title } = Typography;
 
 const CategoriesPage: React.FC = () => {
+  const { shopId } = useParams<{ shopId: string }>();
   const shopContext = useContext(ShopContext);
-  const shopId = shopContext?.currentShop?.id;
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<
     Category | undefined
@@ -22,15 +36,21 @@ const CategoriesPage: React.FC = () => {
   const [searchText, setSearchText] = useState('');
 
   // Загрузка категорий
-  const { data, isLoading, isError, refetch } = useQuery<Category[]>({
+  const {
+    data: categories,
+    isLoading: isCategoriesLoading,
+    refetch: refetchCategories,
+  } = useQuery<Category[]>({
     queryKey: ['categories', shopId],
     queryFn: () => getCategories(shopId!),
-    enabled: !!shopId,
+    enabled: Boolean(
+      shopId && !shopContext?.loading && shopContext?.currentWarehouse
+    ),
   });
 
   // Фильтрация категорий по поисковому запросу
   const filteredCategories =
-    data?.filter((category) =>
+    categories?.filter((category) =>
       searchText
         ? category.name.toLowerCase().includes(searchText.toLowerCase()) ||
           (category.description
@@ -67,93 +87,69 @@ const CategoriesPage: React.FC = () => {
     setSearchText('');
   };
 
-  if (!shopId || !shopContext?.currentShop) {
-    return <div>Магазин не выбран</div>;
-  }
-
-  if (isLoading) {
+  if (shopContext?.loading) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <Spin size="large" />
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
+        <p>Загрузка данных магазина...</p>
       </div>
     );
   }
 
-  if (isError) {
-    message.error('Ошибка при загрузке категорий');
+  if (!shopContext?.currentShop || !shopId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
-        <div>Ошибка при загрузке категорий</div>
-        <Button
-          type="primary"
-          icon={<ReloadOutlined />}
-          onClick={() => refetch()}
-        >
-          Повторить
-        </Button>
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p>Магазин не выбран</p>
+      </div>
+    );
+  }
+
+  if (!shopContext?.currentWarehouse) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p>Склад не выбран</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Категории</h1>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreateCategory}
-          className="!bg-blue-500 !text-white hover:!bg-blue-600"
-        >
-          Создать категорию
-        </Button>
-      </div>
-
-      <Card className="shadow-sm">
-        <Row gutter={16} className="mb-4">
-          <Col span={12}>
-            <Input
-              placeholder="Поиск категорий"
-              value={searchText}
-              onChange={handleSearch}
-              allowClear
-              prefix={<SearchOutlined className="text-gray-400" />}
-            />
-          </Col>
-          <Col span={12} className="flex justify-end">
-            <span className="text-gray-500 mr-2">
-              Всего категорий: {data?.length || 0}
-            </span>
-            {searchText && (
-              <span className="text-gray-500">
-                Найдено: {filteredCategories.length}
-              </span>
-            )}
-          </Col>
-        </Row>
-
-        {filteredCategories.length === 0 ? (
-          <Empty
-            description={
-              searchText
-                ? 'Категории по вашему запросу не найдены'
-                : 'Категории отсутствуют'
-            }
-          />
-        ) : (
+    <div style={{ padding: '24px' }}>
+      <Row gutter={[24, 24]}>
+        <Col span={24}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+            }}
+          >
+            <Title level={2}>Категории</Title>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreateCategory}
+              className="!bg-blue-500 !text-white hover:!bg-blue-600"
+            >
+              Создать категорию
+            </Button>
+          </div>
+        </Col>
+        <Col span={24}>
           <CategoryTable
             categories={filteredCategories}
-            shopId={shopId}
+            isLoading={isCategoriesLoading}
+            onSuccess={refetchCategories}
             onEdit={handleEditCategory}
           />
-        )}
-      </Card>
+        </Col>
+      </Row>
 
       <CategoryForm
         visible={isModalVisible}
         onClose={handleCloseModal}
         category={selectedCategory}
-        categories={data || []}
+        categories={categories || []}
         shopId={shopId}
       />
     </div>

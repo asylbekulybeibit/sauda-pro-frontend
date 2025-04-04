@@ -7,6 +7,7 @@ import {
   Typography,
   Pagination,
   Modal,
+  message,
 } from 'antd';
 import {
   EditOutlined,
@@ -18,30 +19,35 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteCategory } from '@/services/managerApi';
 import { Category } from '@/types/category';
+import { useShopContext } from '@/contexts/ShopContext';
 
 const { Text } = Typography;
 const { confirm } = Modal;
 
 interface CategoryTableProps {
   categories: Category[];
-  shopId: string;
+  isLoading?: boolean;
+  onSuccess: () => void;
   onEdit: (category: Category) => void;
 }
 
-export function CategoryTable({
+export const CategoryTable: React.FC<CategoryTableProps> = ({
   categories,
-  shopId,
+  isLoading,
+  onSuccess,
   onEdit,
-}: CategoryTableProps) {
+}) => {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortField, setSortField] = useState<string | null>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const shopContext = useShopContext();
+  const shopId = shopContext?.currentShop?.id;
 
   // Мутация для удаления категории
   const deleteMutation = useMutation({
-    mutationFn: deleteCategory,
+    mutationFn: (id: string) => deleteCategory(id, shopId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories', shopId] });
     },
@@ -150,6 +156,55 @@ export function CategoryTable({
     );
   };
 
+  const handleDelete = async (id: string) => {
+    if (!shopId) return;
+    try {
+      await deleteCategory(shopId, id);
+      message.success('Категория успешно удалена');
+      onSuccess();
+    } catch (error) {
+      message.error('Ошибка при удалении категории');
+    }
+  };
+
+  const columns = [
+    {
+      title: 'Название',
+      dataIndex: 'name',
+      key: 'name',
+    },
+    {
+      title: 'Описание',
+      dataIndex: 'description',
+      key: 'description',
+    },
+    {
+      title: 'Родительская категория',
+      dataIndex: 'parentId',
+      key: 'parentId',
+      render: (parentId: string | undefined) => getParentName(parentId),
+    },
+    {
+      title: 'Действия',
+      key: 'actions',
+      render: (_: any, record: Category) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => onEdit(record)}
+          />
+          <Button
+            type="text"
+            icon={<DeleteOutlined />}
+            onClick={() => showDeleteConfirm(record.id, record.name)}
+            className="text-red-500 hover:text-red-700"
+          />
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <div className="custom-table">
       <div className="overflow-x-auto">
@@ -237,4 +292,6 @@ export function CategoryTable({
       </div>
     </div>
   );
-}
+};
+
+export default CategoryTable;

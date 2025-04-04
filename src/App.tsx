@@ -44,9 +44,7 @@ const CashierHistoryPage = lazy(() => import('./pages/cashier/HistoryPage'));
 const CashierReturnsPage = lazy(() => import('./pages/cashier/ReturnsPage'));
 
 const ManagerDashboard = lazy(() => import('./pages/manager/ManagerDashboard'));
-const ProductsPage = lazy(
-  () => import('./pages/manager/products/ProductsPage')
-);
+
 const ProductDetailsPage = lazy(
   () => import('./pages/manager/products/ProductDetailsPage')
 );
@@ -303,7 +301,6 @@ export default function App() {
                   }
                 >
                   <Route index element={<ManagerDashboard />} />
-                  <Route path="products" element={<ProductsPage />} />
 
                   <Route path="barcodes" element={<BarcodesPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
