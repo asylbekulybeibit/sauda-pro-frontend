@@ -113,7 +113,7 @@ export const ShiftClosingReport: React.FC<ShiftClosingReportProps> = ({
         <h3>Информация о смене</h3>
         <div className={styles.infoGrid}>
           <div className={styles.infoRow}>
-            <span className={styles.label}>Склад:</span>
+            <span className={styles.label}>Магазин:</span>
             <span className={styles.value}>{data.warehouse.name}</span>
           </div>
           <div className={styles.infoRow}>
