@@ -12,6 +12,8 @@ interface TotalPanelProps {
   onExtraFunctions: () => void;
   onRemove: () => void;
   onPostpone: () => void;
+  onIncreaseQuantity: () => void;
+  onDecreaseQuantity: () => void;
 }
 
 const TotalPanel: React.FC<TotalPanelProps> = ({
@@ -25,6 +27,8 @@ const TotalPanel: React.FC<TotalPanelProps> = ({
   onExtraFunctions,
   onRemove,
   onPostpone,
+  onIncreaseQuantity,
+  onDecreaseQuantity,
 }) => {
   return (
     <div className={styles.totalPanel}>
@@ -54,7 +58,9 @@ const TotalPanel: React.FC<TotalPanelProps> = ({
           <button className={styles.actionButton} onClick={onExtraFunctions}>
             ДОП.{'\n'}ФУНКЦИИ
           </button>
-          <button className={styles.actionButton}>+</button>
+          <button className={styles.actionButton} onClick={onIncreaseQuantity}>
+            +
+          </button>
         </div>
 
         <div className={styles.actionRow}>
@@ -65,7 +71,9 @@ const TotalPanel: React.FC<TotalPanelProps> = ({
           <button className={styles.actionButton}>
             УНИВЕРСАЛЬНЫЙ{'\n'}ПРОДУКТ
           </button>
-          <button className={styles.actionButton}>-</button>
+          <button className={styles.actionButton} onClick={onDecreaseQuantity}>
+            -
+          </button>
         </div>
 
         <div className={styles.actionRow}>

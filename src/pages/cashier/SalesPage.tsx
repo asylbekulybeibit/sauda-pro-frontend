@@ -703,8 +703,8 @@ const SalesPage: React.FC = () => {
       newQuantityType: typeof newQuantity,
     });
 
-    if (newQuantity <= 0) {
-      handleRemoveItem(itemId);
+    // Prevent quantity from going below 1
+    if (newQuantity < 1) {
       return;
     }
 
@@ -1117,6 +1117,24 @@ const SalesPage: React.FC = () => {
     }
   }, [currentShift?.cashRegister?.id, warehouseId]);
 
+  const handleIncreaseQuantity = () => {
+    if (selectedItemId) {
+      const item = receiptItems.find((item) => item.id === selectedItemId);
+      if (item) {
+        handleQuantityChange(item.id, item.quantity + 1);
+      }
+    }
+  };
+
+  const handleDecreaseQuantity = () => {
+    if (selectedItemId) {
+      const item = receiptItems.find((item) => item.id === selectedItemId);
+      if (item) {
+        handleQuantityChange(item.id, item.quantity - 1);
+      }
+    }
+  };
+
   return (
     <div className={styles.salesPage}>
       {error && (
@@ -1174,6 +1192,8 @@ const SalesPage: React.FC = () => {
           onExtraFunctions={handleExtraFunctions}
           onRemove={handleRemove}
           onPostpone={handlePostpone}
+          onIncreaseQuantity={handleIncreaseQuantity}
+          onDecreaseQuantity={handleDecreaseQuantity}
         />
       </div>
 
