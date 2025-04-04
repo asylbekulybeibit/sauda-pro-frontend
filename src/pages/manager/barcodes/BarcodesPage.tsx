@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Card,
   Button,
@@ -23,8 +24,8 @@ import { BarcodeForm } from '@/components/manager/barcodes/BarcodeForm';
 import { ShopContext } from '@/contexts/ShopContext';
 
 const BarcodesPage: React.FC = () => {
+  const { shopId } = useParams<{ shopId: string }>();
   const shopContext = useContext(ShopContext);
-  const shopId = shopContext?.currentShop?.id;
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBarcode, setSelectedBarcode] = useState<any | undefined>(
@@ -37,7 +38,7 @@ const BarcodesPage: React.FC = () => {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['barcodes', shopId, activeTab],
     queryFn: () => getBarcodes(shopId!, activeTab === 'services'),
-    enabled: !!shopId && !!shopContext?.currentShop,
+    enabled: Boolean(shopId && !shopContext?.loading),
   });
 
   // Фильтрация штрихкодов по поисковому запросу
@@ -86,8 +87,12 @@ const BarcodesPage: React.FC = () => {
     );
   }
 
-  if (!shopId || !shopContext?.currentShop) {
-    return <div>Магазин не выбран</div>;
+  if (!shopId) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <p>Магазин не выбран</p>
+      </div>
+    );
   }
 
   if (isLoading) {

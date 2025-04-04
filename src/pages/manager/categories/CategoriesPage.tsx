@@ -43,9 +43,7 @@ const CategoriesPage: React.FC = () => {
   } = useQuery<Category[]>({
     queryKey: ['categories', shopId],
     queryFn: () => getCategories(shopId!),
-    enabled: Boolean(
-      shopId && !shopContext?.loading && shopContext?.currentWarehouse
-    ),
+    enabled: Boolean(shopId && !shopContext?.loading),
   });
 
   // Фильтрация категорий по поисковому запросу
@@ -96,18 +94,10 @@ const CategoriesPage: React.FC = () => {
     );
   }
 
-  if (!shopContext?.currentShop || !shopId) {
+  if (!shopId) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
         <p>Магазин не выбран</p>
-      </div>
-    );
-  }
-
-  if (!shopContext?.currentWarehouse) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <p>Склад не выбран</p>
       </div>
     );
   }
