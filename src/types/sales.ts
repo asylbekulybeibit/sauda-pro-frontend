@@ -13,7 +13,7 @@ export interface SalesHistoryResponse {
   number: string;
   createdAt: string;
   totalAmount: number;
-  paymentMethod: {
+  paymentMethod?: {
     id: string;
     name: string;
   };
@@ -23,11 +23,12 @@ export interface SalesHistoryResponse {
   };
   client?: {
     id: string;
-    name: string;
+    firstName: string;
+    lastName: string;
   };
   vehicle?: {
     id: string;
-    number: string;
+    name: string;
   };
   items?: Array<{
     id: string;
@@ -35,10 +36,6 @@ export interface SalesHistoryResponse {
     price: number;
     quantity: number;
     amount: number;
-    serviceStaff?: {
-      id: string;
-      name: string;
-    };
   }>;
 }
 
@@ -55,11 +52,12 @@ export interface SalesReceiptDetails {
   };
   client?: {
     id: string;
-    name: string;
+    firstName: string;
+    lastName: string;
   };
   vehicle?: {
     id: string;
-    number: string;
+    name: string;
   };
   items: Array<{
     id: string;

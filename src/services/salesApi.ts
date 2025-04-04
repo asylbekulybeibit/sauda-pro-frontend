@@ -127,7 +127,7 @@ export const getCashiers = async (
 
 export const getClients = async (
   warehouseId: string
-): Promise<Array<{ id: string; name: string }>> => {
+): Promise<Array<{ id: string; firstName: string; lastName: string }>> => {
   try {
     console.log('🚀 [salesApi.getClients] Starting request');
     console.log('📝 Parameters:', { warehouseId });
@@ -140,7 +140,8 @@ export const getClients = async (
 
     return data.map((client: any) => ({
       id: client.id,
-      name: client.firstName,
+      firstName: client.firstName,
+      lastName: client.lastName || '',
     }));
   } catch (error: any) {
     console.error('❌ [salesApi.getClients] Error:', error);
@@ -150,7 +151,7 @@ export const getClients = async (
 
 export const getVehicles = async (
   warehouseId: string
-): Promise<Array<{ id: string; number: string }>> => {
+): Promise<Array<{ id: string; name: string }>> => {
   try {
     console.log('🚀 [salesApi.getVehicles] Starting request');
     console.log('📝 Parameters:', { warehouseId });
@@ -163,7 +164,7 @@ export const getVehicles = async (
 
     return data.map((vehicle: any) => ({
       id: vehicle.id,
-      number: vehicle.plateNumber,
+      name: vehicle.name || 'Н/Д',
     }));
   } catch (error: any) {
     console.error('❌ [salesApi.getVehicles] Error:', error);

@@ -37,12 +37,12 @@ export const SalesHistoryPage: React.FC = () => {
   const [cashiers, setCashiers] = useState<Array<{ id: string; name: string }>>(
     []
   );
-  const [clients, setClients] = useState<Array<{ id: string; name: string }>>(
+  const [clients, setClients] = useState<
+    Array<{ id: string; firstName: string; lastName: string }>
+  >([]);
+  const [vehicles, setVehicles] = useState<Array<{ id: string; name: string }>>(
     []
   );
-  const [vehicles, setVehicles] = useState<
-    Array<{ id: string; number: string }>
-  >([]);
   const [filters, setFilters] = useState<Filters>({});
 
   // Получаем ID склада из текущей роли
@@ -119,6 +119,10 @@ export const SalesHistoryPage: React.FC = () => {
   // Обработчики для просмотра деталей и печати
   const handleViewDetails = async (receipt: SalesHistoryResponse) => {
     setSelectedReceipt(receipt);
+    if (!warehouseId) {
+      setError('ID склада не найден');
+      return;
+    }
     try {
       const details = await salesApi.getSalesReceiptDetails(
         warehouseId,
@@ -132,6 +136,10 @@ export const SalesHistoryPage: React.FC = () => {
   };
 
   const handlePrintReceipt = async (receipt: SalesHistoryResponse) => {
+    if (!warehouseId) {
+      setError('ID склада не найден');
+      return;
+    }
     try {
       await salesApi.printReceipt(warehouseId, receipt.id);
     } catch (err) {
@@ -172,13 +180,20 @@ export const SalesHistoryPage: React.FC = () => {
       title: 'Клиент',
       dataIndex: 'client',
       key: 'client',
-      render: (client?: { name: string }) => client?.name || 'Н/Д',
+      render: (client?: { firstName: string; lastName: string }) =>
+        client ? `${client.firstName} ${client.lastName}`.trim() : 'Н/Д',
     },
     {
       title: 'Метод оплаты',
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
       render: (paymentMethod: { name: string }) => paymentMethod?.name || 'Н/Д',
+    },
+    {
+      title: 'Автомобиль',
+      dataIndex: 'vehicle',
+      key: 'vehicle',
+      render: (vehicle: { name: string } | undefined) => vehicle?.name || 'Н/Д',
     },
     {
       title: 'Сумма',
@@ -264,12 +279,13 @@ export const SalesHistoryPage: React.FC = () => {
                 </p>
                 {receiptDetails.client && (
                   <p>
-                    <strong>Клиент:</strong> {receiptDetails.client.name}
+                    <strong>Клиент:</strong>{' '}
+                    {`${receiptDetails.client.firstName} ${receiptDetails.client.lastName}`.trim()}
                   </p>
                 )}
                 {receiptDetails.vehicle && (
                   <p>
-                    <strong>Транспорт:</strong> {receiptDetails.vehicle.number}
+                    <strong>Транспорт:</strong> {receiptDetails.vehicle.name}
                   </p>
                 )}
               </div>

@@ -8,8 +8,8 @@ const { RangePicker } = DatePicker;
 interface SalesHistoryFiltersProps {
   onFiltersChange: (filters: Filters) => void;
   cashiers: Array<{ id: string; name: string }>;
-  clients: Array<{ id: string; name: string }>;
-  vehicles: Array<{ id: string; number: string }>;
+  clients: Array<{ id: string; firstName: string; lastName: string }>;
+  vehicles: Array<{ id: string; name: string }>;
 }
 
 export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
@@ -32,6 +32,13 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
       vehicleId: values.vehicleId,
       search: values.search,
     });
+  };
+
+  const filterOption = (
+    input: string,
+    option?: { label: string; value: string }
+  ) => {
+    return (option?.label ?? '').toLowerCase().includes(input.toLowerCase());
   };
 
   return (
@@ -62,7 +69,8 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
             placeholder="Все кассиры"
             allowClear
             showSearch
-            optionFilterProp="children"
+            optionFilterProp="label"
+            filterOption={filterOption}
             options={cashiers.map((cashier) => ({
               value: cashier.id,
               label: cashier.name,
@@ -72,28 +80,30 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
 
         <Form.Item name="clientId" label="Клиент">
           <Select
-            style={{ width: '200px' }}
-            placeholder="Все клиенты"
+            style={{ width: '250px' }}
+            placeholder="Поиск клиента"
             allowClear
             showSearch
-            optionFilterProp="children"
+            optionFilterProp="label"
+            filterOption={filterOption}
             options={clients.map((client) => ({
               value: client.id,
-              label: client.name,
+              label: `${client.firstName} ${client.lastName}`.trim(),
             }))}
           />
         </Form.Item>
 
-        <Form.Item name="vehicleId" label="Машина">
+        <Form.Item name="vehicleId" label="Автомобиль">
           <Select
-            style={{ width: '200px' }}
-            placeholder="Все машины"
+            style={{ width: '300px' }}
+            placeholder="Поиск автомобиля"
             allowClear
             showSearch
-            optionFilterProp="children"
+            optionFilterProp="label"
+            filterOption={filterOption}
             options={vehicles.map((vehicle) => ({
               value: vehicle.id,
-              label: vehicle.number,
+              label: vehicle.name,
             }))}
           />
         </Form.Item>
