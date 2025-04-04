@@ -224,22 +224,32 @@ export const SalesHistoryPage: React.FC = () => {
   ];
 
   return (
-    <Card title="История продаж">
-      <Space direction="vertical" style={{ width: '100%' }}>
+    <Card title="История продаж" bodyStyle={{ padding: '16px' }}>
+      <Space direction="vertical" style={{ width: '100%' }} size="middle">
         {error && <Alert message={error} type="error" />}
 
-        <FiltersComponent
-          onFiltersChange={handleFiltersChange}
-          cashiers={cashiers}
-          clients={clients}
-          vehicles={vehicles}
-        />
+        <div
+          style={{
+            background: '#f5f5f5',
+            padding: '12px',
+            borderRadius: '4px',
+          }}
+        >
+          <FiltersComponent
+            onFiltersChange={handleFiltersChange}
+            cashiers={cashiers}
+            clients={clients}
+            vehicles={vehicles}
+            warehouseId={warehouseId!}
+          />
+        </div>
 
         <Table
           columns={columns}
           dataSource={receipts}
           loading={loading}
           rowKey="id"
+          size="middle"
           pagination={{
             pageSize: 50,
             showSizeChanger: true,

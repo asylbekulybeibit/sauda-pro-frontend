@@ -25,6 +25,10 @@ export const getSalesHistory = async (
     if (filters?.clientId) params.append('clientId', filters.clientId);
     if (filters?.vehicleId) params.append('vehicleId', filters.vehicleId);
     if (filters?.search) params.append('search', filters.search);
+    if (filters?.paymentMethod) {
+      params.append('paymentMethod', filters.paymentMethod);
+      console.log('💳 Adding payment method filter:', filters.paymentMethod);
+    }
 
     const url = `/manager/${warehouseId}/sales/history?${params}`;
     console.log('🔗 Request URL:', url);
@@ -168,6 +172,49 @@ export const getVehicles = async (
     }));
   } catch (error: any) {
     console.error('❌ [salesApi.getVehicles] Error:', error);
+    throw error;
+  }
+};
+
+export const getActivePaymentMethods = async (warehouseId: string) => {
+  try {
+    console.log(
+      '🚀 [salesApi.getActivePaymentMethods] Starting request for warehouse:',
+      warehouseId
+    );
+    console.log('📌 URL:', `/manager/${warehouseId}/sales/payment-methods`);
+
+    const { data } = await api.get(
+      `/manager/${warehouseId}/sales/payment-methods`
+    );
+
+    console.log('✅ Payment methods received:', {
+      count: data?.length || 0,
+      methods: data,
+    });
+
+    // Проверим, есть ли методы и какого они типа
+    if (data && data.length > 0) {
+      console.log('📊 Payment methods by source:', {
+        system: data.filter((m: any) => m.source === 'system').length,
+        custom: data.filter((m: any) => m.source === 'custom').length,
+        unknown: data.filter((m: any) => !m.source).length,
+      });
+
+      // Добавим логирование кассовых аппаратов
+      const withCashRegister = data.filter((m: any) => m.cashRegister).length;
+      console.log(
+        `💳 Methods with cash register: ${withCashRegister} of ${data.length}`
+      );
+
+      console.log('💡 First payment method example:', data[0]);
+    } else {
+      console.warn('⚠️ No payment methods received from API!');
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error('❌ [salesApi.getActivePaymentMethods] Error:', error);
     throw error;
   }
 };

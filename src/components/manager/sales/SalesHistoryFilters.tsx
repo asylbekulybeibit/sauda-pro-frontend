@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { DatePicker, Select, Input, Space, Form } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { SalesHistoryFilters as Filters } from '../../../types/sales';
+import * as salesApi from '../../../services/salesApi';
 
 const { RangePicker } = DatePicker;
 
@@ -10,6 +11,7 @@ interface SalesHistoryFiltersProps {
   cashiers: Array<{ id: string; name: string }>;
   clients: Array<{ id: string; firstName: string; lastName: string }>;
   vehicles: Array<{ id: string; name: string }>;
+  warehouseId: string;
 }
 
 export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
@@ -17,8 +19,50 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
   cashiers,
   clients,
   vehicles,
+  warehouseId,
 }) => {
   const [form] = Form.useForm();
+  const [paymentMethods, setPaymentMethods] = useState<
+    Array<{ id: string; name: string; systemType?: string; source?: string }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadPaymentMethods = async () => {
+      try {
+        setLoading(true);
+        console.log(
+          '⏳ Начинаем загрузку методов оплаты для склада:',
+          warehouseId
+        );
+        const methods = await salesApi.getActivePaymentMethods(warehouseId);
+        console.log('✅ Методы оплаты загружены:', methods);
+        setPaymentMethods(methods);
+      } catch (error) {
+        console.error('❌ Ошибка при загрузке методов оплаты:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (warehouseId) {
+      console.log(
+        '🔄 Warehouse ID изменился, загружаем методы оплаты:',
+        warehouseId
+      );
+      loadPaymentMethods();
+    } else {
+      console.log('⚠️ Отсутствует warehouseId, методы оплаты не загружаются');
+    }
+
+    // Отладочная информация
+    return () => {
+      console.log(
+        '🧹 Компонент SalesHistoryFilters очищается с warehouseId:',
+        warehouseId
+      );
+    };
+  }, [warehouseId]);
 
   const handleFormChange = () => {
     const values = form.getFieldsValue();
@@ -114,11 +158,11 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
             style={{ width: '200px' }}
             placeholder="Все методы"
             allowClear
-            options={[
-              { value: 'cash', label: 'Наличные' },
-              { value: 'qr', label: 'QR-код' },
-              { value: 'cash_custom', label: 'Наличные кастом' },
-            ]}
+            loading={loading}
+            options={paymentMethods.map((method) => ({
+              value: method.id,
+              label: method.name || method.systemType || 'Неизвестный метод',
+            }))}
           />
         </Form.Item>
 
