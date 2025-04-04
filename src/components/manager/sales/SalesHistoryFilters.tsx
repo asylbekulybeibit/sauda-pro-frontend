@@ -31,6 +31,7 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
       clientId: values.clientId,
       vehicleId: values.vehicleId,
       search: values.search,
+      paymentMethod: values.paymentMethod,
     });
   };
 
@@ -105,6 +106,19 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({
               value: vehicle.id,
               label: vehicle.name,
             }))}
+          />
+        </Form.Item>
+
+        <Form.Item name="paymentMethod" label="Метод оплаты">
+          <Select
+            style={{ width: '200px' }}
+            placeholder="Все методы"
+            allowClear
+            options={[
+              { value: 'cash', label: 'Наличные' },
+              { value: 'qr', label: 'QR-код' },
+              { value: 'cash_custom', label: 'Наличные кастом' },
+            ]}
           />
         </Form.Item>
 

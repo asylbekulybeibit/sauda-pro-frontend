@@ -6,6 +6,7 @@ export interface SalesHistoryFilters {
   clientId?: string;
   vehicleId?: string;
   search?: string;
+  paymentMethod?: string;
 }
 
 export interface SalesHistoryResponse {
