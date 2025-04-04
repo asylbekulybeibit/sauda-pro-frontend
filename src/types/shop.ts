@@ -7,11 +7,11 @@ export interface Shop {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-  warehouse?: {
+  warehouses: Array<{
     id: string;
     name: string;
     address?: string;
-  } | null;
+  }>;
   type?: string;
 }
 

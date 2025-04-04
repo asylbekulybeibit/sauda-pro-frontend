@@ -18,6 +18,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ManagerHeader } from '@/components/manager/layout/Header';
 import './styles/price-analytics.css';
 import CashierLayout from '@/components/cashier/CashierLayout';
+import SalesHistoryPage from './pages/manager/sales/SalesHistoryPage';
 
 // Ленивая загрузка компонентов
 const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
@@ -57,7 +58,7 @@ const CategoriesPage = lazy(
 );
 const ReportsPage = lazy(() => import('./pages/manager/reports/ReportsPage'));
 
-const SalesPage = lazy(() => import('./pages/manager/sales/SalesPage'));
+const SalesPage = lazy(() => import('./pages/manager/sales/SalesHistoryPage'));
 const ReturnsPage = lazy(() => import('./pages/manager/sales/ReturnsPage'));
 const StaffPage = lazy(() => import('./pages/manager/staff/StaffPage'));
 const PromotionsPage = lazy(
@@ -310,7 +311,7 @@ export default function App() {
                     path="cash-registers"
                     element={<CashRegistersPage />}
                   />
-                  <Route path="sales" element={<SalesPage />} />
+                  <Route path="sales" element={<SalesHistoryPage />} />
                   <Route path="sales/returns" element={<ReturnsPage />} />
                   <Route path="staff" element={<StaffPage />} />
                   <Route path="clients" element={<ClientsPage />} />

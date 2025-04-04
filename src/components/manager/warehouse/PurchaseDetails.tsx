@@ -186,13 +186,13 @@ export const PurchaseDetails: React.FC<PurchaseDetailsProps> = ({
     {
       title: 'Долг до',
       dataIndex: 'remainingBefore',
-      render: (_, record: any) =>
+      render: (_: any, record: any) =>
         formatPrice(record.remainingBefore || purchase.totalAmount),
     },
     {
       title: 'Долг после',
       dataIndex: 'remainingAfter',
-      render: (_, record: any) =>
+      render: (_: any, record: any) =>
         formatPrice(
           record.remainingAfter !== undefined
             ? record.remainingAfter

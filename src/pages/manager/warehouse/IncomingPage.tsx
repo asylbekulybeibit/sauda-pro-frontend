@@ -222,7 +222,7 @@ function IncomingPage() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <Title level={2}>Приход товара</Title>
+        <Title level={2}>Оприходование</Title>
         <Space>
           <Select
             value={paymentFilter}
@@ -239,7 +239,7 @@ function IncomingPage() {
             onClick={handleCreatePurchase}
             className="bg-blue-500 hover:bg-blue-600"
           >
-            Создать приход
+            Новое оприходование
           </Button>
         </Space>
       </div>

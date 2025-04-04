@@ -1532,32 +1532,42 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
     }
 
     console.log('Fetching shop data for ID:', shopId);
+
+    // Получаем данные о магазине и складах параллельно
+    const [shopResponse, warehousesResponse] = await Promise.all([
+      api.get(`/manager/shops/${shopId}`),
+      api.get(`/manager/warehouses/shop/${shopId}`),
+    ]);
+
+    console.log('Shop data fetched successfully:', shopResponse.data);
+    console.log(
+      'Warehouses data fetched successfully:',
+      warehousesResponse.data
+    );
+
+    if (!shopResponse.data) {
+      throw new Error('No data received from API');
+    }
+
+    // Создаем объект Shop на основе данных, полученных от сервера
+    return {
+      id: shopId,
+      name: shopResponse.data.shopName || 'Неизвестный магазин',
+      warehouses: warehousesResponse.data || [],
+      type: shopResponse.data.type || '',
+      address: shopResponse.data.address || '',
+      phone: shopResponse.data.phone || '',
+      email: shopResponse.data.email || '',
+      createdAt: shopResponse.data.createdAt || new Date().toISOString(),
+      updatedAt: shopResponse.data.updatedAt || new Date().toISOString(),
+      isActive: shopResponse.data.isActive ?? true,
+    };
+  } catch (error) {
+    console.error('Error in getManagerShop:', error);
+
+    // Запрашиваем данные о складе менеджера из профиля
+    console.log('Attempting to fetch warehouse data from profile');
     try {
-      const response = await api.get(`/manager/shops/${shopId}`);
-      console.log('Shop data fetched successfully:', response.data);
-
-      if (!response.data) {
-        throw new Error('No data received from API');
-      }
-
-      // Создаем объект Shop на основе данных, полученных от сервера
-      return {
-        id: shopId,
-        name: response.data.shopName || 'Неизвестный магазин',
-        warehouse: response.data.warehouse || null,
-        type: response.data.type || '',
-        address: response.data.address || '',
-        phone: response.data.phone || '',
-        email: response.data.email || '',
-        createdAt: response.data.createdAt || new Date().toISOString(),
-        updatedAt: response.data.updatedAt || new Date().toISOString(),
-        isActive: response.data.isActive ?? true,
-      };
-    } catch (error) {
-      console.error('Error in API request for shop data:', error);
-
-      // Запрашиваем данные о складе менеджера из профиля
-      console.log('Attempting to fetch warehouse data from profile');
       const roleResponse = await api.get('/profile');
 
       if (!roleResponse.data?.roles) {
@@ -1580,11 +1590,7 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
       return {
         id: shopId,
         name: managerRole.shop?.name || 'Магазин',
-        warehouse: {
-          id: managerRole.warehouse.id,
-          name: managerRole.warehouse.name,
-          address: managerRole.warehouse.address,
-        },
+        warehouses: [managerRole.warehouse],
         type: managerRole.shop?.type || '',
         address: managerRole.shop?.address || '',
         phone: managerRole.shop?.phone || '',
@@ -1593,10 +1599,10 @@ export const getManagerShop = async (shopId: string): Promise<Shop> => {
         updatedAt: managerRole.shop?.updatedAt || new Date().toISOString(),
         isActive: managerRole.shop?.isActive ?? true,
       };
+    } catch (profileError) {
+      console.error('Error fetching profile data:', profileError);
+      throw error; // Пробрасываем оригинальную ошибку
     }
-  } catch (error) {
-    console.error('Error in getManagerShop:', error);
-    throw error; // Пробрасываем ошибку вместо возврата заглушки
   }
 };
 

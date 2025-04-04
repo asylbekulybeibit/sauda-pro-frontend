@@ -101,7 +101,7 @@ export function ManagerSidebar({ onNavigate }: ManagerSidebarProps) {
       color: 'bg-orange-100 text-orange-600',
       children: [
         {
-          name: 'Приход товара',
+          name: 'Оприходование',
           href: `/manager/${shopId}/warehouse/incoming`,
         },
         {

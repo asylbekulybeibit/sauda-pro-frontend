@@ -636,7 +636,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
       {/* Main Form */}
       <Card className="shadow-sm">
-        <Title level={4}>Создание прихода</Title>
+        <Title level={4}>Новое оприходование</Title>
 
         {isFormLoading ? (
           <div className="text-center py-4">
