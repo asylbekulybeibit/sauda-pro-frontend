@@ -1193,7 +1193,8 @@ const ReturnsPage: React.FC = () => {
                     key={product.id}
                     onClick={() => handleProductSelect(product)}
                   >
-                    {product.name} ({product.code})
+                    {product.name}{' '}
+                    {product.type === 'service' ? '(услуга)' : ''}
                   </SearchResultItem>
                 ))}
               </SearchResultsList>
@@ -1283,7 +1284,9 @@ const ReturnsPage: React.FC = () => {
                 <tbody>
                   {receiptItems.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.name}</td>
+                      <td>
+                        {item.name} {item.type === 'service' ? '(услуга)' : ''}
+                      </td>
                       <td>{formatCurrency(item.price)}</td>
                       <td>{item.quantity}</td>
                       <td>{formatDiscount(item.discountAmount)}</td>
@@ -1328,7 +1331,10 @@ const ReturnsPage: React.FC = () => {
                       }}
                     />
                   </TableCell>
-                  <TableCell>{product.name}</TableCell>
+                  <TableCell>
+                    {product.name}{' '}
+                    {product.type === 'service' ? '(услуга)' : ''}
+                  </TableCell>
                   <TableCell>{Number(product.price).toFixed(2)}</TableCell>
                   <QuantityControlCell onClick={(e) => e.stopPropagation()}>
                     <QuantityControl>

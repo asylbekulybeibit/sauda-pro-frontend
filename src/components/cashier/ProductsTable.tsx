@@ -63,7 +63,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                   <input type="checkbox" />
                 </td>
                 <td>{index + 1}</td>
-                <td>{item.name}</td>
+                <td>
+                  {item.name}
+                  {item.type === 'service' && ' (услуга)'}
+                </td>
                 <td>{Number(item.price).toFixed(2)}</td>
                 <td>
                   <div className={styles.quantityControl}>

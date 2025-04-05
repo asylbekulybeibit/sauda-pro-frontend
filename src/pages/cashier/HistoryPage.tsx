@@ -338,7 +338,10 @@ const HistoryPage: React.FC = () => {
                     </div>
                     {receiptItems.map((item) => (
                       <div key={item.id} className={styles.itemRow}>
-                        <div className={styles.itemName}>{item.name}</div>
+                        <div className={styles.itemName}>
+                          {item.name}
+                          {item.type === 'service' && ' (услуга)'}
+                        </div>
                         <div className={styles.itemPrice}>
                           {formatCurrency(item.price)}
                         </div>
