@@ -73,35 +73,100 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
     if (!activeElement) return;
 
-    // Высота клавиатуры (примерно) + дополнительный отступ
+    // Экстремальные значения для гарантированной видимости
     const keyboardHeight = 350;
-    const padding = 20;
+    const padding = 400; // Очень большой отступ для гарантированной видимости всего поля, включая границы
 
-    // Вычисляем позицию элемента относительно верха страницы
+    // Получаем размеры и позиции элементов
     const elementRect = activeElement.getBoundingClientRect();
     const modalRect = modalContentRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
 
-    // Если элемент находится ниже, чем верхняя граница клавиатуры
-    if (elementRect.bottom > window.innerHeight - keyboardHeight) {
-      // Определяем, насколько нужно прокрутить
-      const scrollAmount =
-        elementRect.bottom - (window.innerHeight - keyboardHeight - padding);
+    // Вычисляем границу видимой области с учетом клавиатуры
+    const bottomVisiblePosition = viewportHeight - keyboardHeight - padding;
 
-      // Прокручиваем содержимое модального окна
-      modalContentRef.current.scrollBy({
-        top: scrollAmount,
-        behavior: 'smooth',
-      });
-    }
+    // Всегда прокручиваем, независимо от текущей позиции с большим запасом
+    const scrollNeeded = elementRect.bottom - bottomVisiblePosition + 150; // Очень большой запас (150px)
+
+    // Применяем прокрутку мгновенно (без анимации) для быстрого эффекта
+    modalContentRef.current.scrollTo({
+      top: modalContentRef.current.scrollTop + scrollNeeded,
+      behavior: 'auto', // Используем мгновенную прокрутку для первого раза
+    });
+
+    // Дополнительная прокрутка сразу и с задержкой для гарантии
+    setTimeout(() => {
+      if (modalContentRef.current && activeElement) {
+        // Повторно проверяем позицию
+        const updatedRect = activeElement.getBoundingClientRect();
+
+        // Всегда добавляем дополнительную прокрутку с экстра-запасом
+        const additionalScroll =
+          updatedRect.bottom - bottomVisiblePosition + 200; // Увеличиваем запасной отступ до 200px!
+
+        modalContentRef.current.scrollTo({
+          top: modalContentRef.current.scrollTop + additionalScroll,
+          behavior: 'smooth',
+        });
+
+        // Еще одна проверка для надежности
+        setTimeout(() => {
+          if (modalContentRef.current && activeElement) {
+            const finalRect = activeElement.getBoundingClientRect();
+            if (finalRect.bottom > viewportHeight - keyboardHeight - 300) {
+              // Проверяем с меньшим порогом
+              // Добавляем последнюю прокрутку с максимальным запасом
+              modalContentRef.current.scrollTo({
+                top: modalContentRef.current.scrollTop + 300, // Фиксированное огромное значение для надежности
+                behavior: 'smooth',
+              });
+            }
+          }
+        }, 150);
+      }
+    }, 50);
   };
 
-  // Эффект для прокрутки при открытии клавиатуры
+  // Эффект для прокрутки при открытии клавиатуры и удержания позиции
   useEffect(() => {
+    let scrollTimer: ReturnType<typeof setTimeout>;
+
     if (showKeyboard || showNumericKeyboard) {
-      // Даем немного времени для рендеринга клавиатуры
+      // Запускаем несколько прокруток с разными интервалами для надежности
+      scrollTimer = setTimeout(scrollToActiveField, 10);
       setTimeout(scrollToActiveField, 100);
+      setTimeout(scrollToActiveField, 300);
+      setTimeout(scrollToActiveField, 500);
+
+      // Предотвращаем сброс скролла и добавляем дополнительную прокрутку при вводе
+      const preventScrollReset = () => {
+        if (activeField) {
+          clearTimeout(scrollTimer);
+          scrollTimer = setTimeout(scrollToActiveField, 10);
+        }
+      };
+
+      // Подписываемся на события скролла и ввода
+      modalContentRef.current?.addEventListener('scroll', preventScrollReset, {
+        passive: true,
+      });
+      window.addEventListener('resize', scrollToActiveField);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        modalContentRef.current?.removeEventListener(
+          'scroll',
+          preventScrollReset
+        );
+        window.removeEventListener('resize', scrollToActiveField);
+      };
     }
-  }, [showKeyboard, showNumericKeyboard]);
+
+    return () => {
+      clearTimeout(scrollTimer);
+      window.removeEventListener('resize', scrollToActiveField);
+    };
+  }, [showKeyboard, showNumericKeyboard, activeField]);
 
   // Получаем shopId из warehouseId при открытии модального окна
   React.useEffect(() => {
@@ -223,17 +288,35 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     }
   };
 
-  // Обработчики для активации клавиатуры
+  // Обработчики для активации клавиатуры с улучшенной прокруткой
   const handleTextFieldFocus = (field: string) => {
     setActiveField(field);
+
+    // Немедленно устанавливаем состояние клавиатуры
     setShowKeyboard(true);
     setShowNumericKeyboard(false);
+
+    // Запускаем серию прокруток с разными интервалами для надежности
+    scrollToActiveField();
+    setTimeout(scrollToActiveField, 50);
+    setTimeout(scrollToActiveField, 150);
+    setTimeout(scrollToActiveField, 300);
+    setTimeout(scrollToActiveField, 600);
   };
 
   const handleNumericFieldFocus = (field: string) => {
     setActiveField(field);
+
+    // Немедленно устанавливаем состояние клавиатуры
     setShowNumericKeyboard(true);
     setShowKeyboard(false);
+
+    // Запускаем серию прокруток с разными интервалами для надежности
+    scrollToActiveField();
+    setTimeout(scrollToActiveField, 50);
+    setTimeout(scrollToActiveField, 150);
+    setTimeout(scrollToActiveField, 300);
+    setTimeout(scrollToActiveField, 600);
   };
 
   const handleKeyboardClose = () => {
@@ -264,14 +347,6 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     setShowKeyboard(false);
     setShowNumericKeyboard(false);
     setActiveField(null);
-
-    // Сбрасываем прокрутку модального окна к началу при закрытии клавиатуры
-    if (modalContentRef.current) {
-      modalContentRef.current.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    }
   };
 
   const validateForm = (): boolean => {

@@ -46,39 +46,97 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   const scrollToSearchInput = () => {
     if (!modalContentRef.current || !searchInputRef.current) return;
 
-    // Высота клавиатуры (примерно) + дополнительный отступ
+    // Экстремальные значения для гарантированной видимости
     const keyboardHeight = 350;
-    const padding = 20;
+    const padding = 400; // Очень большой отступ для гарантированной видимости всего поля, включая границы
 
-    // Вычисляем позицию элемента относительно верха страницы
+    // Получаем размеры и позиции элементов
     const inputRect = searchInputRef.current.getBoundingClientRect();
+    const modalRect = modalContentRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
 
-    // Если поле поиска находится ниже, чем верхняя граница клавиатуры
-    if (inputRect.bottom > window.innerHeight - keyboardHeight) {
-      // Определяем, насколько нужно прокрутить
-      const scrollAmount =
-        inputRect.bottom - (window.innerHeight - keyboardHeight - padding);
+    // Вычисляем границу видимой области с учетом клавиатуры
+    const bottomVisiblePosition = viewportHeight - keyboardHeight - padding;
 
-      // Прокручиваем содержимое модального окна
-      modalContentRef.current.scrollBy({
-        top: scrollAmount,
-        behavior: 'smooth',
-      });
-    }
+    // Всегда прокручиваем, независимо от текущей позиции с большим запасом
+    const scrollNeeded = inputRect.bottom - bottomVisiblePosition + 150; // Очень большой запас (150px)
+
+    // Применяем прокрутку мгновенно для быстрого эффекта
+    modalContentRef.current.scrollTo({
+      top: modalContentRef.current.scrollTop + scrollNeeded,
+      behavior: 'auto',
+    });
+
+    // Дополнительная прокрутка с задержкой для гарантии
+    setTimeout(() => {
+      if (modalContentRef.current && searchInputRef.current) {
+        // Повторно проверяем позицию
+        const updatedInputRect = searchInputRef.current.getBoundingClientRect();
+
+        // Всегда добавляем дополнительную прокрутку с экстра-запасом
+        const additionalScroll =
+          updatedInputRect.bottom - bottomVisiblePosition + 200; // Увеличиваем запасной отступ до 200px
+
+        modalContentRef.current.scrollTo({
+          top: modalContentRef.current.scrollTop + additionalScroll,
+          behavior: 'smooth',
+        });
+
+        // Еще одна проверка для надежности
+        setTimeout(() => {
+          if (modalContentRef.current && searchInputRef.current) {
+            const finalRect = searchInputRef.current.getBoundingClientRect();
+            if (finalRect.bottom > viewportHeight - keyboardHeight - 300) {
+              // Проверяем с меньшим порогом
+              // Добавляем последнюю прокрутку с максимальным запасом
+              modalContentRef.current.scrollTo({
+                top: modalContentRef.current.scrollTop + 300, // Фиксированное огромное значение для надежности
+                behavior: 'smooth',
+              });
+            }
+          }
+        }, 150);
+      }
+    }, 50);
   };
 
-  // Применяем прокрутку при открытии/закрытии клавиатуры
+  // Применяем прокрутку при открытии/закрытии клавиатуры и удерживаем позицию
   useEffect(() => {
+    let scrollTimer: ReturnType<typeof setTimeout>;
+
     if (showKeyboard) {
-      // Даем немного времени для рендеринга клавиатуры
+      // Запускаем несколько прокруток с разными интервалами для надежности
+      scrollTimer = setTimeout(scrollToSearchInput, 10);
       setTimeout(scrollToSearchInput, 100);
-    } else if (modalContentRef.current) {
-      // При закрытии клавиатуры прокручиваем вверх
-      modalContentRef.current.scrollTo({
-        top: 0,
-        behavior: 'smooth',
+      setTimeout(scrollToSearchInput, 300);
+      setTimeout(scrollToSearchInput, 500);
+
+      // Предотвращаем сброс скролла при вводе
+      const preventScrollReset = () => {
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(scrollToSearchInput, 10);
+      };
+
+      // Подписываемся на события скролла и изменения размера окна
+      modalContentRef.current?.addEventListener('scroll', preventScrollReset, {
+        passive: true,
       });
+      window.addEventListener('resize', scrollToSearchInput);
+
+      return () => {
+        clearTimeout(scrollTimer);
+        modalContentRef.current?.removeEventListener(
+          'scroll',
+          preventScrollReset
+        );
+        window.removeEventListener('resize', scrollToSearchInput);
+      };
     }
+
+    return () => {
+      clearTimeout(scrollTimer);
+      window.removeEventListener('resize', scrollToSearchInput);
+    };
   }, [showKeyboard]);
 
   const handleKeyPress = (key: string) => {
@@ -225,6 +283,16 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
     setSearchQuery(e.target.value);
   };
 
+  // Улучшенный обработчик фокуса для поля ввода
+  const handleSearchInputFocus = () => {
+    // Запускаем серию прокруток с разными интервалами для надежности
+    scrollToSearchInput();
+    setTimeout(scrollToSearchInput, 50);
+    setTimeout(scrollToSearchInput, 150);
+    setTimeout(scrollToSearchInput, 300);
+    setTimeout(scrollToSearchInput, 600);
+  };
+
   // Обработчик нажатия на кнопку "Добавить нового клиента"
   const handleAddNewClick = () => {
     setIsCreateModalOpen(true);
@@ -269,6 +337,7 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
               placeholder="Введите имя, фамилию или телефон клиента..."
               value={searchQuery}
               onChange={handleSearchInputChange}
+              onFocus={handleSearchInputFocus}
               ref={searchInputRef}
             />
             <div className={styles.keyboardIcon} onClick={toggleKeyboard}>

@@ -104,6 +104,28 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     }
   };
 
+  // Функция для прокрутки страницы, чтобы поле поиска было видимым над клавиатурой
+  const scrollToSearchInput = () => {
+    if (!searchInputRef.current) return;
+
+    // Высота клавиатуры (примерно) + большой отступ для лучшей видимости
+    const keyboardHeight = 350;
+    const padding = 100;
+
+    // Вычисляем позицию элемента относительно верха страницы
+    const inputRect = searchInputRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // Если поле поиска будет частично скрыто клавиатурой
+    if (inputRect.bottom > viewportHeight - keyboardHeight - padding) {
+      // Используем scrollIntoView для перемещения поля в видимую область
+      searchInputRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  };
+
   return (
     <div className={styles.searchContainer}>
       <input
