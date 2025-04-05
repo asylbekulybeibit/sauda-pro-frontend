@@ -1483,6 +1483,7 @@ const ReturnsPage: React.FC = () => {
               value={returnReason}
               onChange={(e) => setReturnReason(e.target.value)}
               placeholder="Укажите причину возврата (необязательно)"
+              onFocus={handleReasonInputFocus}
             />
             <ButtonsGroup>
               <DialogButton
