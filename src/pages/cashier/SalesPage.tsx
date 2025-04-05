@@ -207,7 +207,7 @@ const SalesPage: React.FC = () => {
         storedReceiptId
       );
       const receiptDetails = await cashierApi.getReceiptDetails(
-        warehouseId,
+        warehouseId!,
         storedReceiptId
       );
       console.log(
@@ -563,6 +563,7 @@ const SalesPage: React.FC = () => {
       return response;
     } catch (err) {
       console.error('Ошибка при добавлении/обновлении товара в чеке:', err);
+
       // Логируем детали ошибки
       if (err && typeof err === 'object' && 'response' in err) {
         const error = err as {
@@ -577,7 +578,32 @@ const SalesPage: React.FC = () => {
           data: error.response.data,
           headers: error.response.headers,
         });
+
+        // Если чек не найден, сбрасываем старый ID и создаем новый чек
+        if (error.response.status === 404) {
+          console.warn(
+            'Чек не найден. Возможно, он был удален при закрытии предыдущей смены.'
+          );
+          console.warn('Сбрасываем ID чека и создаем новый чек...');
+
+          // Очищаем данные о чеке в localStorage
+          Object.values(STORAGE_KEYS).forEach((key) =>
+            localStorage.removeItem(key)
+          );
+
+          // Сбрасываем состояние
+          setReceiptId('');
+          setReceiptNumber('');
+
+          // Создаем новый чек при следующей попытке добавления товара
+          // Это произойдет автоматически через handleProductSelect
+
+          throw new Error(
+            'Чек не найден. Выберите товар еще раз для создания нового чека.'
+          );
+        }
       }
+
       throw new Error('Не удалось добавить товар в чек');
     }
   };
@@ -591,20 +617,38 @@ const SalesPage: React.FC = () => {
       return;
     }
 
-    try {
-      // Создаем чек если его еще нет
-      let currentReceiptId = receiptId;
-      if (!currentReceiptId) {
-        console.log('Создание нового чека для первого товара');
-        const newReceipt = await createNewReceipt(currentShift);
-        if (!newReceipt?.id) {
-          console.error('Не удалось создать чек');
-          return;
-        }
-        currentReceiptId = newReceipt.id;
-      }
+    // Проверка наличия warehouseId
+    if (!warehouseId) {
+      console.error('Отсутствует идентификатор склада');
+      setError('Отсутствует идентификатор склада');
+      return;
+    }
 
-      // Проверяем, есть ли уже такой товар в чеке
+    try {
+      // Создаем объект товара, который будет добавлен в чек
+      const formattedQuantity = Number(Number(1).toFixed(3));
+      const formattedPrice = Number(Number(product.price).toFixed(2));
+      const formattedAmount = Number(
+        (formattedPrice * formattedQuantity).toFixed(2)
+      );
+      const formattedDiscountPercent = 0;
+      const formattedDiscountAmount = 0;
+      const formattedFinalAmount = formattedAmount;
+
+      const newItem: ReceiptItem = {
+        id: uuidv4(),
+        name: product.name,
+        price: formattedPrice,
+        quantity: formattedQuantity,
+        amount: formattedAmount,
+        discountPercent: formattedDiscountPercent,
+        discountAmount: formattedDiscountAmount,
+        finalAmount: formattedFinalAmount,
+        type: product.isService ? 'service' : 'product',
+        warehouseProductId: product.id,
+      };
+
+      // 1. Сначала проверяем, есть ли существующий товар в текущем чеке
       const existingItemIndex = receiptItems.findIndex(
         (item) => item.warehouseProductId === product.id
       );
@@ -614,39 +658,24 @@ const SalesPage: React.FC = () => {
         const existingItem = receiptItems[existingItemIndex];
         const newQuantity = existingItem.quantity + 1;
         await handleQuantityChange(existingItem.id, newQuantity);
-      } else {
-        // Создаем объект нового товара для чека
-        const formattedQuantity = Number(Number(1).toFixed(3));
-        const formattedPrice = Number(Number(product.price).toFixed(2));
-        const formattedAmount = Number(
-          (formattedPrice * formattedQuantity).toFixed(2)
-        );
-        const formattedDiscountPercent = 0;
-        const formattedDiscountAmount = 0;
-        const formattedFinalAmount = formattedAmount;
+        return;
+      }
 
-        const newItem: ReceiptItem = {
-          id: uuidv4(),
-          name: product.name,
-          price: formattedPrice,
-          quantity: formattedQuantity,
-          amount: formattedAmount,
-          discountPercent: formattedDiscountPercent,
-          discountAmount: formattedDiscountAmount,
-          finalAmount: formattedFinalAmount,
-          type: product.isService ? 'service' : 'product',
-          warehouseProductId: product.id,
-        };
+      // 2. Если нет существующего товара, пробуем добавить новый
+      try {
+        // Если есть ID чека, пробуем использовать его
+        if (receiptId) {
+          try {
+            console.log(
+              'Пробуем добавить товар в существующий чек:',
+              receiptId
+            );
+            const serverResponse = await addItemToReceiptOnServer(
+              receiptId,
+              newItem
+            );
 
-        // Добавляем товар в чек на сервере
-        if (currentReceiptId) {
-          const serverResponse = await addItemToReceiptOnServer(
-            currentReceiptId,
-            newItem
-          );
-
-          if (serverResponse) {
-            // Обновляем локальное состояние с учетом ответа сервера
+            // Если успешно, добавляем товар в UI
             setReceiptItems((prevItems) => [
               ...prevItems,
               {
@@ -655,18 +684,53 @@ const SalesPage: React.FC = () => {
                 serverItemId: serverResponse.id,
               },
             ]);
-          } else {
-            throw new Error(
-              'Не получен ответ от сервера при добавлении товара'
+            setError(null);
+            return;
+          } catch (existingReceiptError) {
+            console.warn(
+              'Ошибка при добавлении товара в существующий чек:',
+              existingReceiptError
             );
+            // Если произошла ошибка, очищаем данные о чеке в localStorage
+            Object.values(STORAGE_KEYS).forEach((key) =>
+              localStorage.removeItem(key)
+            );
+            setReceiptId('');
+            setReceiptNumber('');
+            // Продолжаем выполнение и создаем новый чек
           }
         }
 
+        // 3. Создаем новый чек и добавляем товар в него
+        console.log('Создаем новый чек для товара');
+        const newReceipt = await createNewReceipt(currentShift);
+        if (!newReceipt?.id) {
+          throw new Error('Не удалось создать новый чек');
+        }
+
+        // Добавляем товар в новый чек
+        const newServerResponse = await addItemToReceiptOnServer(
+          newReceipt.id,
+          newItem
+        );
+
+        // Обновляем UI
+        setReceiptItems((prevItems) => [
+          ...prevItems,
+          {
+            ...newItem,
+            id: newServerResponse.id,
+            serverItemId: newServerResponse.id,
+          },
+        ]);
         setError(null);
+      } catch (err) {
+        console.error('Окончательная ошибка при добавлении товара:', err);
+        setError('Не удалось добавить товар в чек');
       }
     } catch (err) {
-      console.error('Ошибка при добавлении товара:', err);
-      setError('Не удалось добавить товар в чек');
+      console.error('Общая ошибка при обработке товара:', err);
+      setError('Не удалось обработать товар');
     }
   };
 
@@ -1059,7 +1123,9 @@ const SalesPage: React.FC = () => {
   const loadPostponedReceipts = async () => {
     if (!warehouseId) return;
     try {
-      const receipts = await cashierApi.getPostponedReceipts(warehouseId);
+      const response = await cashierApi.getPostponedReceipts(warehouseId);
+      // Проверяем, что результат - массив
+      const receipts = Array.isArray(response) ? response : [];
       setPostponedReceipts(receipts);
     } catch (error) {
       console.error('Error loading postponed receipts:', error);

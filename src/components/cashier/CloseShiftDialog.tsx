@@ -46,6 +46,38 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
     }
   }, [isLoading, onClose, closingData]);
 
+  /**
+   * Очистка данных о текущем чеке из localStorage
+   */
+  const clearReceiptStorage = () => {
+    try {
+      console.log('[CloseShiftDialog] Очистка данных о чеке из localStorage');
+      // Ключи, используемые в SalesPage для хранения данных о чеке
+      const STORAGE_KEYS = {
+        RECEIPT_ID: 'SAUDA_PRO_RECEIPT_ID',
+        RECEIPT_NUMBER: 'SAUDA_PRO_RECEIPT_NUMBER',
+        RECEIPT_ITEMS: 'SAUDA_PRO_RECEIPT_ITEMS',
+        TOTAL_AMOUNT: 'SAUDA_PRO_TOTAL_AMOUNT',
+        DISCOUNT_AMOUNT: 'SAUDA_PRO_DISCOUNT_AMOUNT',
+        FINAL_AMOUNT: 'SAUDA_PRO_FINAL_AMOUNT',
+      };
+
+      // Очищаем все данные связанные с чеком
+      Object.values(STORAGE_KEYS).forEach((key) => {
+        localStorage.removeItem(key);
+        console.log(`[CloseShiftDialog] Удален ключ из localStorage: ${key}`);
+      });
+
+      console.log('[CloseShiftDialog] Хранилище успешно очищено');
+    } catch (error) {
+      console.error(
+        '[CloseShiftDialog] Ошибка при очистке localStorage:',
+        error
+      );
+      // Продолжаем работу даже при ошибке очистки хранилища
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
@@ -215,7 +247,11 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
             warehouseId
           );
 
-          const postponedReceipts = postponedResponse.data || [];
+          // Проверяем, что результат - массив, и используем его напрямую
+          // функция API возвращает массив чеков, а не объект с полем data
+          const postponedReceipts = Array.isArray(postponedResponse)
+            ? postponedResponse
+            : [];
           console.log(
             `[DEBUG] Найдено ${postponedReceipts.length} отложенных чеков для удаления:`
           );
@@ -354,6 +390,9 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
       if (!data || !data.warehouse || !data.cashRegister || !data.cashier) {
         throw new Error('Получены неполные данные от сервера');
       }
+
+      // Очищаем данные о чеке из localStorage, чтобы предотвратить использование удаленного чека в новой смене
+      clearReceiptStorage();
 
       console.log('Установка данных в состояние...');
       setClosingData(data);
