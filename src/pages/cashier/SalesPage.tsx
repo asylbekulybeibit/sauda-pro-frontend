@@ -6,6 +6,7 @@ import TotalPanel from '../../components/cashier/TotalPanel';
 import PaymentModal from '../../components/cashier/PaymentModal';
 import PostponedReceiptsModal from '../../components/cashier/PostponedReceiptsModal';
 import InsufficientStockModal from '../../components/cashier/InsufficientStockModal';
+import ExtraFunctionsModal from '../../components/cashier/ExtraFunctionsModal';
 import { cashierApi } from '../../services/cashierApi';
 import {
   Product,
@@ -19,6 +20,8 @@ import { RegisterPaymentMethod } from '../../types/cash-register';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './SalesPage.module.css';
 import { Snackbar, Alert } from '@mui/material';
+import ClientSearchModal from '../../components/cashier/ClientSearchModal';
+import VehicleSearchModal from '../../components/cashier/VehicleSearchModal';
 
 // Ключи для localStorage
 const STORAGE_KEYS = {
@@ -29,6 +32,34 @@ const STORAGE_KEYS = {
   DISCOUNT_AMOUNT: 'cashier_discount_amount',
   FINAL_AMOUNT: 'cashier_final_amount',
 } as const;
+
+// Интерфейсы для клиента и автомобиля
+interface Client {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  discountPercent?: number;
+  email?: string;
+}
+
+interface Vehicle {
+  id: string;
+  make: string;
+  model: string;
+  year?: number;
+  plateNumber?: string;
+  licensePlate?: string;
+  vin?: string;
+  clientId?: string;
+  hasClient: boolean;
+  clientInfo?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    discountPercent?: number;
+  };
+}
 
 const SalesPage: React.FC = () => {
   const { warehouseId } = useParams<{ warehouseId: string }>();
@@ -58,6 +89,11 @@ const SalesPage: React.FC = () => {
     availableQuantity: number;
     requiredQuantity: number;
   } | null>(null);
+  const [isExtraFunctionsModalOpen, setIsExtraFunctionsModalOpen] =
+    useState(false);
+  const [isClientSearchModalOpen, setIsClientSearchModalOpen] = useState(false);
+  const [isVehicleSearchModalOpen, setIsVehicleSearchModalOpen] =
+    useState(false);
 
   // Сохранение состояния в localStorage
   const saveStateToStorage = () => {
@@ -987,7 +1023,7 @@ const SalesPage: React.FC = () => {
   };
 
   const handleExtraFunctions = () => {
-    alert('Открытие модального окна дополнительных функций');
+    setIsExtraFunctionsModalOpen(true);
   };
 
   const handleRemove = () => {
@@ -1135,6 +1171,49 @@ const SalesPage: React.FC = () => {
     }
   };
 
+  // Обработчики для кнопок в модальном окне дополнительных функций
+  const handleOpenClientSearch = () => {
+    setIsClientSearchModalOpen(true);
+  };
+
+  const handleOpenVehicleSearch = () => {
+    setIsVehicleSearchModalOpen(true);
+  };
+
+  // Обработчик выбора клиента
+  const handleClientSelect = (client: Client) => {
+    console.log('Выбран клиент:', client);
+  };
+
+  // Обработчик выбора автомобиля
+  const handleVehicleSelect = (vehicle: Vehicle) => {
+    console.log('Выбран автомобиль:', vehicle);
+  };
+
+  // Обработчик для кнопки "Назад" в модальном окне поиска клиента
+  const handleBackFromClientSearch = () => {
+    setIsClientSearchModalOpen(false);
+    setIsExtraFunctionsModalOpen(true);
+  };
+
+  // Обработчик для кнопки "Назад" в модальном окне поиска автомобиля
+  const handleBackFromVehicleSearch = () => {
+    setIsVehicleSearchModalOpen(false);
+    setIsExtraFunctionsModalOpen(true);
+  };
+
+  // Обработчик для кнопки "Добавить нового клиента"
+  const handleAddNewClient = () => {
+    console.log('Добавление нового клиента');
+    // Здесь будет логика для перехода к форме добавления нового клиента
+  };
+
+  // Обработчик для кнопки "Добавить новый автомобиль"
+  const handleAddNewVehicle = () => {
+    console.log('Добавление нового автомобиля');
+    // Здесь будет логика для перехода к форме добавления нового автомобиля
+  };
+
   return (
     <div className={styles.salesPage}>
       {error && (
@@ -1231,6 +1310,31 @@ const SalesPage: React.FC = () => {
           <div className={styles.loadingText}>Обработка...</div>
         </div>
       )}
+
+      <ExtraFunctionsModal
+        isOpen={isExtraFunctionsModalOpen}
+        onClose={() => setIsExtraFunctionsModalOpen(false)}
+        onClientSelect={handleOpenClientSearch}
+        onVehicleSelect={handleOpenVehicleSearch}
+      />
+
+      <ClientSearchModal
+        isOpen={isClientSearchModalOpen}
+        onClose={() => setIsClientSearchModalOpen(false)}
+        warehouseId={warehouseId || ''}
+        onSelectClient={handleClientSelect}
+        onBack={handleBackFromClientSearch}
+        onAddNew={handleAddNewClient}
+      />
+
+      <VehicleSearchModal
+        isOpen={isVehicleSearchModalOpen}
+        onClose={() => setIsVehicleSearchModalOpen(false)}
+        warehouseId={warehouseId || ''}
+        onSelectVehicle={handleVehicleSelect}
+        onBack={handleBackFromVehicleSearch}
+        onAddNew={handleAddNewVehicle}
+      />
 
       <Snackbar
         open={showSuccessSnackbar}

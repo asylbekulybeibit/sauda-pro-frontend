@@ -689,4 +689,71 @@ export const cashierApi = {
       return null;
     }
   },
+
+  /**
+   * Поиск клиентов
+   */
+  async searchClients(warehouseId: string, query: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/clients`,
+      {
+        params: { search: query },
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Получение информации о клиенте
+   */
+  async getClientDetails(warehouseId: string, clientId: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/clients/${clientId}`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Поиск автомобилей
+   */
+  async searchVehicles(warehouseId: string, query: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/vehicles`,
+      {
+        params: { search: query },
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Получение информации об автомобиле
+   */
+  async getVehicleDetails(warehouseId: string, vehicleId: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/vehicles/${vehicleId}`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Получение автомобилей клиента
+   */
+  async getClientVehicles(warehouseId: string, clientId: string) {
+    const response = await axios.get(
+      `${API_URL}/manager/${warehouseId}/cashier/clients/${clientId}/vehicles`,
+      {
+        headers: getAuthHeader(),
+      }
+    );
+    return response.data;
+  },
 };
