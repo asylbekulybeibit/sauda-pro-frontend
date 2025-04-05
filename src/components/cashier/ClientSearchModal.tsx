@@ -34,7 +34,8 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   onAddNew,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [clients, setClients] = useState<Client[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
@@ -52,20 +53,94 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
     setShowKeyboard(!showKeyboard);
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery || searchQuery.length < 2) return;
+  const loadAllClients = async () => {
+    console.log('===== [ClientSearchModal] Загрузка всех клиентов =====');
+    console.log(`[ClientSearchModal] warehouseId: ${warehouseId}`);
 
     try {
       setIsLoading(true);
       setError(null);
-      const results = await cashierApi.searchClients(warehouseId, searchQuery);
-      setClients(results);
-    } catch (err) {
-      console.error('Ошибка при поиске клиентов:', err);
-      setError('Не удалось найти клиентов. Попробуйте еще раз.');
+
+      console.log('[ClientSearchModal] Вызов API getAllClients...');
+      const results = await cashierApi.getAllClients(warehouseId);
+
+      console.log(`[ClientSearchModal] Получено клиентов: ${results.length}`);
+      setAllClients(results);
+      setFilteredClients(results);
+
+      if (results.length === 0) {
+        console.log('[ClientSearchModal] Предупреждение: список клиентов пуст');
+        setError('Клиенты не найдены');
+      }
+    } catch (error) {
+      console.error('[ClientSearchModal] Ошибка при загрузке клиентов:', error);
+      let errorMessage = 'Не удалось загрузить список клиентов.';
+
+      if (error instanceof Error) {
+        console.error(`[ClientSearchModal] Сообщение ошибки: ${error.message}`);
+        errorMessage += ` ${error.message}`;
+      } else if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error
+      ) {
+        const axiosError = error as {
+          response?: { status: number; data: any };
+        };
+        if (axiosError.response) {
+          console.error(
+            `[ClientSearchModal] Статус ошибки: ${axiosError.response.status}`
+          );
+          console.error(
+            '[ClientSearchModal] Данные ошибки:',
+            axiosError.response.data
+          );
+          errorMessage += ` Статус: ${axiosError.response.status}`;
+        }
+      }
+
+      setError(errorMessage);
+      setAllClients([]);
+      setFilteredClients([]);
     } finally {
+      console.log('[ClientSearchModal] Завершение загрузки клиентов');
       setIsLoading(false);
     }
+  };
+
+  const filterClients = () => {
+    console.log(
+      `[ClientSearchModal] Фильтрация клиентов по запросу: "${searchQuery}"`
+    );
+    console.log(
+      `[ClientSearchModal] Всего клиентов для фильтрации: ${allClients.length}`
+    );
+
+    if (!searchQuery.trim()) {
+      console.log(
+        '[ClientSearchModal] Пустой запрос - показываем всех клиентов'
+      );
+      setFilteredClients(allClients);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = allClients.filter((client) => {
+      const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
+      const name = client.name?.toLowerCase() || '';
+      const phone = client.phone?.toLowerCase() || '';
+
+      return (
+        fullName.includes(query) ||
+        name.includes(query) ||
+        phone.includes(query)
+      );
+    });
+
+    console.log(
+      `[ClientSearchModal] Отфильтровано клиентов: ${filtered.length}`
+    );
+    setFilteredClients(filtered);
   };
 
   const handleSelectClient = (client: Client) => {
@@ -74,19 +149,40 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
-      setSearchQuery('');
-      setClients([]);
-      setError(null);
-      setShowKeyboard(false);
-    }
-  }, [isOpen]);
+    console.log(
+      `[ClientSearchModal] useEffect сработал, isOpen: ${isOpen}, warehouseId: ${warehouseId}`
+    );
 
-  // Выполнить поиск при нажатии Enter
-  const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+    if (isOpen) {
+      console.log(
+        '[ClientSearchModal] Модальное окно открыто, очищаем state и загружаем клиентов'
+      );
+      setSearchQuery('');
+      setShowKeyboard(false);
+      loadAllClients();
+    } else {
+      console.log(
+        '[ClientSearchModal] Модальное окно закрыто, не загружаем клиентов'
+      );
     }
+
+    return () => {
+      console.log('[ClientSearchModal] Выполняется cleanup функция эффекта');
+    };
+  }, [isOpen, warehouseId]);
+
+  useEffect(() => {
+    console.log(
+      `[ClientSearchModal] Поисковый запрос изменился: "${searchQuery}"`
+    );
+    console.log(
+      `[ClientSearchModal] Текущее количество клиентов: ${allClients.length}`
+    );
+    filterClients();
+  }, [searchQuery, allClients]);
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   return (
@@ -98,26 +194,22 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
             className={styles.searchInput}
             placeholder="Введите имя, фамилию или телефон клиента..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleInputKeyPress}
+            onChange={handleSearchInputChange}
             ref={searchInputRef}
           />
           <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
             <BsKeyboard />
           </div>
-          <button className={styles.searchButton} onClick={handleSearch}>
-            Поиск
-          </button>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
         {isLoading ? (
-          <div className={styles.loading}>Загрузка...</div>
+          <div className={styles.loading}>Загрузка клиентов...</div>
         ) : (
           <div className={styles.resultsList}>
-            {clients.length > 0 ? (
-              clients.map((client) => (
+            {filteredClients.length > 0 ? (
+              filteredClients.map((client) => (
                 <div
                   key={client.id}
                   className={styles.resultItem}
@@ -136,9 +228,11 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
                   </div>
                 </div>
               ))
-            ) : searchQuery.length > 0 ? (
-              <div className={styles.noResults}>Клиенты не найдены</div>
-            ) : null}
+            ) : (
+              <div className={styles.noResults}>
+                {searchQuery ? 'Клиенты не найдены' : 'Нет доступных клиентов'}
+              </div>
+            )}
           </div>
         )}
 
@@ -162,7 +256,7 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
           <VirtualKeyboard
             onKeyPress={handleKeyPress}
             onCancel={() => setShowKeyboard(false)}
-            onOk={handleSearch}
+            onOk={() => setShowKeyboard(false)}
           />
         )}
       </div>

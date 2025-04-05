@@ -43,7 +43,8 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
   onAddNew,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
@@ -61,20 +62,102 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
     setShowKeyboard(!showKeyboard);
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery || searchQuery.length < 2) return;
+  // Загрузка всех автомобилей
+  const loadAllVehicles = async () => {
+    console.log(
+      '===== [VehicleSearchModal] Загрузка всех транспортных средств ====='
+    );
+    console.log(`[VehicleSearchModal] warehouseId: ${warehouseId}`);
 
     try {
       setIsLoading(true);
       setError(null);
-      const results = await cashierApi.searchVehicles(warehouseId, searchQuery);
-      setVehicles(results);
-    } catch (err) {
-      console.error('Ошибка при поиске автомобилей:', err);
-      setError('Не удалось найти автомобили. Попробуйте еще раз.');
+
+      console.log('[VehicleSearchModal] Вызов API getAllVehicles...');
+      const results = await cashierApi.getAllVehicles(warehouseId);
+
+      console.log(
+        `[VehicleSearchModal] Получено транспортных средств: ${results.length}`
+      );
+      setAllVehicles(results);
+      setFilteredVehicles(results);
+
+      if (results.length === 0) {
+        console.log(
+          '[VehicleSearchModal] Предупреждение: список транспортных средств пуст'
+        );
+        setError('Транспортные средства не найдены');
+      }
+    } catch (error) {
+      console.error(
+        '[VehicleSearchModal] Ошибка при загрузке транспортных средств:',
+        error
+      );
+      let errorMessage = 'Не удалось загрузить список транспортных средств.';
+
+      if (error instanceof Error) {
+        console.error(
+          `[VehicleSearchModal] Сообщение ошибки: ${error.message}`
+        );
+        errorMessage += ` ${error.message}`;
+      } else if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error
+      ) {
+        const axiosError = error as {
+          response?: { status: number; data: any };
+        };
+        if (axiosError.response) {
+          console.error(
+            `[VehicleSearchModal] Статус ошибки: ${axiosError.response.status}`
+          );
+          console.error(
+            '[VehicleSearchModal] Данные ошибки:',
+            axiosError.response.data
+          );
+          errorMessage += ` Статус: ${axiosError.response.status}`;
+        }
+      }
+
+      setError(errorMessage);
+      setAllVehicles([]);
+      setFilteredVehicles([]);
     } finally {
+      console.log(
+        '[VehicleSearchModal] Завершение загрузки транспортных средств'
+      );
       setIsLoading(false);
     }
+  };
+
+  // Фильтрация автомобилей локально
+  const filterVehicles = () => {
+    if (!searchQuery.trim()) {
+      setFilteredVehicles(allVehicles);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = allVehicles.filter((vehicle) => {
+      const makeModel = `${vehicle.make} ${vehicle.model}`.toLowerCase();
+      const plateNumber = (
+        vehicle.licensePlate ||
+        vehicle.plateNumber ||
+        ''
+      ).toLowerCase();
+      const vin = (vehicle.vin || '').toLowerCase();
+      const year = vehicle.year?.toString() || '';
+
+      return (
+        makeModel.includes(query) ||
+        plateNumber.includes(query) ||
+        vin.includes(query) ||
+        year.includes(query)
+      );
+    });
+
+    setFilteredVehicles(filtered);
   };
 
   const handleSelectVehicle = (vehicle: Vehicle) => {
@@ -82,20 +165,23 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
     onClose();
   };
 
+  // Эффект для загрузки автомобилей при открытии модального окна
   useEffect(() => {
     if (isOpen) {
       setSearchQuery('');
-      setVehicles([]);
-      setError(null);
       setShowKeyboard(false);
+      loadAllVehicles();
     }
-  }, [isOpen]);
+  }, [isOpen, warehouseId]);
 
-  // Выполнить поиск при нажатии Enter
-  const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
+  // Эффект для фильтрации при изменении поискового запроса
+  useEffect(() => {
+    filterVehicles();
+  }, [searchQuery, allVehicles]);
+
+  // Обработка изменения поискового запроса
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
 
   return (
@@ -107,26 +193,22 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
             className={styles.searchInput}
             placeholder="Введите номер, марку, модель или VIN..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleInputKeyPress}
+            onChange={handleSearchInputChange}
             ref={searchInputRef}
           />
           <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
             <BsKeyboard />
           </div>
-          <button className={styles.searchButton} onClick={handleSearch}>
-            Поиск
-          </button>
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
         {isLoading ? (
-          <div className={styles.loading}>Загрузка...</div>
+          <div className={styles.loading}>Загрузка автомобилей...</div>
         ) : (
           <div className={styles.resultsList}>
-            {vehicles.length > 0 ? (
-              vehicles.map((vehicle) => (
+            {filteredVehicles.length > 0 ? (
+              filteredVehicles.map((vehicle) => (
                 <div
                   key={vehicle.id}
                   className={styles.resultItem}
@@ -157,9 +239,13 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
                   )}
                 </div>
               ))
-            ) : searchQuery.length > 0 ? (
-              <div className={styles.noResults}>Автомобили не найдены</div>
-            ) : null}
+            ) : (
+              <div className={styles.noResults}>
+                {searchQuery
+                  ? 'Автомобили не найдены'
+                  : 'Нет доступных автомобилей'}
+              </div>
+            )}
           </div>
         )}
 
@@ -183,7 +269,7 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
           <VirtualKeyboard
             onKeyPress={handleKeyPress}
             onCancel={() => setShowKeyboard(false)}
-            onOk={handleSearch}
+            onOk={() => setShowKeyboard(false)}
           />
         )}
       </div>

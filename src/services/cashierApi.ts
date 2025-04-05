@@ -691,17 +691,184 @@ export const cashierApi = {
   },
 
   /**
-   * Поиск клиентов
+   * Получение информации о складе
+   * @param warehouseId ID склада
    */
-  async searchClients(warehouseId: string, query: string) {
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/clients`,
-      {
-        params: { search: query },
-        headers: getAuthHeader(),
-      }
+  async getWarehouseInfo(warehouseId: string) {
+    console.log(
+      '===== [WAREHOUSE API] Начало запроса информации о складе ====='
     );
-    return response.data;
+    console.log(`[WAREHOUSE API] warehouseId: ${warehouseId}`);
+
+    const url = `${API_URL}/manager/warehouses/${warehouseId}`;
+    console.log(`[WAREHOUSE API] URL запроса: ${url}`);
+
+    try {
+      console.log(
+        '[WAREHOUSE API] Отправка запроса на получение информации о складе...'
+      );
+      const response = await axios.get(url, {
+        headers: getAuthHeader(),
+      });
+
+      console.log(`[WAREHOUSE API] Статус ответа: ${response.status}`);
+      console.log('[WAREHOUSE API] Полученные данные:', response.data);
+
+      if (response.data && response.data.shopId) {
+        console.log(`[WAREHOUSE API] shopId склада: ${response.data.shopId}`);
+      } else {
+        console.error('[WAREHOUSE API] В ответе отсутствует shopId!');
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[WAREHOUSE API] Ошибка при получении информации о складе:',
+        error
+      );
+
+      if (error.response) {
+        console.error(
+          `[WAREHOUSE API] Статус ошибки: ${error.response.status}`
+        );
+        console.error('[WAREHOUSE API] Данные ошибки:', error.response.data);
+      }
+
+      return null;
+    } finally {
+      console.log(
+        '===== [WAREHOUSE API] Завершение запроса информации о складе ====='
+      );
+    }
+  },
+
+  /**
+   * Получение всех клиентов магазина
+   * @param shopId ID магазина
+   */
+  async getShopClients(shopId: string) {
+    console.log('===== [CLIENTS API] Начало запроса клиентов магазина =====');
+    console.log(`[CLIENTS API] shopId: ${shopId}`);
+
+    const url = `${API_URL}/manager/clients/shop/${shopId}`;
+    console.log(`[CLIENTS API] URL запроса: ${url}`);
+
+    try {
+      console.log(
+        '[CLIENTS API] Отправка запроса на получение клиентов магазина...'
+      );
+      const response = await axios.get(url, {
+        headers: getAuthHeader(),
+      });
+
+      console.log(`[CLIENTS API] Статус ответа: ${response.status}`);
+      console.log(
+        `[CLIENTS API] Получено клиентов: ${
+          response.data ? response.data.length : 0
+        }`
+      );
+
+      if (response.data && response.data.length > 0) {
+        console.log('[CLIENTS API] Пример данных:', response.data[0]);
+      } else {
+        console.log('[CLIENTS API] Получен пустой массив клиентов');
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[CLIENTS API] Ошибка при получении клиентов магазина:',
+        error
+      );
+
+      if (error.response) {
+        console.error(`[CLIENTS API] Статус ошибки: ${error.response.status}`);
+        console.error('[CLIENTS API] Данные ошибки:', error.response.data);
+      }
+
+      console.log('[CLIENTS API] Возвращаем пустой массив');
+      return [];
+    } finally {
+      console.log(
+        '===== [CLIENTS API] Завершение запроса клиентов магазина ====='
+      );
+    }
+  },
+
+  /**
+   * Поиск клиентов
+   * @param warehouseId ID склада
+   * @param query Поисковый запрос
+   * @param getAllIfEmpty Если true, то при пустом запросе будет запрос на получение всех клиентов
+   */
+  async searchClients(
+    warehouseId: string,
+    query: string,
+    getAllIfEmpty: boolean = false
+  ) {
+    // Если запрос пустой и требуется получить всех, используем запрос длиной 2 символа
+    // чтобы обойти проверку на бэкенде where query.trim().length < 2
+    const searchQuery = !query && getAllIfEmpty ? 'aa' : query;
+
+    console.log('===== [CLIENTS API] Начало запроса клиентов =====');
+    console.log(`[CLIENTS API] warehouseId: ${warehouseId}`);
+    console.log(
+      `[CLIENTS API] Исходный запрос: "${query}", getAllIfEmpty: ${getAllIfEmpty}`
+    );
+    console.log(`[CLIENTS API] Итоговый запрос: "${searchQuery}"`);
+
+    const url = `${API_URL}/manager/${warehouseId}/cashier/clients/search`;
+    console.log(`[CLIENTS API] URL запроса: ${url}`);
+    console.log(`[CLIENTS API] Параметры: query="${searchQuery}"`);
+
+    try {
+      console.log('[CLIENTS API] Отправка запроса...');
+      const response = await axios.get(url, {
+        params: { query: searchQuery },
+        headers: getAuthHeader(),
+      });
+
+      console.log(`[CLIENTS API] Статус ответа: ${response.status}`);
+      console.log(
+        `[CLIENTS API] Получено клиентов: ${
+          response.data ? response.data.length : 0
+        }`
+      );
+
+      if (response.data && response.data.length > 0) {
+        console.log('[CLIENTS API] Пример данных:', response.data[0]);
+      } else {
+        console.log('[CLIENTS API] Получен пустой массив клиентов');
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error('[CLIENTS API] Ошибка при поиске клиентов:', error);
+
+      if (error.response) {
+        console.error(`[CLIENTS API] Статус ошибки: ${error.response.status}`);
+        console.error('[CLIENTS API] Данные ошибки:', error.response.data);
+        console.error(
+          '[CLIENTS API] Заголовки ответа:',
+          error.response.headers
+        );
+      } else if (error.request) {
+        console.error(
+          '[CLIENTS API] Запрос был отправлен, но ответ не получен'
+        );
+        console.error('[CLIENTS API] Детали запроса:', error.request);
+      } else {
+        console.error(
+          '[CLIENTS API] Ошибка при настройке запроса:',
+          error.message
+        );
+      }
+
+      console.log('[CLIENTS API] Возвращаем пустой массив');
+      return [];
+    } finally {
+      console.log('===== [CLIENTS API] Завершение запроса клиентов =====');
+    }
   },
 
   /**
@@ -719,16 +886,23 @@ export const cashierApi = {
 
   /**
    * Поиск автомобилей
+   * @param warehouseId ID склада
+   * @param query Поисковый запрос
    */
   async searchVehicles(warehouseId: string, query: string) {
-    const response = await axios.get(
-      `${API_URL}/manager/${warehouseId}/cashier/vehicles`,
-      {
-        params: { search: query },
-        headers: getAuthHeader(),
-      }
-    );
-    return response.data;
+    try {
+      const response = await axios.get(
+        `${API_URL}/manager/${warehouseId}/cashier/vehicles`,
+        {
+          params: { search: query },
+          headers: getAuthHeader(),
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('API: Ошибка при поиске автомобилей:', error);
+      return [];
+    }
   },
 
   /**
@@ -755,5 +929,106 @@ export const cashierApi = {
       }
     );
     return response.data;
+  },
+
+  /**
+   * Получение всех клиентов (через поиск магазина по складу)
+   * @param warehouseId ID склада
+   */
+  async getAllClients(warehouseId: string) {
+    console.log('===== [CLIENTS API] Начало запроса всех клиентов =====');
+    console.log(`[CLIENTS API] warehouseId: ${warehouseId}`);
+
+    try {
+      // Шаг 1: Получаем информацию о складе, чтобы узнать shopId
+      console.log('[CLIENTS API] Получение информации о складе...');
+      const warehouseInfo = await this.getWarehouseInfo(warehouseId);
+
+      if (!warehouseInfo || !warehouseInfo.shopId) {
+        console.error(
+          '[CLIENTS API] Не удалось получить ID магазина для склада'
+        );
+        return [];
+      }
+
+      const shopId = warehouseInfo.shopId;
+      console.log(`[CLIENTS API] Получен shopId: ${shopId}`);
+
+      // Шаг 2: Получаем клиентов магазина
+      console.log('[CLIENTS API] Получение клиентов магазина...');
+      const clients = await this.getShopClients(shopId);
+
+      console.log(`[CLIENTS API] Получено клиентов: ${clients.length}`);
+      return clients;
+    } catch (error: any) {
+      console.error('[CLIENTS API] Ошибка при получении всех клиентов:', error);
+
+      if (error.response) {
+        console.error(`[CLIENTS API] Статус ошибки: ${error.response.status}`);
+        console.error('[CLIENTS API] Данные ошибки:', error.response.data);
+      }
+
+      console.log('[CLIENTS API] Возвращаем пустой массив');
+      return [];
+    } finally {
+      console.log('===== [CLIENTS API] Завершение запроса всех клиентов =====');
+    }
+  },
+
+  /**
+   * Получение всех транспортных средств
+   * @param warehouseId ID склада
+   */
+  async getAllVehicles(warehouseId: string) {
+    console.log(
+      '===== [VEHICLES API] Начало запроса всех транспортных средств ====='
+    );
+    console.log(`[VEHICLES API] warehouseId: ${warehouseId}`);
+
+    const url = `${API_URL}/manager/${warehouseId}/cashier/vehicles`;
+    console.log(`[VEHICLES API] URL запроса: ${url}`);
+
+    try {
+      console.log(
+        '[VEHICLES API] Отправка запроса на получение всех транспортных средств...'
+      );
+      const response = await axios.get(url, {
+        headers: getAuthHeader(),
+      });
+
+      console.log(`[VEHICLES API] Статус ответа: ${response.status}`);
+      console.log(
+        `[VEHICLES API] Получено транспортных средств: ${
+          response.data ? response.data.length : 0
+        }`
+      );
+
+      if (response.data && response.data.length > 0) {
+        console.log('[VEHICLES API] Пример данных:', response.data[0]);
+      } else {
+        console.log(
+          '[VEHICLES API] Получен пустой массив транспортных средств'
+        );
+      }
+
+      return response.data;
+    } catch (error: any) {
+      console.error(
+        '[VEHICLES API] Ошибка при получении всех транспортных средств:',
+        error
+      );
+
+      if (error.response) {
+        console.error(`[VEHICLES API] Статус ошибки: ${error.response.status}`);
+        console.error('[VEHICLES API] Данные ошибки:', error.response.data);
+      }
+
+      console.log('[VEHICLES API] Возвращаем пустой массив');
+      return [];
+    } finally {
+      console.log(
+        '===== [VEHICLES API] Завершение запроса всех транспортных средств ====='
+      );
+    }
   },
 };
