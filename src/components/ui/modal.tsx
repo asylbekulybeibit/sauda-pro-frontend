@@ -6,9 +6,16 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   title: string;
+  className?: string;
 }
 
-export function Modal({ isOpen, onClose, children, title }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  children,
+  title,
+  className,
+}: ModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -29,7 +36,11 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
             exit={{ opacity: 0, scale: 0.95 }}
             className="fixed inset-0 z-50 flex items-center justify-center"
           >
-            <div className="bg-white w-[80%] h-[80%] shadow-md relative">
+            <div
+              className={`bg-white w-[80%] h-[80%] shadow-md relative ${
+                className || ''
+              }`}
+            >
               {/* Content */}
               <div className="h-full flex flex-col">{children}</div>
             </div>

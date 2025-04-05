@@ -4,6 +4,7 @@ import { cashierApi } from '../../services/cashierApi';
 import styles from './SearchModal.module.css';
 import { BsKeyboard } from 'react-icons/bs';
 import VirtualKeyboard from './VirtualKeyboard';
+import CreateClientModal from './CreateClientModal';
 
 interface Client {
   id: string;
@@ -22,7 +23,6 @@ interface ClientSearchModalProps {
   warehouseId: string;
   onSelectClient: (client: Client) => void;
   onBack?: () => void;
-  onAddNew?: () => void;
 }
 
 const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
@@ -31,7 +31,6 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   warehouseId,
   onSelectClient,
   onBack,
-  onAddNew,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [allClients, setAllClients] = useState<Client[]>([]);
@@ -39,6 +38,7 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyPress = (key: string) => {
@@ -185,82 +185,121 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
     setSearchQuery(e.target.value);
   };
 
+  // Обработчик нажатия на кнопку "Добавить нового клиента"
+  const handleAddNewClick = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  // Обработчик успешного создания клиента
+  const handleClientCreated = (newClient: Client) => {
+    console.log('[ClientSearchModal] Клиент успешно создан:', newClient);
+
+    // Добавляем нового клиента в список и обновляем отфильтрованный список
+    const updatedClients = [newClient, ...allClients];
+    setAllClients(updatedClients);
+
+    // Если есть активный поисковый запрос, применяем фильтрацию
+    if (searchQuery.trim()) {
+      filterClients(); // Используем существующую функцию для фильтрации
+    } else {
+      setFilteredClients(updatedClients);
+    }
+
+    // Показываем уведомление об успешном создании (опционально)
+    setError(null);
+
+    // Можно также автоматически выбрать созданного клиента
+    // onSelectClient(newClient);
+    // onClose();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Поиск клиента">
-      <div className={styles.modalContent}>
-        <div className={styles.searchContainer}>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Введите имя, фамилию или телефон клиента..."
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            ref={searchInputRef}
-          />
-          <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
-            <BsKeyboard />
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="Поиск клиента">
+        <div className={styles.modalContent}>
+          <div className={styles.searchContainer}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Введите имя, фамилию или телефон клиента..."
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              ref={searchInputRef}
+            />
+            <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
+              <BsKeyboard />
+            </div>
           </div>
-        </div>
 
-        {error && <div className={styles.error}>{error}</div>}
+          {error && <div className={styles.error}>{error}</div>}
 
-        {isLoading ? (
-          <div className={styles.loading}>Загрузка клиентов...</div>
-        ) : (
-          <div className={styles.resultsList}>
-            {filteredClients.length > 0 ? (
-              filteredClients.map((client) => (
-                <div
-                  key={client.id}
-                  className={styles.resultItem}
-                  onClick={() => handleSelectClient(client)}
-                >
-                  <div className={styles.clientName}>
-                    {client.name || `${client.firstName} ${client.lastName}`}
+          {isLoading ? (
+            <div className={styles.loading}>Загрузка клиентов...</div>
+          ) : (
+            <div className={styles.resultsList}>
+              {filteredClients.length > 0 ? (
+                filteredClients.map((client) => (
+                  <div
+                    key={client.id}
+                    className={styles.resultItem}
+                    onClick={() => handleSelectClient(client)}
+                  >
+                    <div className={styles.clientName}>
+                      {client.name || `${client.firstName} ${client.lastName}`}
+                    </div>
+                    <div className={styles.clientInfo}>
+                      <span>Тел: {client.phone}</span>
+                      {client.discountPercent || client.discount ? (
+                        <span className={styles.discount}>
+                          Скидка: {client.discount || client.discountPercent}%
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className={styles.clientInfo}>
-                    <span>Тел: {client.phone}</span>
-                    {client.discountPercent || client.discount ? (
-                      <span className={styles.discount}>
-                        Скидка: {client.discount || client.discountPercent}%
-                      </span>
-                    ) : null}
-                  </div>
+                ))
+              ) : (
+                <div className={styles.noResults}>
+                  {searchQuery
+                    ? 'Клиенты не найдены'
+                    : 'Нет доступных клиентов'}
                 </div>
-              ))
-            ) : (
-              <div className={styles.noResults}>
-                {searchQuery ? 'Клиенты не найдены' : 'Нет доступных клиентов'}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={styles.buttonContainer}>
-          {onBack && (
-            <button className={styles.backButton} onClick={onBack}>
-              Назад
-            </button>
+              )}
+            </div>
           )}
-          <button className={styles.cancelButton} onClick={onClose}>
-            Отмена
-          </button>
-          {onAddNew && (
-            <button className={styles.addNewButton} onClick={onAddNew}>
+
+          <div className={styles.buttonContainer}>
+            {onBack && (
+              <button className={styles.backButton} onClick={onBack}>
+                Назад
+              </button>
+            )}
+            <button className={styles.cancelButton} onClick={onClose}>
+              Отмена
+            </button>
+            {/* Используем нашу функцию handleAddNewClick вместо onAddNew */}
+            <button className={styles.addNewButton} onClick={handleAddNewClick}>
               Добавить нового клиента
             </button>
+          </div>
+
+          {showKeyboard && (
+            <VirtualKeyboard
+              onKeyPress={handleKeyPress}
+              onCancel={() => setShowKeyboard(false)}
+              onOk={() => setShowKeyboard(false)}
+            />
           )}
         </div>
+      </Modal>
 
-        {showKeyboard && (
-          <VirtualKeyboard
-            onKeyPress={handleKeyPress}
-            onCancel={() => setShowKeyboard(false)}
-            onOk={() => setShowKeyboard(false)}
-          />
-        )}
-      </div>
-    </Modal>
+      {/* Модальное окно для создания нового клиента */}
+      <CreateClientModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        warehouseId={warehouseId}
+        onClientCreated={handleClientCreated}
+      />
+    </>
   );
 };
 

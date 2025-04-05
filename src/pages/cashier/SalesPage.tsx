@@ -1202,12 +1202,6 @@ const SalesPage: React.FC = () => {
     setIsExtraFunctionsModalOpen(true);
   };
 
-  // Обработчик для кнопки "Добавить нового клиента"
-  const handleAddNewClient = () => {
-    console.log('Добавление нового клиента');
-    // Здесь будет логика для перехода к форме добавления нового клиента
-  };
-
   // Обработчик для кнопки "Добавить новый автомобиль"
   const handleAddNewVehicle = () => {
     console.log('Добавление нового автомобиля');
@@ -1324,7 +1318,6 @@ const SalesPage: React.FC = () => {
         warehouseId={warehouseId || ''}
         onSelectClient={handleClientSelect}
         onBack={handleBackFromClientSearch}
-        onAddNew={handleAddNewClient}
       />
 
       <VehicleSearchModal
