@@ -215,7 +215,12 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Поиск клиента">
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Поиск клиента"
+        className={styles.largeModal}
+      >
         <div className={styles.modalContent}>
           <div className={styles.searchContainer}>
             <input

@@ -1,3 +1,10 @@
+.largeModal {
+  height: 90% !important;
+  width: 90% !important;
+  max-width: 1200px !important;
+  max-height: 90vh !important;
+}
+
 .modalContent {
   display: flex;
   flex-direction: column;

@@ -185,7 +185,12 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Поиск автомобиля">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Поиск автомобиля"
+      className={styles.largeModal}
+    >
       <div className={styles.modalContent}>
         <div className={styles.searchContainer}>
           <input

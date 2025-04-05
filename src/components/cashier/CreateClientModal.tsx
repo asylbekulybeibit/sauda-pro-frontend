@@ -148,6 +148,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Добавление нового клиента"
+      className={styles.largeModal}
     >
       <div className={styles.modalContent}>
         <form onSubmit={handleSubmit} className={styles.form}>
