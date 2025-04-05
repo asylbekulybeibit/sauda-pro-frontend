@@ -7,6 +7,28 @@ import NumericKeyboard from './NumericKeyboard';
 import { createVehicle } from '../../services/servicesApi';
 import { FaTimes } from 'react-icons/fa';
 import FloatingInput from './FloatingInput';
+import { v4 as uuidv4 } from 'uuid';
+
+// Импортируем интерфейс Vehicle для типизации
+interface ClientInfo {
+  id: string;
+  firstName: string;
+  lastName: string;
+  discountPercent?: number;
+}
+
+interface Vehicle {
+  id: string;
+  make: string;
+  model: string;
+  year?: number;
+  licensePlate: string;
+  plateNumber?: string;
+  vin?: string;
+  clientId?: string;
+  hasClient: boolean;
+  clientInfo?: ClientInfo;
+}
 
 interface Client {
   id: string;
@@ -37,6 +59,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
   const [model, setModel] = useState('');
   const [year, setYear] = useState<number | undefined>(undefined);
   const [licensePlate, setLicensePlate] = useState('');
+  const [isWithoutLicensePlate, setIsWithoutLicensePlate] = useState(false);
   const [registrationCertificate, setRegistrationCertificate] = useState('');
   const [vin, setVin] = useState('');
   const [bodyType, setBodyType] = useState('');
@@ -115,6 +138,35 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
     // Фокусировка на поле поиска клиента после очистки
     if (clientSearchRef.current) {
       clientSearchRef.current.focus();
+    }
+  };
+
+  // Обработчик изменения чекбокса "Без гос. номера"
+  const handleWithoutLicensePlateChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const checked = e.target.checked;
+    setIsWithoutLicensePlate(checked);
+
+    if (checked) {
+      // Если чекбокс включен, устанавливаем "Б/Н" и запрещаем редактирование
+      setLicensePlate('Б/Н');
+
+      // Если поле ввода в фокусе, скрываем клавиатуру и плавающий ввод
+      if (activeField === 'licensePlate') {
+        setShowKeyboard(false);
+        setShowNumericKeyboard(false);
+        setShowFloatingInput(false);
+        setActiveField(null);
+
+        // Снимаем фокус с поля
+        if (licensePlateRef.current) {
+          licensePlateRef.current.blur();
+        }
+      }
+    } else {
+      // Если чекбокс выключен, очищаем поле и разрешаем редактирование
+      setLicensePlate('');
     }
   };
 
@@ -307,6 +359,14 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
       return;
     }
 
+    // Если это поле гос. номера и установлен чекбокс "Без гос. номера", не показываем плавающий ввод
+    if (field === 'licensePlate' && isWithoutLicensePlate) {
+      setShowKeyboard(false);
+      setShowNumericKeyboard(false);
+      setShowFloatingInput(false);
+      return;
+    }
+
     // Определяем элемент, на который пришел фокус
     let activeElement: HTMLElement | null = null;
     switch (field) {
@@ -357,7 +417,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
             break;
           case 'licensePlate':
             value = licensePlate;
-            fieldName = 'Гос. номер';
+            fieldName = 'Гос. номер (необязательно)';
             placeholder = 'Например: A123BC';
             break;
           case 'registrationCertificate':
@@ -491,7 +551,10 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
         setYear(value ? Number(value) : undefined);
         break;
       case 'licensePlate':
-        setLicensePlate(value);
+        // Проверяем, не установлен ли флаг "Без гос. номера"
+        if (!isWithoutLicensePlate) {
+          setLicensePlate(value);
+        }
         break;
       case 'registrationCertificate':
         setRegistrationCertificate(value);
@@ -783,6 +846,12 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
     setError(null);
 
     try {
+      // Определяем, пустой ли номер или установлен чекбокс "Без гос. номера"
+      const isEmptyLicensePlate = !licensePlate.trim();
+      const shouldUseNoPlateLabel =
+        isWithoutLicensePlate || isEmptyLicensePlate;
+
+      // Если номер не задан или установлен чекбокс, добавляем метку "Б/Н" (Без номера)
       const vehicleData = {
         clientId,
         make,
@@ -790,16 +859,50 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
         year: year || undefined,
         bodyType,
         engineVolume: engineVolume || undefined,
-        licensePlate: licensePlate.trim() || 'Б/Н',
+        licensePlate: shouldUseNoPlateLabel ? 'Б/Н' : licensePlate.trim(),
         registrationCertificate: registrationCertificate || undefined,
         vin: vin || undefined,
       };
 
-      console.log('[CreateVehicleModal] Создание автомобиля:', vehicleData);
-      const newVehicle = await createVehicle(shopId, vehicleData);
-      console.log('[CreateVehicleModal] Автомобиль создан:', newVehicle);
+      if (shouldUseNoPlateLabel) {
+        console.log(
+          '[CreateVehicleModal] Создание автомобиля без номера (будет использована метка "Б/Н")'
+        );
+      }
 
-      onVehicleCreated(newVehicle);
+      console.log('[CreateVehicleModal] Создание автомобиля:', vehicleData);
+      const createdVehicle = await createVehicle(shopId, vehicleData);
+      console.log('[CreateVehicleModal] Автомобиль создан:', createdVehicle);
+
+      // Создаем объект для передачи в onVehicleCreated
+      // Преобразуем в формат, ожидаемый компонентом списка транспортных средств
+      const vehicleWithClientInfo: any = {
+        ...createdVehicle,
+        hasClient: false,
+      };
+
+      // Если был указан клиент, добавляем информацию о нем в объект автомобиля
+      if (clientId) {
+        // Находим информацию о клиенте в массиве clients
+        const clientInfo = clients.find((client) => client.id === clientId);
+
+        if (clientInfo) {
+          // Добавляем данные о клиенте в созданный автомобиль
+          vehicleWithClientInfo.hasClient = true;
+          vehicleWithClientInfo.clientInfo = {
+            id: clientInfo.id,
+            firstName: clientInfo.firstName,
+            lastName: clientInfo.lastName,
+            discountPercent: clientInfo.discountPercent,
+          };
+          console.log(
+            '[CreateVehicleModal] Добавлена информация о клиенте:',
+            vehicleWithClientInfo
+          );
+        }
+      }
+
+      onVehicleCreated(vehicleWithClientInfo);
       resetForm();
       onClose();
     } catch (err: any) {
@@ -829,6 +932,7 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
     setModel('');
     setYear(undefined);
     setLicensePlate('');
+    setIsWithoutLicensePlate(false);
     setRegistrationCertificate('');
     setVin('');
     setBodyType('');
@@ -1021,21 +1125,21 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
                 <option value="" disabled>
                   Выберите тип кузова
                 </option>
-                <option value="Sedan">Седан</option>
-                <option value="Hatchback">Хэтчбек</option>
-                <option value="SUV">Внедорожник</option>
-                <option value="Wagon">Универсал</option>
-                <option value="Coupe">Купе</option>
-                <option value="Truck">Пикап</option>
-                <option value="Minivan">Минивэн</option>
-                <option value="Van">Фургон</option>
-                <option value="Other">Другое</option>
+                <option value="Седан">Седан</option>
+                <option value="Хэтчбек">Хэтчбек</option>
+                <option value="Внедорожник">Внедорожник</option>
+                <option value="Универсал">Универсал</option>
+                <option value="Купе">Купе</option>
+                <option value="Пикап">Пикап</option>
+                <option value="Минивэн">Минивэн</option>
+                <option value="Фургон">Фургон</option>
+                <option value="Другое">Другое</option>
               </select>
             </div>
 
             <div className={styles.formGroup}>
               <label htmlFor="licensePlate" className={styles.label}>
-                Гос. номер
+                Гос. номер (необязательно)
               </label>
               <input
                 id="licensePlate"
@@ -1047,7 +1151,23 @@ const CreateVehicleModal: React.FC<CreateVehicleModalProps> = ({
                 autoComplete="off"
                 ref={licensePlateRef}
                 onFocus={() => handleTextFieldFocus('licensePlate')}
+                disabled={isWithoutLicensePlate}
               />
+              <div className={styles.checkboxContainer}>
+                <input
+                  type="checkbox"
+                  id="isWithoutLicensePlate"
+                  checked={isWithoutLicensePlate}
+                  onChange={handleWithoutLicensePlateChange}
+                  className={styles.checkbox}
+                />
+                <label
+                  htmlFor="isWithoutLicensePlate"
+                  className={styles.checkboxLabel}
+                >
+                  Без гос. номера
+                </label>
+              </div>
             </div>
 
             <div className={styles.formGroup}>
