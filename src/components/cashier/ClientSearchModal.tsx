@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../ui/modal';
 import { cashierApi } from '../../services/cashierApi';
 import styles from './SearchModal.module.css';
+import { BsKeyboard } from 'react-icons/bs';
+import VirtualKeyboard from './VirtualKeyboard';
 
 interface Client {
   id: string;
@@ -35,6 +37,20 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const handleKeyPress = (key: string) => {
+    if (key === 'backspace') {
+      setSearchQuery((prev) => prev.slice(0, -1));
+    } else {
+      setSearchQuery((prev) => prev + key);
+    }
+  };
+
+  const toggleKeyboard = () => {
+    setShowKeyboard(!showKeyboard);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery || searchQuery.length < 2) return;
@@ -62,11 +78,12 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
       setSearchQuery('');
       setClients([]);
       setError(null);
+      setShowKeyboard(false);
     }
   }, [isOpen]);
 
   // Выполнить поиск при нажатии Enter
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
@@ -82,8 +99,12 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
             placeholder="Введите имя, фамилию или телефон клиента..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyPress={handleInputKeyPress}
+            ref={searchInputRef}
           />
+          <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
+            <BsKeyboard />
+          </div>
           <button className={styles.searchButton} onClick={handleSearch}>
             Поиск
           </button>
@@ -136,6 +157,14 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
             </button>
           )}
         </div>
+
+        {showKeyboard && (
+          <VirtualKeyboard
+            onKeyPress={handleKeyPress}
+            onCancel={() => setShowKeyboard(false)}
+            onOk={handleSearch}
+          />
+        )}
       </div>
     </Modal>
   );

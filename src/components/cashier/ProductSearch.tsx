@@ -3,6 +3,7 @@ import { cashierApi } from '../../services/cashierApi';
 import { Product } from '../../types/cashier';
 import styles from './ProductSearch.module.css';
 import { BsKeyboard } from 'react-icons/bs';
+import VirtualKeyboard from './VirtualKeyboard';
 
 interface ProductSearchProps {
   warehouseId: string;
@@ -18,30 +19,12 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [isShift, setIsShift] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const russianLayout = {
-    default: [
-      ['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х'],
-      ['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э'],
-      ['я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю'],
-    ],
-    shift: [
-      ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х'],
-      ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
-      ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю'],
-    ],
-  };
-
-  const handleKeyClick = (key: string) => {
+  const handleKeyPress = (key: string) => {
     if (key === 'backspace') {
       setQuery((prev) => prev.slice(0, -1));
-    } else if (key === 'shift') {
-      setIsShift(!isShift);
-    } else if (key === 'space') {
-      setQuery((prev) => prev + ' ');
     } else {
       setQuery((prev) => prev + key);
     }
@@ -115,6 +98,12 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
     setShowKeyboard(!showKeyboard);
   };
 
+  const handleSearch = () => {
+    if (products.length > 0) {
+      handleProductClick(products[0]);
+    }
+  };
+
   return (
     <div className={styles.searchContainer}>
       <input
@@ -151,115 +140,11 @@ const ProductSearch: React.FC<ProductSearchProps> = ({
         </div>
       )}
       {showKeyboard && (
-        <div className={styles.virtualKeyboard}>
-          <div className={styles.keyboardContainer}>
-            <div className={styles.leftSection}>
-              {(isShift ? russianLayout.shift : russianLayout.default).map(
-                (row, rowIndex) => (
-                  <div key={rowIndex} className={styles.keyboardRow}>
-                    {row.map((key) => (
-                      <button
-                        key={key}
-                        className={styles.key}
-                        onClick={() => handleKeyClick(key)}
-                      >
-                        {key}
-                      </button>
-                    ))}
-                  </div>
-                )
-              )}
-              <div className={styles.keyboardRow}>
-                <button
-                  className={`${styles.key} ${styles.funcKey}`}
-                  onClick={() => handleKeyClick('shift')}
-                >
-                  СИМ
-                </button>
-                <button className={`${styles.key} ${styles.funcKey}`}>
-                  ENG
-                </button>
-                <button
-                  className={`${styles.key} ${styles.spaceKey}`}
-                  onClick={() => handleKeyClick('space')}
-                ></button>
-                <button
-                  className={`${styles.key} ${styles.funcKey}`}
-                  onClick={() => handleKeyClick('shift')}
-                >
-                  ⇧
-                </button>
-              </div>
-            </div>
-            <button
-              className={styles.backspaceKey}
-              onClick={() => handleKeyClick('backspace')}
-            >
-              ←
-            </button>
-            <div className={styles.rightSection}>
-              <div className={styles.numericSection}>
-                <div className={styles.numericPad}>
-                  <div className={styles.keyboardRow}>
-                    {['1', '2', '3'].map((num) => (
-                      <button
-                        key={num}
-                        className={`${styles.key} ${styles.numKey}`}
-                        onClick={() => handleKeyClick(num)}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles.keyboardRow}>
-                    {['4', '5', '6'].map((num) => (
-                      <button
-                        key={num}
-                        className={`${styles.key} ${styles.numKey}`}
-                        onClick={() => handleKeyClick(num)}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles.keyboardRow}>
-                    {['7', '8', '9'].map((num) => (
-                      <button
-                        key={num}
-                        className={`${styles.key} ${styles.numKey}`}
-                        onClick={() => handleKeyClick(num)}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                  <div className={styles.keyboardRow}>
-                    <button
-                      className={`${styles.key} ${styles.numKey} ${styles.zeroKey}`}
-                      onClick={() => handleKeyClick('0')}
-                    >
-                      0
-                    </button>
-                    <button
-                      className={`${styles.key} ${styles.numKey}`}
-                      onClick={() => handleKeyClick('.')}
-                    >
-                      .
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.sideButtons}>
-                  <button className={`${styles.key} ${styles.cancelKey}`}>
-                    ОТМЕНИТЬ
-                  </button>
-                  <button className={`${styles.key} ${styles.okKey}`}>
-                    OK
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <VirtualKeyboard
+          onKeyPress={handleKeyPress}
+          onCancel={() => setShowKeyboard(false)}
+          onOk={handleSearch}
+        />
       )}
     </div>
   );

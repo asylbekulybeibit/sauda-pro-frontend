@@ -9,13 +9,34 @@
 .searchContainer {
   display: flex;
   margin-bottom: 20px;
+  position: relative;
 }
 
 .searchInput {
   flex: 1;
   padding: 10px 15px;
+  padding-right: 40px;
   font-size: 16px;
   border: 1px solid #ddd;
+}
+
+.keyboardIcon {
+  position: absolute;
+  right: 120px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.keyboardIcon:hover {
+  color: #333;
 }
 
 .searchButton {
