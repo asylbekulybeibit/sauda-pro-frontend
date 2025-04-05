@@ -5,6 +5,7 @@ import { createClientFromWarehouse } from '../../services/managerApi';
 import { cashierApi } from '../../services/cashierApi';
 import VirtualKeyboard from './VirtualKeyboard';
 import NumericKeyboard from './NumericKeyboard';
+import FloatingInput from './FloatingInput';
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -34,6 +35,14 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const [showNumericKeyboard, setShowNumericKeyboard] = useState(false);
   const [activeField, setActiveField] = useState<string | null>(null);
 
+  // Состояния для плавающего поля ввода
+  const [showFloatingInput, setShowFloatingInput] = useState(false);
+  const [floatingFieldName, setFloatingFieldName] = useState('');
+  const [floatingFieldValue, setFloatingFieldValue] = useState('');
+  const [floatingFieldType, setFloatingFieldType] = useState('text');
+  const [floatingFieldPlaceholder, setFloatingFieldPlaceholder] = useState('');
+  const [activeRealField, setActiveRealField] = useState<string>('');
+
   // Ссылки на поля ввода для фокусировки
   const formRef = useRef<HTMLFormElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
@@ -41,132 +50,13 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const lastNameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
-  const discountRef = useRef<HTMLInputElement>(null);
+  const discountPercentRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
-  // Функция для прокрутки активного поля в видимую область
-  const scrollToActiveField = () => {
-    if (!modalContentRef.current || !activeField) return;
-
-    // Получаем активный элемент
-    let activeElement: HTMLElement | null = null;
-    switch (activeField) {
-      case 'firstName':
-        activeElement = firstNameRef.current;
-        break;
-      case 'lastName':
-        activeElement = lastNameRef.current;
-        break;
-      case 'phone':
-        activeElement = phoneRef.current;
-        break;
-      case 'email':
-        activeElement = emailRef.current;
-        break;
-      case 'discountPercent':
-        activeElement = discountRef.current;
-        break;
-      case 'notes':
-        activeElement = notesRef.current;
-        break;
-    }
-
-    if (!activeElement) return;
-
-    // Экстремальные значения для гарантированной видимости
-    const keyboardHeight = 350;
-    const padding = 400; // Очень большой отступ для гарантированной видимости всего поля, включая границы
-
-    // Получаем размеры и позиции элементов
-    const elementRect = activeElement.getBoundingClientRect();
-    const modalRect = modalContentRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-
-    // Вычисляем границу видимой области с учетом клавиатуры
-    const bottomVisiblePosition = viewportHeight - keyboardHeight - padding;
-
-    // Всегда прокручиваем, независимо от текущей позиции с большим запасом
-    const scrollNeeded = elementRect.bottom - bottomVisiblePosition + 150; // Очень большой запас (150px)
-
-    // Применяем прокрутку мгновенно (без анимации) для быстрого эффекта
-    modalContentRef.current.scrollTo({
-      top: modalContentRef.current.scrollTop + scrollNeeded,
-      behavior: 'auto', // Используем мгновенную прокрутку для первого раза
-    });
-
-    // Дополнительная прокрутка сразу и с задержкой для гарантии
-    setTimeout(() => {
-      if (modalContentRef.current && activeElement) {
-        // Повторно проверяем позицию
-        const updatedRect = activeElement.getBoundingClientRect();
-
-        // Всегда добавляем дополнительную прокрутку с экстра-запасом
-        const additionalScroll =
-          updatedRect.bottom - bottomVisiblePosition + 200; // Увеличиваем запасной отступ до 200px!
-
-        modalContentRef.current.scrollTo({
-          top: modalContentRef.current.scrollTop + additionalScroll,
-          behavior: 'smooth',
-        });
-
-        // Еще одна проверка для надежности
-        setTimeout(() => {
-          if (modalContentRef.current && activeElement) {
-            const finalRect = activeElement.getBoundingClientRect();
-            if (finalRect.bottom > viewportHeight - keyboardHeight - 300) {
-              // Проверяем с меньшим порогом
-              // Добавляем последнюю прокрутку с максимальным запасом
-              modalContentRef.current.scrollTo({
-                top: modalContentRef.current.scrollTop + 300, // Фиксированное огромное значение для надежности
-                behavior: 'smooth',
-              });
-            }
-          }
-        }, 150);
-      }
-    }, 50);
-  };
-
-  // Эффект для прокрутки при открытии клавиатуры и удержания позиции
-  useEffect(() => {
-    let scrollTimer: ReturnType<typeof setTimeout>;
-
-    if (showKeyboard || showNumericKeyboard) {
-      // Запускаем несколько прокруток с разными интервалами для надежности
-      scrollTimer = setTimeout(scrollToActiveField, 10);
-      setTimeout(scrollToActiveField, 100);
-      setTimeout(scrollToActiveField, 300);
-      setTimeout(scrollToActiveField, 500);
-
-      // Предотвращаем сброс скролла и добавляем дополнительную прокрутку при вводе
-      const preventScrollReset = () => {
-        if (activeField) {
-          clearTimeout(scrollTimer);
-          scrollTimer = setTimeout(scrollToActiveField, 10);
-        }
-      };
-
-      // Подписываемся на события скролла и ввода
-      modalContentRef.current?.addEventListener('scroll', preventScrollReset, {
-        passive: true,
-      });
-      window.addEventListener('resize', scrollToActiveField);
-
-      return () => {
-        clearTimeout(scrollTimer);
-        modalContentRef.current?.removeEventListener(
-          'scroll',
-          preventScrollReset
-        );
-        window.removeEventListener('resize', scrollToActiveField);
-      };
-    }
-
-    return () => {
-      clearTimeout(scrollTimer);
-      window.removeEventListener('resize', scrollToActiveField);
-    };
-  }, [showKeyboard, showNumericKeyboard, activeField]);
+  // Добавим еще ссылки для клавиатур
+  const keyboardRef = useRef<HTMLDivElement>(null);
+  const numericKeyboardRef = useRef<HTMLDivElement>(null);
+  const floatingInputRef = useRef<HTMLDivElement>(null);
 
   // Получаем shopId из warehouseId при открытии модального окна
   React.useEffect(() => {
@@ -221,104 +111,393 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     };
   }, [showKeyboard, showNumericKeyboard]);
 
-  // Функция для обработки нажатия клавиш на виртуальной клавиатуре
+  // Обработчик нажатия клавиш виртуальной клавиатуры
   const handleKeyPress = (key: string) => {
     if (!activeField) return;
 
-    let currentValue = '';
-    let setter = (val: string) => {};
+    if (showFloatingInput) {
+      // Обработка ввода для всплывающего поля
+      if (
+        floatingInputRef.current &&
+        floatingInputRef.current.querySelector('input')
+      ) {
+        const input = floatingInputRef.current.querySelector(
+          'input'
+        ) as HTMLInputElement;
+        const start = input.selectionStart || 0;
+        const end = input.selectionEnd || 0;
+        const value = input.value;
 
-    switch (activeField) {
-      case 'firstName':
-        currentValue = firstName;
-        setter = setFirstName;
-        break;
-      case 'lastName':
-        currentValue = lastName;
-        setter = setLastName;
-        break;
-      case 'phone':
-        currentValue = phone;
-        setter = setPhone;
-        break;
-      case 'email':
-        currentValue = email;
-        setter = setEmail;
-        break;
-      case 'discountPercent':
-        currentValue = discountPercent.toString();
-        setter = (val: string) => setDiscountPercent(Number(val) || 0);
-        break;
-      case 'notes':
-        currentValue = notes;
-        setter = setNotes;
-        break;
-      default:
-        return;
-    }
+        let newValue: string;
+        let newPosition: number;
 
-    if (key === 'backspace') {
-      setter(currentValue.slice(0, -1));
+        if (key === 'backspace') {
+          // Если выделен текст, удаляем его
+          if (start !== end) {
+            newValue = value.substring(0, start) + value.substring(end);
+            newPosition = start;
+          }
+          // Иначе удаляем символ перед курсором
+          else if (start > 0) {
+            newValue = value.substring(0, start - 1) + value.substring(end);
+            newPosition = start - 1;
+          } else {
+            return; // Нечего удалять
+          }
+        } else {
+          // Проверка валидации для различных типов полей
+          if (activeRealField === 'phone') {
+            // Проверка для телефонного номера
+            if (!/^[0-9+\-() ]$/.test(key)) {
+              return; // Игнорируем не подходящие для телефона символы
+            }
+          } else if (activeRealField === 'discountPercent') {
+            // Только цифры для скидки
+            if (!/^[0-9]$/.test(key)) {
+              return; // Игнорируем нецифровые символы
+            }
+
+            // Проверяем, что значение не превысит 100
+            const potentialNewValue =
+              value.substring(0, start) + key + value.substring(end);
+            const numValue = parseInt(potentialNewValue, 10);
+            if (!isNaN(numValue) && numValue > 100) {
+              return; // Не позволяем превысить 100%
+            }
+          }
+
+          // Вставляем новый символ в позицию курсора
+          newValue = value.substring(0, start) + key + value.substring(end);
+          newPosition = start + key.length;
+        }
+
+        // Обновляем значение
+        handleFloatingInputChange(newValue);
+
+        // Восстанавливаем позицию курсора
+        setTimeout(() => {
+          if (input) {
+            input.focus();
+            input.setSelectionRange(newPosition, newPosition);
+          }
+        }, 0);
+      }
     } else {
-      setter(currentValue + key);
+      // Обработка ввода для стандартных полей (не всплывающих)
+      let inputElement: HTMLInputElement | HTMLTextAreaElement | null = null;
+      let currentValue = '';
+      let setter = (val: string) => {};
+
+      switch (activeField) {
+        case 'firstName':
+          inputElement = firstNameRef.current;
+          currentValue = firstName;
+          setter = setFirstName;
+          break;
+        case 'lastName':
+          inputElement = lastNameRef.current;
+          currentValue = lastName;
+          setter = setLastName;
+          break;
+        case 'phone':
+          inputElement = phoneRef.current;
+          currentValue = phone;
+          setter = (val: string) => {
+            // Проверяем, что значение содержит только допустимые символы для телефона
+            if (/^[0-9+\-() ]*$/.test(val)) {
+              setPhone(val);
+            }
+          };
+          break;
+        case 'email':
+          inputElement = emailRef.current;
+          currentValue = email;
+          setter = setEmail;
+          break;
+        case 'discountPercent':
+          inputElement = discountPercentRef.current;
+          currentValue = discountPercent?.toString() || '';
+          setter = (val: string) => {
+            // Проверяем, что значение состоит из цифр и не превышает 100
+            if (/^$|^[0-9]+$/.test(val)) {
+              const numValue = parseInt(val, 10);
+              if (isNaN(numValue) || numValue <= 100) {
+                setDiscountPercent(val ? Number(val) : 0);
+              }
+            }
+          };
+          break;
+        case 'notes':
+          inputElement = notesRef.current;
+          currentValue = notes;
+          setter = setNotes;
+          break;
+        default:
+          return;
+      }
+
+      if (inputElement) {
+        const start = inputElement.selectionStart || 0;
+        const end = inputElement.selectionEnd || 0;
+
+        let newValue: string;
+        let newPosition: number;
+
+        if (key === 'backspace') {
+          // Если выделен текст, удаляем его
+          if (start !== end) {
+            newValue =
+              currentValue.substring(0, start) + currentValue.substring(end);
+            newPosition = start;
+          }
+          // Иначе удаляем символ перед курсором
+          else if (start > 0) {
+            newValue =
+              currentValue.substring(0, start - 1) +
+              currentValue.substring(end);
+            newPosition = start - 1;
+          } else {
+            return; // Нечего удалять
+          }
+        } else {
+          // Проверка для специальных полей
+          if (activeField === 'phone') {
+            // Проверка для телефонного номера
+            if (!/^[0-9+\-() ]$/.test(key)) {
+              return; // Игнорируем не подходящие для телефона символы
+            }
+          } else if (activeField === 'discountPercent') {
+            // Только цифры для скидки
+            if (!/^[0-9]$/.test(key)) {
+              return; // Игнорируем нецифровые символы
+            }
+
+            // Проверяем, что значение не превысит 100
+            const potentialNewValue =
+              currentValue.substring(0, start) +
+              key +
+              currentValue.substring(end);
+            const numValue = parseInt(potentialNewValue, 10);
+            if (!isNaN(numValue) && numValue > 100) {
+              return; // Не позволяем превысить 100%
+            }
+          }
+
+          // Вставляем новый символ в позицию курсора
+          newValue =
+            currentValue.substring(0, start) +
+            key +
+            currentValue.substring(end);
+          newPosition = start + key.length;
+        }
+
+        // Обновляем значение
+        setter(newValue);
+
+        // Восстанавливаем позицию курсора
+        setTimeout(() => {
+          inputElement?.focus();
+          inputElement?.setSelectionRange(newPosition, newPosition);
+        }, 0);
+      }
     }
   };
 
-  // Функция для фокусировки на поле ввода
-  const focusField = (field: string) => {
-    switch (field) {
+  // Обработчик изменения значения во всплывающем поле
+  const handleFloatingInputChange = (value: string) => {
+    setFloatingFieldValue(value);
+
+    // Синхронизируем с соответствующим полем формы
+    switch (activeRealField) {
       case 'firstName':
-        firstNameRef.current?.focus();
+        setFirstName(value);
         break;
       case 'lastName':
-        lastNameRef.current?.focus();
+        setLastName(value);
         break;
       case 'phone':
-        phoneRef.current?.focus();
+        setPhone(value);
         break;
       case 'email':
-        emailRef.current?.focus();
+        setEmail(value);
         break;
       case 'discountPercent':
-        discountRef.current?.focus();
+        setDiscountPercent(value ? Number(value) : 0);
         break;
       case 'notes':
-        notesRef.current?.focus();
+        setNotes(value);
         break;
     }
   };
 
-  // Обработчики для активации клавиатуры с улучшенной прокруткой
+  // Обновленный обработчик фокуса на текстовых полях
   const handleTextFieldFocus = (field: string) => {
     setActiveField(field);
 
-    // Немедленно устанавливаем состояние клавиатуры
+    // Определяем элемент, на который пришел фокус
+    let activeElement: HTMLElement | null = null;
+    switch (field) {
+      case 'firstName':
+        activeElement = firstNameRef.current;
+        break;
+      case 'lastName':
+        activeElement = lastNameRef.current;
+        break;
+      case 'email':
+        activeElement = emailRef.current;
+        break;
+      case 'notes':
+        activeElement = notesRef.current;
+        break;
+      default:
+        break;
+    }
+
+    // Проверяем, будет ли поле закрыто клавиатурой
+    if (activeElement) {
+      const elementRect = activeElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const keyboardHeight = 350; // Примерная высота клавиатуры
+
+      // Если нижняя граница поля ввода находится ниже верхней границы клавиатуры
+      if (elementRect.bottom > viewportHeight - keyboardHeight) {
+        // Поле будет под клавиатурой - используем плавающий ввод
+
+        // Определяем значение и название поля для всплывающего ввода
+        let value = '';
+        let fieldName = '';
+        let placeholder = '';
+
+        switch (field) {
+          case 'firstName':
+            value = firstName;
+            fieldName = 'Имя';
+            placeholder = 'Введите имя';
+            break;
+          case 'lastName':
+            value = lastName;
+            fieldName = 'Фамилия';
+            placeholder = 'Введите фамилию';
+            break;
+          case 'email':
+            value = email;
+            fieldName = 'Email';
+            placeholder = 'Введите email';
+            break;
+          case 'notes':
+            value = notes;
+            fieldName = 'Примечания';
+            placeholder = 'Введите примечания (необязательно)';
+            break;
+          default:
+            return;
+        }
+
+        // Настраиваем всплывающее поле
+        setFloatingFieldName(fieldName);
+        setFloatingFieldValue(value);
+        setFloatingFieldType('text');
+        setFloatingFieldPlaceholder(placeholder);
+        setActiveRealField(field);
+
+        // Показываем всплывающее поле и клавиатуру
+        setShowFloatingInput(true);
+      } else {
+        // Поле видно над клавиатурой - используем стандартный ввод
+        setShowFloatingInput(false);
+
+        // Сохраняем фокус на инпуте, чтобы пользователь видел курсор
+        setTimeout(() => {
+          if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+          ) {
+            activeElement.focus();
+          }
+        }, 10);
+      }
+    }
+
+    // Показываем клавиатуру
     setShowKeyboard(true);
     setShowNumericKeyboard(false);
-
-    // Запускаем серию прокруток с разными интервалами для надежности
-    scrollToActiveField();
-    setTimeout(scrollToActiveField, 50);
-    setTimeout(scrollToActiveField, 150);
-    setTimeout(scrollToActiveField, 300);
-    setTimeout(scrollToActiveField, 600);
   };
 
+  // Обновленный обработчик фокуса на числовых полях
   const handleNumericFieldFocus = (field: string) => {
     setActiveField(field);
 
-    // Немедленно устанавливаем состояние клавиатуры
-    setShowNumericKeyboard(true);
-    setShowKeyboard(false);
+    // Определяем элемент, на который пришел фокус
+    let activeElement: HTMLElement | null = null;
+    switch (field) {
+      case 'phone':
+        activeElement = phoneRef.current;
+        break;
+      case 'discountPercent':
+        activeElement = discountPercentRef.current;
+        break;
+      default:
+        break;
+    }
 
-    // Запускаем серию прокруток с разными интервалами для надежности
-    scrollToActiveField();
-    setTimeout(scrollToActiveField, 50);
-    setTimeout(scrollToActiveField, 150);
-    setTimeout(scrollToActiveField, 300);
-    setTimeout(scrollToActiveField, 600);
+    // Проверяем, будет ли поле закрыто клавиатурой
+    if (activeElement) {
+      const elementRect = activeElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const keyboardHeight = 350; // Примерная высота клавиатуры
+
+      // Если нижняя граница поля ввода находится ниже верхней границы клавиатуры
+      if (elementRect.bottom > viewportHeight - keyboardHeight) {
+        // Поле будет под клавиатурой - используем плавающий ввод
+
+        // Определяем значение и название поля для всплывающего ввода
+        let value = '';
+        let fieldName = '';
+        let placeholder = '';
+
+        switch (field) {
+          case 'phone':
+            value = phone;
+            fieldName = 'Телефон';
+            placeholder = 'Введите номер телефона';
+            break;
+          case 'discountPercent':
+            value = discountPercent.toString();
+            fieldName = 'Скидка (%)';
+            placeholder = 'Введите процент скидки';
+            break;
+          default:
+            return;
+        }
+
+        // Настраиваем всплывающее поле
+        setFloatingFieldName(fieldName);
+        setFloatingFieldValue(value);
+        setFloatingFieldType('text');
+        setFloatingFieldPlaceholder(placeholder);
+        setActiveRealField(field);
+
+        // Показываем всплывающее поле
+        setShowFloatingInput(true);
+      } else {
+        // Поле видно над клавиатурой - используем стандартный ввод
+        setShowFloatingInput(false);
+
+        // Сохраняем фокус на инпуте, чтобы пользователь видел курсор
+        setTimeout(() => {
+          if (activeElement instanceof HTMLInputElement) {
+            activeElement.focus();
+          }
+        }, 10);
+      }
+    }
+
+    // Показываем клавиатуру
+    setShowKeyboard(false);
+    setShowNumericKeyboard(true);
   };
 
+  // Обработчик закрытия клавиатуры
   const handleKeyboardClose = () => {
     // Снимаем фокус с активного поля, чтобы предотвратить появление системной клавиатуры
     if (activeField) {
@@ -336,7 +515,7 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
           emailRef.current?.blur();
           break;
         case 'discountPercent':
-          discountRef.current?.blur();
+          discountPercentRef.current?.blur();
           break;
         case 'notes':
           notesRef.current?.blur();
@@ -347,7 +526,78 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     setShowKeyboard(false);
     setShowNumericKeyboard(false);
     setActiveField(null);
+    setShowFloatingInput(false);
+    setActiveRealField('');
   };
+
+  // Добавляем эффект для закрытия клавиатуры при клике вне клавиатуры и активного поля
+  useEffect(() => {
+    // Создаем обработчик клика для закрытия клавиатуры
+    const handleClickOutsideKeyboard = (event: MouseEvent) => {
+      // Если клавиатура открыта
+      if (showKeyboard || showNumericKeyboard) {
+        // Проверяем, что клик был не по плавающему вводу
+        if (
+          floatingInputRef.current &&
+          floatingInputRef.current.contains(event.target as Node)
+        ) {
+          return; // Клик был по плавающему вводу, ничего не делаем
+        }
+
+        // Проверяем, что клик был не по клавиатуре
+        if (
+          (keyboardRef.current &&
+            keyboardRef.current.contains(event.target as Node)) ||
+          (numericKeyboardRef.current &&
+            numericKeyboardRef.current.contains(event.target as Node))
+        ) {
+          return; // Клик был по клавиатуре, ничего не делаем
+        }
+
+        // Проверяем, что клик был не по активному полю ввода
+        let activeInputElement: HTMLElement | null = null;
+        if (activeField) {
+          switch (activeField) {
+            case 'firstName':
+              activeInputElement = firstNameRef.current;
+              break;
+            case 'lastName':
+              activeInputElement = lastNameRef.current;
+              break;
+            case 'phone':
+              activeInputElement = phoneRef.current;
+              break;
+            case 'email':
+              activeInputElement = emailRef.current;
+              break;
+            case 'discountPercent':
+              activeInputElement = discountPercentRef.current;
+              break;
+            case 'notes':
+              activeInputElement = notesRef.current;
+              break;
+          }
+        }
+
+        // Если клик был не по активному полю
+        if (
+          !activeInputElement ||
+          !activeInputElement.contains(event.target as Node)
+        ) {
+          // Закрываем клавиатуру
+          handleKeyboardClose();
+        }
+      }
+    };
+
+    // Добавляем слушатель события
+    document.addEventListener('mousedown', handleClickOutsideKeyboard);
+
+    // Удаляем слушатель при размонтировании компонента
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideKeyboard);
+    };
+  }, [showKeyboard, showNumericKeyboard, activeField]);
 
   const validateForm = (): boolean => {
     if (!firstName.trim()) {
@@ -440,6 +690,8 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     setShowKeyboard(false);
     setShowNumericKeyboard(false);
     setActiveField(null);
+    setShowFloatingInput(false);
+    setActiveRealField('');
   };
 
   const handleClose = () => {
@@ -455,6 +707,19 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       className={styles.largeModal}
     >
       <div className={styles.modalContent} ref={modalContentRef}>
+        {/* Всплывающее поле для ввода */}
+        {showFloatingInput && (
+          <div ref={floatingInputRef}>
+            <FloatingInput
+              fieldName={floatingFieldName}
+              value={floatingFieldValue}
+              onChange={handleFloatingInputChange}
+              type={floatingFieldType}
+              placeholder={floatingFieldPlaceholder}
+            />
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className={styles.form} ref={formRef}>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
@@ -501,9 +766,16 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
               </label>
               <input
                 id="phone"
-                type="tel"
+                type="text"
+                inputMode="tel"
+                pattern="[0-9+\-() ]*"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  // Разрешаем только цифры и специальные символы для телефона
+                  if (/^[0-9+\-() ]*$/.test(e.target.value)) {
+                    setPhone(e.target.value);
+                  }
+                }}
                 className={styles.input}
                 placeholder="Введите номер телефона"
                 required
@@ -538,16 +810,26 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
               </label>
               <input
                 id="discountPercent"
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min="0"
                 max="100"
                 step="1"
                 value={discountPercent}
-                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                onChange={(e) => {
+                  // Разрешаем только целые числа от 0 до 100
+                  if (/^$|^[0-9]+$/.test(e.target.value)) {
+                    const value = Number(e.target.value);
+                    if (value <= 100) {
+                      setDiscountPercent(value);
+                    }
+                  }
+                }}
                 className={styles.input}
                 placeholder="Введите процент скидки"
                 autoComplete="off"
-                ref={discountRef}
+                ref={discountPercentRef}
                 onFocus={() => handleNumericFieldFocus('discountPercent')}
               />
             </div>
@@ -591,24 +873,28 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
         </form>
 
         {showKeyboard && (
-          <VirtualKeyboard
-            onKeyPress={handleKeyPress}
-            onCancel={handleKeyboardClose}
-            onOk={() => {
-              handleKeyboardClose();
-            }}
-          />
+          <div ref={keyboardRef}>
+            <VirtualKeyboard
+              onKeyPress={handleKeyPress}
+              onCancel={handleKeyboardClose}
+              onOk={() => {
+                handleKeyboardClose();
+              }}
+            />
+          </div>
         )}
 
         {showNumericKeyboard && (
-          <NumericKeyboard
-            onKeyPress={handleKeyPress}
-            onCancel={handleKeyboardClose}
-            onOk={() => {
-              handleKeyboardClose();
-            }}
-            includeDecimal={true}
-          />
+          <div ref={numericKeyboardRef}>
+            <NumericKeyboard
+              onKeyPress={handleKeyPress}
+              onCancel={handleKeyboardClose}
+              onOk={() => {
+                handleKeyboardClose();
+              }}
+              includeDecimal={true}
+            />
+          </div>
         )}
       </div>
     </Modal>

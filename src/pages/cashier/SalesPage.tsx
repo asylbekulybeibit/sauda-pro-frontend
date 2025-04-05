@@ -1202,12 +1202,6 @@ const SalesPage: React.FC = () => {
     setIsExtraFunctionsModalOpen(true);
   };
 
-  // Обработчик для кнопки "Добавить новый автомобиль"
-  const handleAddNewVehicle = () => {
-    console.log('Добавление нового автомобиля');
-    // Здесь будет логика для перехода к форме добавления нового автомобиля
-  };
-
   return (
     <div className={styles.salesPage}>
       {error && (
@@ -1326,7 +1320,6 @@ const SalesPage: React.FC = () => {
         warehouseId={warehouseId || ''}
         onSelectVehicle={handleVehicleSelect}
         onBack={handleBackFromVehicleSearch}
-        onAddNew={handleAddNewVehicle}
       />
 
       <Snackbar

@@ -4,6 +4,7 @@ import { cashierApi } from '../../services/cashierApi';
 import styles from './SearchModal.module.css';
 import { BsKeyboard } from 'react-icons/bs';
 import VirtualKeyboard from './VirtualKeyboard';
+import CreateVehicleModal from './CreateVehicleModal';
 
 interface ClientInfo {
   id: string;
@@ -31,7 +32,6 @@ interface VehicleSearchModalProps {
   warehouseId: string;
   onSelectVehicle: (vehicle: Vehicle) => void;
   onBack?: () => void;
-  onAddNew?: () => void;
 }
 
 const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
@@ -40,7 +40,6 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
   warehouseId,
   onSelectVehicle,
   onBack,
-  onAddNew,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
@@ -48,6 +47,7 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showKeyboard, setShowKeyboard] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
 
@@ -292,102 +292,134 @@ const VehicleSearchModal: React.FC<VehicleSearchModalProps> = ({
     setTimeout(scrollToSearchInput, 600);
   };
 
+  // Обработчик нажатия на кнопку "Добавить новый автомобиль"
+  const handleAddNewClick = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  // Обработчик успешного создания автомобиля
+  const handleVehicleCreated = (newVehicle: Vehicle) => {
+    console.log('[VehicleSearchModal] Автомобиль успешно создан:', newVehicle);
+
+    // Добавляем новый автомобиль в список и обновляем отфильтрованный список
+    const updatedVehicles = [newVehicle, ...allVehicles];
+    setAllVehicles(updatedVehicles);
+
+    // Если есть активный поисковый запрос, применяем фильтрацию
+    if (searchQuery.trim()) {
+      filterVehicles(); // Используем существующую функцию для фильтрации
+    } else {
+      setFilteredVehicles(updatedVehicles);
+    }
+
+    // Показываем уведомление об успешном создании (опционально)
+    setError(null);
+  };
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Поиск автомобиля"
-      className={styles.largeModal}
-    >
-      <div className={styles.modalContent} ref={modalContentRef}>
-        <div className={styles.searchContainer}>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Введите номер, марку, модель или VIN..."
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            onFocus={handleSearchInputFocus}
-            ref={searchInputRef}
-          />
-          <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
-            <BsKeyboard />
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Поиск автомобиля"
+        className={styles.largeModal}
+      >
+        <div className={styles.modalContent} ref={modalContentRef}>
+          <div className={styles.searchContainer}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Введите номер, марку, модель или VIN..."
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              onFocus={handleSearchInputFocus}
+              ref={searchInputRef}
+            />
+            <div className={styles.keyboardIcon} onClick={toggleKeyboard}>
+              <BsKeyboard />
+            </div>
           </div>
-        </div>
 
-        {error && <div className={styles.error}>{error}</div>}
+          {error && <div className={styles.error}>{error}</div>}
 
-        {isLoading ? (
-          <div className={styles.loading}>Загрузка автомобилей...</div>
-        ) : (
-          <div className={styles.resultsList}>
-            {filteredVehicles.length > 0 ? (
-              filteredVehicles.map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className={styles.resultItem}
-                  onClick={() => handleSelectVehicle(vehicle)}
-                >
-                  <div className={styles.vehicleName}>
-                    {vehicle.make} {vehicle.model}{' '}
-                    {vehicle.year && `(${vehicle.year})`}
-                  </div>
-                  <div className={styles.vehicleInfo}>
-                    <span>
-                      Номер: {vehicle.licensePlate || vehicle.plateNumber}
-                    </span>
-                    {vehicle.vin && <span>VIN: {vehicle.vin}</span>}
-                  </div>
-                  {vehicle.hasClient && vehicle.clientInfo && (
-                    <div className={styles.ownerInfo}>
-                      <span>
-                        Владелец: {vehicle.clientInfo.firstName}{' '}
-                        {vehicle.clientInfo.lastName}
-                      </span>
-                      {vehicle.clientInfo.discountPercent && (
-                        <span className={styles.discount}>
-                          Скидка: {vehicle.clientInfo.discountPercent}%
-                        </span>
-                      )}
+          {isLoading ? (
+            <div className={styles.loading}>Загрузка автомобилей...</div>
+          ) : (
+            <div className={styles.resultsList}>
+              {filteredVehicles.length > 0 ? (
+                filteredVehicles.map((vehicle) => (
+                  <div
+                    key={vehicle.id}
+                    className={styles.resultItem}
+                    onClick={() => handleSelectVehicle(vehicle)}
+                  >
+                    <div className={styles.vehicleName}>
+                      {vehicle.make} {vehicle.model}{' '}
+                      {vehicle.year && `(${vehicle.year})`}
                     </div>
-                  )}
+                    <div className={styles.vehicleInfo}>
+                      <span>
+                        Номер: {vehicle.licensePlate || vehicle.plateNumber}
+                      </span>
+                      {vehicle.vin && <span>VIN: {vehicle.vin}</span>}
+                    </div>
+                    {vehicle.hasClient && vehicle.clientInfo && (
+                      <div className={styles.ownerInfo}>
+                        <span>
+                          Владелец: {vehicle.clientInfo.firstName}{' '}
+                          {vehicle.clientInfo.lastName}
+                        </span>
+                        {vehicle.clientInfo.discountPercent && (
+                          <span className={styles.discount}>
+                            Скидка: {vehicle.clientInfo.discountPercent}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className={styles.noResults}>
+                  {searchQuery
+                    ? 'Автомобили не найдены'
+                    : 'Нет доступных автомобилей'}
                 </div>
-              ))
-            ) : (
-              <div className={styles.noResults}>
-                {searchQuery
-                  ? 'Автомобили не найдены'
-                  : 'Нет доступных автомобилей'}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={styles.buttonContainer}>
-          {onBack && (
-            <button className={styles.backButton} onClick={onBack}>
-              Назад
-            </button>
+              )}
+            </div>
           )}
-          <button className={styles.cancelButton} onClick={onClose}>
-            Отмена
-          </button>
-          {onAddNew && (
-            <button className={styles.addNewButton} onClick={onAddNew}>
+
+          <div className={styles.buttonContainer}>
+            {onBack && (
+              <button className={styles.backButton} onClick={onBack}>
+                Назад
+              </button>
+            )}
+            <button className={styles.cancelButton} onClick={onClose}>
+              Отмена
+            </button>
+            <button className={styles.addNewButton} onClick={handleAddNewClick}>
               Добавить новый автомобиль
             </button>
+          </div>
+
+          {showKeyboard && (
+            <VirtualKeyboard
+              onKeyPress={handleKeyPress}
+              onCancel={() => setShowKeyboard(false)}
+              onOk={() => setShowKeyboard(false)}
+            />
           )}
         </div>
+      </Modal>
 
-        {showKeyboard && (
-          <VirtualKeyboard
-            onKeyPress={handleKeyPress}
-            onCancel={() => setShowKeyboard(false)}
-            onOk={() => setShowKeyboard(false)}
-          />
-        )}
-      </div>
-    </Modal>
+      {/* Модальное окно для создания нового автомобиля */}
+      <CreateVehicleModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        warehouseId={warehouseId}
+        onVehicleCreated={handleVehicleCreated}
+      />
+    </>
   );
 };
 

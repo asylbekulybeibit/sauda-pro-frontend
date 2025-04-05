@@ -51,6 +51,16 @@
   border-radius: 6px;
   background-color: white;
   height: 50px;
+  caret-color: #3498db;
+  caret-shape: bar;
+  -webkit-tap-highlight-color: rgba(52, 152, 219, 0.2);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
+  background-color: #f8fcff;
 }
 
 .input:focus,
