@@ -541,8 +541,38 @@ const ReturnsPage: React.FC = () => {
   const [showInsufficientBalanceModal, setShowInsufficientBalanceModal] =
     useState(false);
   const [showReturnReceiptError, setShowReturnReceiptError] = useState(false);
+  const [currentShift, setCurrentShift] = useState<any>(null);
+  const [showShiftClosedError, setShowShiftClosedError] = useState(false);
+
+  // Проверяем текущую смену при загрузке страницы
+  useEffect(() => {
+    const checkCurrentShift = async () => {
+      if (!warehouseId) return;
+
+      try {
+        const shift = await cashierApi.getCurrentShift(warehouseId);
+        setCurrentShift(shift);
+
+        // Если получаем null или смена не в статусе "open", показываем ошибку
+        if (!shift || shift.status?.toLowerCase() !== 'open') {
+          setError('Для выполнения возврата необходимо открыть смену');
+        }
+      } catch (error) {
+        console.error('Ошибка при получении информации о смене:', error);
+        setError('Не удалось получить информацию о текущей смене');
+      }
+    };
+
+    checkCurrentShift();
+  }, [warehouseId]);
 
   const handleModeSelect = (mode: 'withReceipt' | 'withoutReceipt') => {
+    // Проверяем, открыта ли смена
+    if (!currentShift || currentShift.status?.toLowerCase() !== 'open') {
+      setShowShiftClosedError(true);
+      return;
+    }
+
     // Очищаем все данные перед сменой режима
     handleClearAll();
 
@@ -750,6 +780,12 @@ const ReturnsPage: React.FC = () => {
   };
 
   const handleReturn = async () => {
+    // Проверяем, открыта ли смена
+    if (!currentShift || currentShift.status?.toLowerCase() !== 'open') {
+      setShowShiftClosedError(true);
+      return;
+    }
+
     if (returnMode === 'withReceipt') {
       if (!selectedReceipt) {
         setError('Выберите чек для возврата');
@@ -779,6 +815,12 @@ const ReturnsPage: React.FC = () => {
     try {
       if (!warehouseId) {
         setError('ID склада не указан');
+        return;
+      }
+
+      // Проверяем, открыта ли смена
+      if (!currentShift || currentShift.status?.toLowerCase() !== 'open') {
+        setShowShiftClosedError(true);
         return;
       }
 
@@ -812,6 +854,12 @@ const ReturnsPage: React.FC = () => {
       return;
     }
 
+    // Проверяем, открыта ли смена
+    if (!currentShift || currentShift.status?.toLowerCase() !== 'open') {
+      setShowShiftClosedError(true);
+      return;
+    }
+
     // Check if payment method has sufficient balance for return with receipt
     if (returnMode === 'withReceipt' && selectedReceipt) {
       if (
@@ -829,6 +877,13 @@ const ReturnsPage: React.FC = () => {
       try {
         if (!warehouseId || !selectedReceipt) {
           setError('Ошибка при возврате');
+          return;
+        }
+
+        // Дополнительная проверка статуса смены перед выполнением возврата
+        const shift = await cashierApi.getCurrentShift(warehouseId);
+        if (!shift || shift.status?.toLowerCase() !== 'open') {
+          setShowShiftClosedError(true);
           return;
         }
 
@@ -872,19 +927,28 @@ const ReturnsPage: React.FC = () => {
   const loadPaymentMethods = async () => {
     try {
       if (!warehouseId) return;
-      const currentShift = await cashierApi.getCurrentShift(warehouseId);
-      if (currentShift && currentShift.cashRegister) {
-        console.log('Current shift:', currentShift);
+
+      // Обновляем информацию о текущей смене, чтобы убедиться что она все еще открыта
+      const shift = await cashierApi.getCurrentShift(warehouseId);
+      setCurrentShift(shift);
+
+      // Проверяем, открыта ли смена
+      if (!shift || shift.status?.toLowerCase() !== 'open') {
+        setShowShiftClosedError(true);
+        throw new Error('Смена закрыта. Невозможно выполнить возврат');
+      }
+
+      if (shift && shift.cashRegister) {
+        console.log('Current shift:', shift);
         const methods = await cashierApi.getPaymentMethods(
           warehouseId,
-          currentShift.cashRegister.id
+          shift.cashRegister.id
         );
         console.log('Available payment methods:', methods);
         // Фильтруем методы оплаты - берем только те, которые доступны для текущей кассы
         const availableMethods = methods.filter(
           (method: PaymentMethod) =>
-            method.cashRegisterId === currentShift.cashRegister.id ||
-            method.isShared
+            method.cashRegisterId === shift.cashRegister.id || method.isShared
         );
         console.log('Filtered payment methods:', availableMethods);
         setPaymentMethods(availableMethods);
@@ -894,6 +958,7 @@ const ReturnsPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading payment methods:', error);
       setError('Не удалось загрузить методы оплаты');
+      throw error;
     }
   };
 
@@ -901,6 +966,12 @@ const ReturnsPage: React.FC = () => {
     try {
       if (!selectedPaymentMethod) {
         setError('Выберите метод оплаты');
+        return;
+      }
+
+      // Проверяем, открыта ли смена
+      if (!currentShift || currentShift.status?.toLowerCase() !== 'open') {
+        setShowShiftClosedError(true);
         return;
       }
 
@@ -1866,6 +1937,35 @@ const ReturnsPage: React.FC = () => {
                   backgroundColor: '#555',
                 },
               }}
+            >
+              Понятно
+            </Button>
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      {/* Добавляем диалог для ошибки закрытой смены */}
+      <Dialog
+        open={showShiftClosedError}
+        onClose={() => setShowShiftClosedError(false)}
+        PaperProps={{
+          style: {
+            borderRadius: '8px',
+            padding: '24px',
+            width: '400px',
+          },
+        }}
+      >
+        <DialogTitle style={{ textAlign: 'center' }}>Смена закрыта</DialogTitle>
+        <DialogContent>
+          <Typography align="center" style={{ marginBottom: '20px' }}>
+            Для выполнения возврата необходимо открыть кассовую смену.
+          </Typography>
+          <Box display="flex" justifyContent="center">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setShowShiftClosedError(false)}
             >
               Понятно
             </Button>
