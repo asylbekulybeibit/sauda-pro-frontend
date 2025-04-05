@@ -541,16 +541,36 @@ export const cashierApi = {
   },
 
   /**
-   * Удаление пустого чека
+   * Удаление чека
    */
-  async deleteReceipt(warehouseId: string, receiptId: string) {
-    const response = await axios.delete(
-      `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}`,
-      {
+  async deleteReceipt(
+    warehouseId: string,
+    receiptId: string,
+    forceDelete: boolean = false
+  ) {
+    try {
+      console.log('[cashierApi] Формирование запроса на удаление чека:', {
+        warehouseId,
+        receiptId,
+        forceDelete,
+        forceDeleteType: typeof forceDelete,
+      });
+
+      const url = `${API_URL}/manager/${warehouseId}/cashier/receipts/${receiptId}${
+        forceDelete ? '?forceDelete=true' : ''
+      }`;
+
+      console.log(`[cashierApi] URL запроса на удаление: ${url}`);
+
+      const response = await axios.delete(url, {
         headers: getAuthHeader(),
-      }
-    );
-    return response.data;
+      });
+      console.log('[cashierApi] Ответ на запрос удаления чека:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Ошибка при удалении чека:', error);
+      throw error;
+    }
   },
 
   /**
