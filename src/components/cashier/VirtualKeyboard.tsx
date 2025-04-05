@@ -8,7 +8,9 @@ const KeyboardContainer = styled.div`
   width: 100%;
   background: #d1d5db;
   padding: 10px;
-  z-index: 1000;
+  z-index: 1100;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+  border-top: 1px solid #bbb;
 `;
 
 const Layout = styled.div`
@@ -23,34 +25,34 @@ const LeftSection = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 `;
 
 const RightSection = styled.div`
   display: flex;
-  gap: 5px;
+  gap: 8px;
 `;
 
 const NumericSection = styled.div`
   display: flex;
-  gap: 5px;
+  gap: 8px;
 `;
 
 const NumericPad = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 `;
 
 const SideButtons = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 `;
 
 const KeyboardRow = styled.div`
   display: flex;
-  gap: 5px;
+  gap: 8px;
   justify-content: center;
 `;
 
@@ -61,17 +63,21 @@ const Key = styled.button`
   border: none;
   background: #00a65a;
   color: white;
-  font-size: 22px;
+  font-size: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0 10px;
+  outline: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  touch-action: manipulation;
 
   &:active {
     transform: translateY(2px);
     background: #008d4c;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -79,30 +85,41 @@ const FuncKey = styled(Key)<{ active?: boolean }>`
   min-width: 100px;
   background: ${(props) => (props.active ? '#ccc' : 'white')};
   color: black;
+  font-size: 18px;
+  font-weight: bold;
+
+  &:active {
+    background: ${(props) => (props.active ? '#aaa' : '#eee')};
+  }
 `;
 
 const SpaceKey = styled(Key)`
   width: 400px;
   background: #00a65a;
   color: white;
+
+  &:active {
+    background: #008d4c;
+  }
 `;
 
 const NumKey = styled(Key)`
-  width: 60px;
-  height: 60px;
-  font-size: 22px;
+  width: 65px;
+  height: 65px;
+  font-size: 26px;
+  font-weight: bold;
 `;
 
 const ZeroKey = styled(NumKey)`
-  width: 125px;
+  width: 138px;
 `;
 
 const CancelKey = styled(Key)`
   width: 100px;
-  height: 60px;
+  height: 65px;
   background: #dc3545;
   color: white;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
 
   &:active {
@@ -112,10 +129,10 @@ const CancelKey = styled(Key)`
 
 const OkKey = styled(Key)`
   width: 100px;
-  height: 190px;
+  height: 200px;
   background: #1890ff;
   color: white;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: bold;
 
   &:active {
@@ -123,23 +140,15 @@ const OkKey = styled(Key)`
   }
 `;
 
-const BackspaceKey = styled.button`
+const BackspaceKey = styled(Key)`
   width: 140px;
-  height: 60px;
+  height: 65px;
   background: #dc3545;
   color: white;
   font-size: 22px;
   font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
 
   &:active {
-    transform: translateY(2px);
     background: #c82333;
   }
 `;
@@ -216,63 +225,65 @@ const VirtualKeyboard: React.FC<VirtualKeyboardProps> = ({
   };
 
   return (
-    <KeyboardContainer>
-      <Layout>
-        <LeftSection>
-          {getCurrentLayout().map((row, rowIndex) => (
-            <KeyboardRow key={rowIndex}>
-              {row.map((key) => (
-                <Key key={key} onClick={() => handleKeyClick(key)}>
-                  {key}
-                </Key>
-              ))}
-            </KeyboardRow>
-          ))}
-          <KeyboardRow>
-            <FuncKey onClick={handleSymClick} active={isSymbols}>
-              СИМ
-            </FuncKey>
-            <FuncKey onClick={handleEngClick} active={isEnglish}>
-              ENG
-            </FuncKey>
-            <SpaceKey onClick={() => handleKeyClick(' ')} />
-            <FuncKey onClick={() => setIsShift(!isShift)} active={isShift}>
-              ⇧
-            </FuncKey>
-          </KeyboardRow>
-        </LeftSection>
-        <BackspaceKey onClick={() => handleKeyClick('backspace')}>
-          ←
-        </BackspaceKey>
-        <RightSection>
-          <NumericSection>
-            <NumericPad>
-              {[
-                ['1', '2', '3'],
-                ['4', '5', '6'],
-                ['7', '8', '9'],
-              ].map((row, rowIndex) => (
-                <KeyboardRow key={rowIndex}>
-                  {row.map((num) => (
-                    <NumKey key={num} onClick={() => handleKeyClick(num)}>
-                      {num}
-                    </NumKey>
-                  ))}
-                </KeyboardRow>
-              ))}
-              <KeyboardRow>
-                <ZeroKey onClick={() => handleKeyClick('0')}>0</ZeroKey>
-                <NumKey onClick={() => handleKeyClick('.')}>.</NumKey>
+    <>
+      <KeyboardContainer>
+        <Layout>
+          <LeftSection>
+            {getCurrentLayout().map((row, rowIndex) => (
+              <KeyboardRow key={rowIndex}>
+                {row.map((key) => (
+                  <Key key={key} onClick={() => handleKeyClick(key)}>
+                    {key}
+                  </Key>
+                ))}
               </KeyboardRow>
-            </NumericPad>
-            <SideButtons>
-              <CancelKey onClick={onCancel}>ОТМЕНИТЬ</CancelKey>
-              <OkKey onClick={onOk}>OK</OkKey>
-            </SideButtons>
-          </NumericSection>
-        </RightSection>
-      </Layout>
-    </KeyboardContainer>
+            ))}
+            <KeyboardRow>
+              <FuncKey onClick={handleSymClick} active={isSymbols}>
+                СИМ
+              </FuncKey>
+              <FuncKey onClick={handleEngClick} active={isEnglish}>
+                ENG
+              </FuncKey>
+              <SpaceKey onClick={() => handleKeyClick(' ')} />
+              <FuncKey onClick={() => setIsShift(!isShift)} active={isShift}>
+                ⇧
+              </FuncKey>
+            </KeyboardRow>
+          </LeftSection>
+          <BackspaceKey onClick={() => handleKeyClick('backspace')}>
+            ←
+          </BackspaceKey>
+          <RightSection>
+            <NumericSection>
+              <NumericPad>
+                {[
+                  ['1', '2', '3'],
+                  ['4', '5', '6'],
+                  ['7', '8', '9'],
+                ].map((row, rowIndex) => (
+                  <KeyboardRow key={rowIndex}>
+                    {row.map((num) => (
+                      <NumKey key={num} onClick={() => handleKeyClick(num)}>
+                        {num}
+                      </NumKey>
+                    ))}
+                  </KeyboardRow>
+                ))}
+                <KeyboardRow>
+                  <ZeroKey onClick={() => handleKeyClick('0')}>0</ZeroKey>
+                  <NumKey onClick={() => handleKeyClick('.')}>.</NumKey>
+                </KeyboardRow>
+              </NumericPad>
+              <SideButtons>
+                <CancelKey onClick={onCancel}>ОТМЕНА</CancelKey>
+                <OkKey onClick={onOk}>OK</OkKey>
+              </SideButtons>
+            </NumericSection>
+          </RightSection>
+        </Layout>
+      </KeyboardContainer>
+    </>
   );
 };
 

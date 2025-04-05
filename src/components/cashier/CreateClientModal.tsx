@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Modal } from '../ui/modal';
 import styles from './CreateClientModal.module.css';
 import { createClientFromWarehouse } from '../../services/managerApi';
+import { cashierApi } from '../../services/cashierApi';
+import VirtualKeyboard from './VirtualKeyboard';
+import NumericKeyboard from './NumericKeyboard';
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -26,32 +29,108 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
 
+  // Состояния для виртуальных клавиатур
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [showNumericKeyboard, setShowNumericKeyboard] = useState(false);
+  const [activeField, setActiveField] = useState<string | null>(null);
+
+  // Ссылки на поля ввода для фокусировки
+  const formRef = useRef<HTMLFormElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
+  const firstNameRef = useRef<HTMLInputElement>(null);
+  const lastNameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const discountRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  // Функция для прокрутки активного поля в видимую область
+  const scrollToActiveField = () => {
+    if (!modalContentRef.current || !activeField) return;
+
+    // Получаем активный элемент
+    let activeElement: HTMLElement | null = null;
+    switch (activeField) {
+      case 'firstName':
+        activeElement = firstNameRef.current;
+        break;
+      case 'lastName':
+        activeElement = lastNameRef.current;
+        break;
+      case 'phone':
+        activeElement = phoneRef.current;
+        break;
+      case 'email':
+        activeElement = emailRef.current;
+        break;
+      case 'discountPercent':
+        activeElement = discountRef.current;
+        break;
+      case 'notes':
+        activeElement = notesRef.current;
+        break;
+    }
+
+    if (!activeElement) return;
+
+    // Высота клавиатуры (примерно) + дополнительный отступ
+    const keyboardHeight = 350;
+    const padding = 20;
+
+    // Вычисляем позицию элемента относительно верха страницы
+    const elementRect = activeElement.getBoundingClientRect();
+    const modalRect = modalContentRef.current.getBoundingClientRect();
+
+    // Если элемент находится ниже, чем верхняя граница клавиатуры
+    if (elementRect.bottom > window.innerHeight - keyboardHeight) {
+      // Определяем, насколько нужно прокрутить
+      const scrollAmount =
+        elementRect.bottom - (window.innerHeight - keyboardHeight - padding);
+
+      // Прокручиваем содержимое модального окна
+      modalContentRef.current.scrollBy({
+        top: scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // Эффект для прокрутки при открытии клавиатуры
+  useEffect(() => {
+    if (showKeyboard || showNumericKeyboard) {
+      // Даем немного времени для рендеринга клавиатуры
+      setTimeout(scrollToActiveField, 100);
+    }
+  }, [showKeyboard, showNumericKeyboard]);
+
   // Получаем shopId из warehouseId при открытии модального окна
   React.useEffect(() => {
     if (isOpen && warehouseId) {
       const getWarehouseInfo = async () => {
         try {
-          const response = await fetch(
-            `${import.meta.env.VITE_API_URL}/manager/warehouses/${warehouseId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-              },
-            }
+          setError(null);
+          console.log(
+            '[CreateClientModal] Запрос информации о складе:',
+            warehouseId
           );
 
-          if (!response.ok) {
-            throw new Error('Не удалось получить информацию о складе');
-          }
+          const warehouseInfo = await cashierApi.getWarehouseInfo(warehouseId);
 
-          const data = await response.json();
-          if (data.shopId) {
-            setShopId(data.shopId);
+          if (warehouseInfo && warehouseInfo.shopId) {
+            console.log(
+              '[CreateClientModal] Получен shopId:',
+              warehouseInfo.shopId
+            );
+            setShopId(warehouseInfo.shopId);
           } else {
+            console.error('[CreateClientModal] В ответе отсутствует shopId');
             setError('Не удалось получить идентификатор магазина');
           }
         } catch (err) {
-          console.error('Ошибка при получении информации о складе:', err);
+          console.error(
+            '[CreateClientModal] Ошибка при получении информации о складе:',
+            err
+          );
           setError('Ошибка при получении информации о складе');
         }
       };
@@ -59,6 +138,141 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       getWarehouseInfo();
     }
   }, [isOpen, warehouseId]);
+
+  // Обработчик нажатия клавиш клавиатуры
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        if (showKeyboard || showNumericKeyboard) {
+          handleKeyboardClose();
+          e.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showKeyboard, showNumericKeyboard]);
+
+  // Функция для обработки нажатия клавиш на виртуальной клавиатуре
+  const handleKeyPress = (key: string) => {
+    if (!activeField) return;
+
+    let currentValue = '';
+    let setter = (val: string) => {};
+
+    switch (activeField) {
+      case 'firstName':
+        currentValue = firstName;
+        setter = setFirstName;
+        break;
+      case 'lastName':
+        currentValue = lastName;
+        setter = setLastName;
+        break;
+      case 'phone':
+        currentValue = phone;
+        setter = setPhone;
+        break;
+      case 'email':
+        currentValue = email;
+        setter = setEmail;
+        break;
+      case 'discountPercent':
+        currentValue = discountPercent.toString();
+        setter = (val: string) => setDiscountPercent(Number(val) || 0);
+        break;
+      case 'notes':
+        currentValue = notes;
+        setter = setNotes;
+        break;
+      default:
+        return;
+    }
+
+    if (key === 'backspace') {
+      setter(currentValue.slice(0, -1));
+    } else {
+      setter(currentValue + key);
+    }
+  };
+
+  // Функция для фокусировки на поле ввода
+  const focusField = (field: string) => {
+    switch (field) {
+      case 'firstName':
+        firstNameRef.current?.focus();
+        break;
+      case 'lastName':
+        lastNameRef.current?.focus();
+        break;
+      case 'phone':
+        phoneRef.current?.focus();
+        break;
+      case 'email':
+        emailRef.current?.focus();
+        break;
+      case 'discountPercent':
+        discountRef.current?.focus();
+        break;
+      case 'notes':
+        notesRef.current?.focus();
+        break;
+    }
+  };
+
+  // Обработчики для активации клавиатуры
+  const handleTextFieldFocus = (field: string) => {
+    setActiveField(field);
+    setShowKeyboard(true);
+    setShowNumericKeyboard(false);
+  };
+
+  const handleNumericFieldFocus = (field: string) => {
+    setActiveField(field);
+    setShowNumericKeyboard(true);
+    setShowKeyboard(false);
+  };
+
+  const handleKeyboardClose = () => {
+    // Снимаем фокус с активного поля, чтобы предотвратить появление системной клавиатуры
+    if (activeField) {
+      switch (activeField) {
+        case 'firstName':
+          firstNameRef.current?.blur();
+          break;
+        case 'lastName':
+          lastNameRef.current?.blur();
+          break;
+        case 'phone':
+          phoneRef.current?.blur();
+          break;
+        case 'email':
+          emailRef.current?.blur();
+          break;
+        case 'discountPercent':
+          discountRef.current?.blur();
+          break;
+        case 'notes':
+          notesRef.current?.blur();
+          break;
+      }
+    }
+
+    setShowKeyboard(false);
+    setShowNumericKeyboard(false);
+    setActiveField(null);
+
+    // Сбрасываем прокрутку модального окна к началу при закрытии клавиатуры
+    if (modalContentRef.current) {
+      modalContentRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   const validateForm = (): boolean => {
     if (!firstName.trim()) {
@@ -92,7 +306,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     }
 
     if (!shopId) {
-      setError('Не удалось определить идентификатор магазина');
+      setError(
+        'Не удалось определить магазин. Пожалуйста, обновите страницу и попробуйте снова.'
+      );
       return;
     }
 
@@ -122,7 +338,17 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('[CreateClientModal] Ошибка при создании клиента:', err);
-      setError(err.response?.data?.message || 'Не удалось создать клиента');
+      let errorMessage = 'Не удалось создать клиента. ';
+
+      if (err.response?.data?.message) {
+        errorMessage += err.response.data.message;
+      } else if (err.message) {
+        errorMessage += err.message;
+      } else {
+        errorMessage += 'Пожалуйста, проверьте соединение и попробуйте снова.';
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -136,6 +362,9 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     setDiscountPercent(0);
     setNotes('');
     setError(null);
+    setShowKeyboard(false);
+    setShowNumericKeyboard(false);
+    setActiveField(null);
   };
 
   const handleClose = () => {
@@ -147,98 +376,122 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Добавление нового клиента"
+      title="Новый клиент"
       className={styles.largeModal}
     >
-      <div className={styles.modalContent}>
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.formGroup}>
-            <label htmlFor="firstName" className={styles.label}>
-              Имя *
-            </label>
-            <input
-              id="firstName"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              className={styles.input}
-              placeholder="Введите имя"
-              required
-            />
+      <div className={styles.modalContent} ref={modalContentRef}>
+        <form onSubmit={handleSubmit} className={styles.form} ref={formRef}>
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="firstName" className={styles.label}>
+                Имя *
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className={styles.input}
+                placeholder="Введите имя"
+                required
+                autoComplete="off"
+                ref={firstNameRef}
+                onFocus={() => handleTextFieldFocus('firstName')}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="lastName" className={styles.label}>
+                Фамилия *
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className={styles.input}
+                placeholder="Введите фамилию"
+                required
+                autoComplete="off"
+                ref={lastNameRef}
+                onFocus={() => handleTextFieldFocus('lastName')}
+              />
+            </div>
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="lastName" className={styles.label}>
-              Фамилия *
-            </label>
-            <input
-              id="lastName"
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              className={styles.input}
-              placeholder="Введите фамилию"
-              required
-            />
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="phone" className={styles.label}>
+                Телефон *
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className={styles.input}
+                placeholder="Введите номер телефона"
+                required
+                autoComplete="off"
+                ref={phoneRef}
+                onFocus={() => handleNumericFieldFocus('phone')}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="email" className={styles.label}>
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={styles.input}
+                placeholder="Введите email"
+                autoComplete="off"
+                ref={emailRef}
+                onFocus={() => handleTextFieldFocus('email')}
+              />
+            </div>
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="phone" className={styles.label}>
-              Телефон *
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={styles.input}
-              placeholder="Введите номер телефона"
-              required
-            />
-          </div>
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="discountPercent" className={styles.label}>
+                Скидка (%)
+              </label>
+              <input
+                id="discountPercent"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(Number(e.target.value))}
+                className={styles.input}
+                placeholder="Введите процент скидки"
+                autoComplete="off"
+                ref={discountRef}
+                onFocus={() => handleNumericFieldFocus('discountPercent')}
+              />
+            </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="email" className={styles.label}>
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={styles.input}
-              placeholder="Введите email"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="discountPercent" className={styles.label}>
-              Скидка (%)
-            </label>
-            <input
-              id="discountPercent"
-              type="number"
-              min="0"
-              max="100"
-              value={discountPercent}
-              onChange={(e) => setDiscountPercent(Number(e.target.value))}
-              className={styles.input}
-              placeholder="Введите процент скидки"
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="notes" className={styles.label}>
-              Примечания
-            </label>
-            <textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className={styles.textarea}
-              placeholder="Введите примечания (необязательно)"
-              rows={3}
-            />
+            <div className={styles.formGroup}>
+              <label htmlFor="notes" className={styles.label}>
+                Примечания
+              </label>
+              <textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className={styles.textarea}
+                placeholder="Введите примечания (необязательно)"
+                autoComplete="off"
+                ref={notesRef}
+                onFocus={() => handleTextFieldFocus('notes')}
+              />
+            </div>
           </div>
 
           {error && <div className={styles.error}>{error}</div>}
@@ -261,6 +514,27 @@ const CreateClientModal: React.FC<CreateClientModalProps> = ({
             </button>
           </div>
         </form>
+
+        {showKeyboard && (
+          <VirtualKeyboard
+            onKeyPress={handleKeyPress}
+            onCancel={handleKeyboardClose}
+            onOk={() => {
+              handleKeyboardClose();
+            }}
+          />
+        )}
+
+        {showNumericKeyboard && (
+          <NumericKeyboard
+            onKeyPress={handleKeyPress}
+            onCancel={handleKeyboardClose}
+            onOk={() => {
+              handleKeyboardClose();
+            }}
+            includeDecimal={true}
+          />
+        )}
       </div>
     </Modal>
   );

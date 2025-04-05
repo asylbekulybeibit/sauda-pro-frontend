@@ -40,6 +40,46 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // Функция для прокрутки поля поиска, чтобы оно было видимым при открытии клавиатуры
+  const scrollToSearchInput = () => {
+    if (!modalContentRef.current || !searchInputRef.current) return;
+
+    // Высота клавиатуры (примерно) + дополнительный отступ
+    const keyboardHeight = 350;
+    const padding = 20;
+
+    // Вычисляем позицию элемента относительно верха страницы
+    const inputRect = searchInputRef.current.getBoundingClientRect();
+
+    // Если поле поиска находится ниже, чем верхняя граница клавиатуры
+    if (inputRect.bottom > window.innerHeight - keyboardHeight) {
+      // Определяем, насколько нужно прокрутить
+      const scrollAmount =
+        inputRect.bottom - (window.innerHeight - keyboardHeight - padding);
+
+      // Прокручиваем содержимое модального окна
+      modalContentRef.current.scrollBy({
+        top: scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  // Применяем прокрутку при открытии/закрытии клавиатуры
+  useEffect(() => {
+    if (showKeyboard) {
+      // Даем немного времени для рендеринга клавиатуры
+      setTimeout(scrollToSearchInput, 100);
+    } else if (modalContentRef.current) {
+      // При закрытии клавиатуры прокручиваем вверх
+      modalContentRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
+  }, [showKeyboard]);
 
   const handleKeyPress = (key: string) => {
     if (key === 'backspace') {
@@ -221,7 +261,7 @@ const ClientSearchModal: React.FC<ClientSearchModalProps> = ({
         title="Поиск клиента"
         className={styles.largeModal}
       >
-        <div className={styles.modalContent}>
+        <div className={styles.modalContent} ref={modalContentRef}>
           <div className={styles.searchContainer}>
             <input
               type="text"
