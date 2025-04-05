@@ -40,6 +40,12 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
         isLoading,
         hasClosingData: !!closingData,
       });
+
+      // Если смена была закрыта (есть данные о закрытии), очищаем localStorage
+      if (closingData) {
+        clearReceiptStorage();
+      }
+
       setNotes('');
       setClosingData(null);
       onClose();
@@ -52,8 +58,19 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
   const clearReceiptStorage = () => {
     try {
       console.log('[CloseShiftDialog] Очистка данных о чеке из localStorage');
-      // Ключи, используемые в SalesPage для хранения данных о чеке
-      const STORAGE_KEYS = {
+
+      // Текущие ключи, используемые в SalesPage для хранения данных о чеке
+      const CURRENT_STORAGE_KEYS = {
+        RECEIPT_ID: 'cashier_receipt_id',
+        RECEIPT_NUMBER: 'cashier_receipt_number',
+        RECEIPT_ITEMS: 'cashier_receipt_items',
+        TOTAL_AMOUNT: 'cashier_total_amount',
+        DISCOUNT_AMOUNT: 'cashier_discount_amount',
+        FINAL_AMOUNT: 'cashier_final_amount',
+      };
+
+      // Старые/устаревшие ключи, которые могли использоваться ранее
+      const LEGACY_STORAGE_KEYS = {
         RECEIPT_ID: 'SAUDA_PRO_RECEIPT_ID',
         RECEIPT_NUMBER: 'SAUDA_PRO_RECEIPT_NUMBER',
         RECEIPT_ITEMS: 'SAUDA_PRO_RECEIPT_ITEMS',
@@ -62,10 +79,20 @@ export const CloseShiftDialog: React.FC<CloseShiftDialogProps> = ({
         FINAL_AMOUNT: 'SAUDA_PRO_FINAL_AMOUNT',
       };
 
-      // Очищаем все данные связанные с чеком
-      Object.values(STORAGE_KEYS).forEach((key) => {
+      // Очищаем текущие ключи
+      Object.values(CURRENT_STORAGE_KEYS).forEach((key) => {
         localStorage.removeItem(key);
-        console.log(`[CloseShiftDialog] Удален ключ из localStorage: ${key}`);
+        console.log(
+          `[CloseShiftDialog] Удален текущий ключ из localStorage: ${key}`
+        );
+      });
+
+      // Очищаем устаревшие ключи
+      Object.values(LEGACY_STORAGE_KEYS).forEach((key) => {
+        localStorage.removeItem(key);
+        console.log(
+          `[CloseShiftDialog] Удален устаревший ключ из localStorage: ${key}`
+        );
       });
 
       console.log('[CloseShiftDialog] Хранилище успешно очищено');
